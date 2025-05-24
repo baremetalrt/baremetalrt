@@ -18,23 +18,43 @@ This document tracks the roadmap, technical decisions, and checkpoints for porti
 
 ### 1. Project Setup
 - ✅ 1.1 Fork/clone the Petals repo into `external/petals-main`
-- ⬜ 1.2 Create and activate a Python virtual environment (Windows)
-- ⬜ 1.3 Install base dependencies (`requirements.txt`)
-- ⬜ 1.4 Identify and document any Linux-only dependencies (e.g., bitsandbytes)
-- ⬜ 1.5 Patch or stub out incompatible dependencies
+- ✅ 1.2 Create and activate a Python virtual environment (Windows)
+    - Using `python -m venv venv` and `venv\Scripts\activate`
+- ✅ 1.3 Install base dependencies (`requirements.txt`)
+    - Manually installed all compatible dependencies via pip
+- ✅ 1.4 Identify and document any Linux-only dependencies (e.g., bitsandbytes, uvloop)
+    - Documented blockers and workarounds in `windows_patches.md`
+- ✅ 1.5 Patch or stub out incompatible dependencies
+    - Forked and patched `hivemind` to remove `uvloop`
+    - Built `p2pd` binary from Go source for Windows
+    - Documented all steps in `windows_patches.md`
+- ✅ 1.6 Install Go toolchain for building required binaries
+    - Installed Go from https://go.dev/dl/ and added to PATH
+- ✅ 1.7 Build and place `p2pd.exe` for hivemind
+    - Cloned `go-libp2p-daemon` and built correct version
+    - Verified binary placement and functionality
 
 ### 2. Model Selection & Preparation
 - ✅ 2.1 Select initial model: **Llama 70B**
+    - Chosen for production-grade distributed inference
 - ⬜ 2.2 Document model requirements (RAM, VRAM, disk space)
+    - Note: Llama 70B is extremely resource-intensive; document minimum/ideal specs
 - ⬜ 2.3 Download or convert Llama 70B weights to HuggingFace format (if needed)
+    - Ensure weights are accessible in a Windows-friendly format
 - ⬜ 2.4 Test model loading on Windows (standalone PyTorch/Transformers)
+    - Backend is PyTorch (not TensorRT or ONNX for MVP); verify compatibility
 
 ### 3. Server/Node Core Logic
 - ⬜ 3.1 Review `petals/cli/run_server.py` and `petals/server/`
+    - Identify Linux-specific code or subprocess usage
 - ⬜ 3.2 Patch server logic as needed for Windows compatibility
+    - Make file paths, subprocess, and networking code cross-platform
 - ⬜ 3.3 Ensure CLI for launching a node works on Windows
+    - Test and document any issues
 - ⬜ 3.4 Stub/patch DHT and networking for Windows support
+    - Ensure patched `hivemind` and `p2pd` integration
 - ⬜ 3.5 Validate local inference (single node)
+    - Confirm PyTorch backend works for inference on Windows
 
 ### 4. Distributed Inference
 - ⬜ 4.1 Test multi-node setup (multiple Windows machines or processes)
@@ -61,16 +81,23 @@ This document tracks the roadmap, technical decisions, and checkpoints for porti
 
 ### 8. Documentation & Packaging
 - ⬜ 8.1 Update `README.md` with Windows-specific setup and usage
+    - Add explicit instructions for Windows users
 - ⬜ 8.2 Document all patches and stubs in this `agent.md`
+    - Log every workaround and patch
 - ⬜ 8.3 Provide troubleshooting and FAQ section
+    - Include common Windows errors (e.g., missing Go, PATH issues, dependency failures)
+- ⬜ 8.4 Keep `windows_patches.md` up to date with every technical decision and patch
 
 ---
 
 ## Known Issues / Todos
 - [ ] bitsandbytes (quantization) is Linux-only—stub or replace for Windows
-- [ ] CUDA toolkit and driver setup for Windows
-- [ ] DHT networking compatibility (test on Windows)
+- [ ] CUDA toolkit and driver setup for Windows (ensure correct version for PyTorch)
+- [ ] DHT networking compatibility (test on Windows, ensure patched hivemind+p2pd work)
 - [ ] Large model (Llama 70B) resource requirements—document and test
+- [ ] Verify all CLI scripts and entry points work on Windows
+- [ ] Ensure all file paths and subprocess calls are cross-platform
+- [ ] Document and test PyTorch backend for all inference steps
 
 ---
 

@@ -15,7 +15,7 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
 
     # Prompt for demo: Unix sockets vs TCP sockets
-    prompt = "What are Unix domain sockets, and how do they differ from TCP sockets in terms of performance, security, and platform compatibility?"
+    prompt = "What's the capital of France?"
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     outputs = model.generate(**inputs, max_new_tokens=64)
     print(tokenizer.decode(outputs[0], skip_special_tokens=True))

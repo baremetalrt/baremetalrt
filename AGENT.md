@@ -64,6 +64,8 @@ This document tracks the roadmap, technical decisions, and checkpoints for porti
 
 ## Roadmap and Progress
 
+> **NOTE:** Distributed inference (Section 4) is currently deferred/on hold due to Windows compatibility blockers with DHT/Hivemind. Local inference and web/API integration milestones are prioritized until cross-platform distributed support is unblocked.
+
 ### ✅ Major Milestone (2025-05-23)
 - Successfully installed hivemind on Windows with a working p2pd binary.
 - Patched `setup.py` to skip p2pd download/build if `p2pd` or `p2pd.exe` is present, allowing manual placement of the binary on Windows.
@@ -112,10 +114,12 @@ This document tracks the roadmap, technical decisions, and checkpoints for porti
 - ✅ 3.5 Validate local inference (single node)
     - Confirmed: PyTorch backend runs Llama 2 7B Chat inference on Windows (12GB GPU).
 
-### 4. Distributed Inference
-- ⬜ 4.1 Test multi-node setup (multiple Windows machines or processes)
-- ⬜ 4.2 Validate DHT peer discovery and layer assignment
-- ⬜ 4.3 Confirm end-to-end distributed inference (prompt → output)
+### 4. Distributed Inference (Deferred)
+- ⏸️ 4.1 Test multi-node setup (multiple Windows machines or processes) *(Deferred: Windows DHT/distributed support is currently on hold due to compatibility blockers)*
+- ⏸️ 4.2 Validate DHT peer discovery and layer assignment *(Deferred)*
+- ⏸️ 4.3 Confirm end-to-end distributed inference (prompt → output) *(Deferred)*
+
+> **Note:** All distributed inference milestones are deferred until Windows DHT and Petals/Hivemind compatibility issues are resolved. These remain a future planned priority.
 
 ### 5. Web Integration
 - ⬜ 5.1 Add a REST/gRPC inference API server to Petals node (e.g., FastAPI)

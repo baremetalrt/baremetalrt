@@ -8,6 +8,33 @@
     <br>
 </p>
 
+---
+
+## 🚀 Windows Compatibility (Native, No WSL Required!)
+
+**Petals now runs natively on Windows!**
+
+- All core features are supported, including distributed inference and DHT node hosting.
+- See [`windows_patches.md`](./windows_patches.md) for a full list of patches, workarounds, and step-by-step instructions.
+- Major changes:
+  - Patched/forked Hivemind for Windows (no `uvloop` required)
+  - Manual build and placement of the `p2pd.exe` binary (see below)
+  - All protobuf imports fixed for Windows Python packaging
+- **Limitations:**
+  - No `uvloop` (uses default asyncio event loop)
+  - Docker and WSL are not required for basic usage, but some advanced features may still require a Linux environment.
+  - See `windows_patches.md` for any known issues or limitations.
+
+### Quickstart for Windows
+
+1. **Install Python 3.8+ and create a virtual environment**
+2. **Install Go (for building p2pd.exe):** https://go.dev/dl/
+3. **Clone this repo and the forked Hivemind submodule**
+4. **Build `p2pd.exe` from source and place it in the expected directory**
+5. **Install dependencies (see below), then run Petals as usual!**
+
+For full details and troubleshooting, see [`windows_patches.md`](./windows_patches.md).
+
 Generate text with distributed **Llama 3.1** (up to 405B), **Mixtral** (8x22B), **Falcon** (40B+) or **BLOOM** (176B) and fine‑tune them for your own tasks &mdash; right from your desktop computer or Google Colab:
 
 ```python

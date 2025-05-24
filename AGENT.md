@@ -14,7 +14,12 @@ This document tracks the roadmap, technical decisions, and checkpoints for porti
 
 ---
 
-## Roadmap & Checkpoints
+## Roadmap and Progress
+
+### ✅ Major Milestone (2025-05-23)
+- Successfully installed hivemind on Windows with a working p2pd binary.
+- Patched `setup.py` to skip p2pd download/build if `p2pd` or `p2pd.exe` is present, allowing manual placement of the binary on Windows.
+- This makes the distributed backend fully installable and reproducible on Windows, unblocking all further Petals development and distributed inference.
 
 ### 1. Project Setup
 - ✅ 1.1 Fork/clone the Petals repo into `external/petals-main`

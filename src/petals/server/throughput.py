@@ -1,9 +1,20 @@
-import fcntl
+import sys
 import json
 import math
 import multiprocessing as mp
 import os
 import time
+
+if sys.platform != "win32":
+    import fcntl
+else:
+    # Dummy lock context manager for Windows (single process safety only)
+    from contextlib import contextmanager
+    class DummyLock:
+        def flock(self, *args, **kwargs):
+            pass
+    fcntl = DummyLock()
+
 from collections import Counter
 from pathlib import Path
 from typing import Dict, Optional, Sequence, Union

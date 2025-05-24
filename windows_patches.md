@@ -1,5 +1,15 @@
 # Windows Compatibility Patches
 
+## Windows-specific Patches and Workarounds
+
+**Note:** Petals is used as a fork (Apache 2.0 License). All patches and modifications for Windows compatibility are tracked here for compliance and reproducibility. This enables distributed inference on Windows, which is not supported upstream.
+
+### Protobuf Import Patches
+- All generated *_pb2.py files in hivemind/hivemind/proto/ have been patched to use relative imports (e.g., 'from . import ...') for intra-package dependencies. This is required for Windows and modern Python packaging, and is safe to do on the main branch.
+
+### ForkProcess Patch
+- On Windows, DHT now uses multiprocessing.Process instead of ForkProcess, as ForkProcess is not available on Windows. This patch is conditional and does not affect Linux/macOS behavior. The change is safe for the main branch and is required for Windows compatibility.
+
 This document tracks all patches, stubs, and workarounds applied to the Petals codebase for Windows compatibility.
 
 ---

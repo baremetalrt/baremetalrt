@@ -14,6 +14,54 @@ This document tracks the roadmap, technical decisions, and checkpoints for porti
 
 ---
 
+## Tech Stack & Architecture (YC-Ready)
+
+### Distributed Inference Backend
+- **Petals (Forked, Apache 2.0 License):**
+  - Our distributed inference backend is a fork of the Petals project ([GitHub](https://github.com/bigscience-workshop/petals)), Apache 2.0 licensed.
+  - Patched for native Windows support (including Hivemind and p2pd), enabling distributed inference for large LLMs (Llama 70B, Llama 2, Mistral 7B, etc.) on consumer hardware.
+  - All modifications and Windows patches are tracked for compliance and reproducibility.
+
+- **BareMetalRT (Native C++ Runtime, Swappable Backend):**
+  - Modular C++ CLI runtime with full VRAM control and true bare-metal performance.
+  - Supports TensorRT-LLM 0.10.0 for GPU-accelerated inference (quantized `.engine` files, custom CUDA/C++ plugins).
+  - ONNX Runtime (planned) as a fallback CPU backend for broader hardware support.
+  - No Python or container dependencies in the core runtime.
+
+### Model Support
+- **Petals (PyTorch):**
+  - Distributed inference for Llama 70B and other HuggingFace-compatible transformer models.
+  - Join public/private Petals networks or run local multi-node clusters on Windows.
+  - Model weights: Llama 70B, Llama 2 7B/13B/70B, Mistral 7B, GPT-2, and others (hardware permitting).
+- **BareMetalRT:**
+  - GPT-2 (production-ready, end-to-end, quantized and ONNX flows).
+  - MVP: Llama 2 7B Chat, Mistral 7B Instruct (by September).
+  - Future: Llama 3 70B+ with pipeline/tensor parallelism.
+  - PyTorch used for model development, validation, and conversion.
+
+### API & Distributed Layers
+- **FastAPI (Python):** RESTful API for both Petals and BareMetalRT backends (developer-friendly, rapid integration).
+- **Job Routing:**
+  - Petals protocol (working now): peer-to-peer distributed inference using patched Hivemind/p2pd.
+  - Planned: gRPC-based protocol for distributed job routing; ZeroMQ as a lightweight alternative.
+
+### Build & Development Tools
+- Visual Studio 2022, C++17, CMake 3.31.6, CUDA 12.4+, TensorRT 10.0, TensorRT-LLM 0.10.0, cuDNN.
+- Windows-first, MacOS/Linux planned. iOS/Android for frontend inference requests.
+- Cursor, Windsurf IDEs, Cascade, Claude Sonnet 3.5/7, ChatGPT-4 for AI-assisted development.
+
+### Licensing & Compliance
+- All distributed inference is built on a fork of Petals (Apache 2.0), with all modifications documented.
+- BareMetalRT is proprietary, modular, and can swap in/out open-source or custom backends as needed.
+
+### Major Blockers & Risks
+1. Model conversion/quantization for C++/TensorRT-LLM (Petals solves this for PyTorch; robust conversion needed for native runtime).
+2. Plugin/CUDA cross-platform support for C++ backend.
+3. Distributed orchestration: Petals protocol is proven; custom gRPC/ZeroMQ layer will need careful design/testing.
+4. ONNX Runtime fallback: lower performance, but expands hardware reach.
+
+---
+
 ## Roadmap and Progress
 
 ### ✅ Major Milestone (2025-05-23)

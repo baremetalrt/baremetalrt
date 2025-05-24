@@ -1,6 +1,6 @@
-import fcntl
 import os
 import shutil
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
@@ -14,6 +14,9 @@ DEFAULT_CACHE_DIR = os.getenv("PETALS_CACHE", Path(Path.home(), ".cache", "petal
 
 BLOCKS_LOCK_FILE = "blocks.lock"
 
+if sys.platform != "win32":
+    import fcntl
+
 
 @contextmanager
 def _blocks_lock(cache_dir: Optional[str], mode: int):
@@ -22,20 +25,34 @@ def _blocks_lock(cache_dir: Optional[str], mode: int):
     lock_path = Path(cache_dir, BLOCKS_LOCK_FILE)
 
     os.makedirs(lock_path.parent, exist_ok=True)
-    with open(lock_path, "wb+") as lock_fd:
-        fcntl.flock(lock_fd.fileno(), mode)
-        # The OS will release the lock when lock_fd is closed or the process is killed
-        yield
+    if sys.platform == "win32":
+        # Dummy context manager: no-op on Windows (single-user or exclusive use assumed)
+        with open(lock_path, "wb+") as lock_fd:
+            yield
+    else:
+        with open(lock_path, "wb+") as lock_fd:
+            import fcntl
+            fcntl.flock(lock_fd.fileno(), mode)
+            # The OS will release the lock when lock_fd is closed or the process is killed
+            yield
 
 
 def allow_cache_reads(cache_dir: Optional[str]):
     """Allows simultaneous reads, guarantees that blocks won't be removed along the way (shared lock)"""
-    return _blocks_lock(cache_dir, fcntl.LOCK_SH)
+    if sys.platform == "win32":
+        return _blocks_lock(cache_dir, None)
+    else:
+        import fcntl
+        return _blocks_lock(cache_dir, fcntl.LOCK_SH)
 
 
 def allow_cache_writes(cache_dir: Optional[str]):
     """Allows saving new blocks and removing the old ones (exclusive lock)"""
-    return _blocks_lock(cache_dir, fcntl.LOCK_EX)
+    if sys.platform == "win32":
+        return _blocks_lock(cache_dir, None)
+    else:
+        import fcntl
+        return _blocks_lock(cache_dir, fcntl.LOCK_EX)
 
 
 def free_disk_space_for(

@@ -69,6 +69,9 @@ This document tracks the roadmap, technical decisions, and checkpoints for porti
 - Patched `setup.py` to skip p2pd download/build if `p2pd` or `p2pd.exe` is present, allowing manual placement of the binary on Windows.
 - This makes the distributed backend fully installable and reproducible on Windows, unblocking all further Petals development and distributed inference.
 
+### ✅ Milestone (2025-05-24)
+- Completed local inference validation: Llama 2 7B Chat runs on Windows (12GB GPU, float16, HuggingFace Transformers). Demonstrated end-to-end prompt-to-response pipeline. Llama 70B remains out of scope for current hardware, but 7B milestone is complete.
+
 ### 1. Project Setup
 - ✅ 1.1 Fork/clone the Petals repo into `external/petals-main`
 - ✅ 1.2 Create and activate a Python virtual environment (Windows)
@@ -94,8 +97,8 @@ This document tracks the roadmap, technical decisions, and checkpoints for porti
     - Note: Llama 70B is extremely resource-intensive; document minimum/ideal specs
 - ⬜ 2.3 Download or convert Llama 70B weights to HuggingFace format (if needed)
     - Ensure weights are accessible in a Windows-friendly format
-- ⬜ 2.4 Test model loading on Windows (standalone PyTorch/Transformers)
-    - Backend is PyTorch (not TensorRT or ONNX for MVP); verify compatibility
+- ✅ 2.4 Test model loading on Windows (standalone PyTorch/Transformers)
+    - Backend is PyTorch (not TensorRT or ONNX for MVP); verified compatibility with Llama 2 7B Chat on Windows (12GB GPU). Llama 70B is not feasible on current hardware; 7B used for validation.
 
 ### 3. Server/Node Core Logic
 - ⬜ 3.1 Review `petals/cli/run_server.py` and `petals/server/`
@@ -106,8 +109,8 @@ This document tracks the roadmap, technical decisions, and checkpoints for porti
     - Test and document any issues
 - ⬜ 3.4 Stub/patch DHT and networking for Windows support
     - Ensure patched `hivemind` and `p2pd` integration
-- ⬜ 3.5 Validate local inference (single node)
-    - Confirm PyTorch backend works for inference on Windows
+- ✅ 3.5 Validate local inference (single node)
+    - Confirmed: PyTorch backend runs Llama 2 7B Chat inference on Windows (12GB GPU).
 
 ### 4. Distributed Inference
 - ⬜ 4.1 Test multi-node setup (multiple Windows machines or processes)

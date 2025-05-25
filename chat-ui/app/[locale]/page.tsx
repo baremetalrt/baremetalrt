@@ -11,6 +11,20 @@ const METALLIC_GRADIENT = "bg-gradient-to-r from-gray-100 via-gray-400 to-gray-2
 
 export default function HomePage() {
   const [input, setInput] = useState("");
+  const [placeholder, setPlaceholder] = useState("");
+
+  // Typewriter animation for placeholder
+  React.useEffect(() => {
+    const text = "Enter prompt";
+    let i = 0;
+    setPlaceholder("");
+    const interval = setInterval(() => {
+      setPlaceholder(text.slice(0, i + 1));
+      i++;
+      if (i >= text.length) clearInterval(interval);
+    }, 60);
+    return () => clearInterval(interval);
+  }, []);
   const [messages, setMessages] = useState<{role: "user"|"assistant", content: string}[]>([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -67,7 +81,7 @@ export default function HomePage() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleInputKeyDown}
-              placeholder="Enter prompt"
+              placeholder={placeholder}
               className="flex-grow min-w-0 border border-gray-400 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono transition-all duration-200 focus:shadow-[0_0_0_2px_#888] hover:shadow-[0_0_0_2px_#888]"
             style={{
               background: '#222',

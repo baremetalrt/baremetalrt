@@ -364,6 +364,7 @@ export const useChatHandler = () => {
         })
       }
 
+      if (!currentChat) return;
       await handleCreateMessages(
         chatMessages,
         currentChat,

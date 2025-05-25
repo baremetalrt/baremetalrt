@@ -146,7 +146,7 @@ export default function SetupPage() {
     setProfile(updatedProfile)
 
     const workspaces = await getWorkspacesByUserId(profile.user_id)
-    const homeWorkspace = workspaces.find(w => w.is_home)
+    const homeWorkspace = workspaces.find((w: TablesUpdate<"workspaces">) => w.is_home)
 
     // There will always be a home workspace
     setSelectedWorkspace(homeWorkspace!)

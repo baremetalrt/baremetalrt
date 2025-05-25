@@ -40,7 +40,7 @@ export default function HomePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: [...messages, userMessage].map(m => m.content).join("\n"),
+          prompt: userMessage.content,
           max_tokens: 128,
           temperature: 0.7,
           top_p: 0.95
@@ -135,27 +135,54 @@ export default function HomePage() {
             </button>
           </div>
         </div>
+        {/* Generating response animation */}
+        {loading && (
+          <div className="w-full max-w-3xl px-4 mt-2 mb-2">
+            <div
+              className="text-sm font-mono mb-1"
+              style={{
+                background: 'linear-gradient(90deg, #bdbdbd 0%, #e5e7eb 50%, #bdbdbd 100%)',
+                backgroundSize: '200% 100%',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                animation: 'shimmer 1.2s linear infinite',
+                display: 'inline-block',
+              }}
+            >
+              Generating response...
+            </div>
+            <style>{`
+              @keyframes shimmer {
+                0% { background-position: -200% 0; }
+                100% { background-position: 200% 0; }
+              }
+            `}</style>
+          </div>
+        )}
         <div className="w-full max-w-3xl px-4 mt-8 flex flex-col gap-4">
           {messages.map((msg, i) => (
             <div
               key={i}
               className={`px-5 py-3 text-lg whitespace-pre-line self-${msg.role === "user" ? "end" : "start"} animate-fade-in-up`}
-              style={msg.role === "user" ? {
-                background: '#222',
-                color: '#eee',
-                borderRadius: 0,
-                maxWidth: '80%',
-                animationDelay: `${i * 60}ms`,
-                animationFillMode: 'backwards'
-              } : {
-                background: 'linear-gradient(135deg, #555 0%, #888 60%, #bdbdbd 100%)',
-                color: '#eee',
-                border: '1px solid #444',
-                borderRadius: 0,
-                maxWidth: '80%',
-                animationDelay: `${i * 60}ms`,
-                animationFillMode: 'backwards'
-              }}
+              style={msg.role === "user"
+  ? {
+      background: '#222',
+      color: '#eee',
+      borderRadius: 0,
+      maxWidth: '80%',
+      animationDelay: `${i * 60}ms`,
+      animationFillMode: 'backwards'
+    }
+  : {
+      background: '#e5e7eb',
+      color: '#222',
+      border: '1px solid #bdbdbd',
+      borderRadius: 0,
+      maxWidth: '80%',
+      animationDelay: `${i * 60}ms`,
+      animationFillMode: 'backwards'
+    }
+}
             >
               {msg.content}
             </div>
@@ -165,5 +192,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-

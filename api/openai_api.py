@@ -27,6 +27,12 @@ print(f"Model loaded on device: {model.device}")
 
 app = FastAPI(title="OpenAI-Compatible LLM API", description="OpenAI-style local inference endpoint.")
 
+@app.get("/health")
+def health():
+    """Health check endpoint."""
+    device = str(model.device)
+    return {"status": "ok", "model_loaded": True, "device": device}
+
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
@@ -45,9 +51,14 @@ class CompletionRequest(BaseModel):
 @app.post("/v1/completions")
 def create_completion(request: CompletionRequest):
     """OpenAI-compatible completion endpoint."""
+    import time as _time
     try:
+        t0 = _time.time()
         inputs = tokenizer(request.prompt, return_tensors="pt").to(model.device)
+        t1 = _time.time()
+        print(f"[TIMING] Tokenization: {t1 - t0:.3f} seconds")
         with torch.no_grad():
+            t2 = _time.time()
             outputs = model.generate(
                 **inputs,
                 max_new_tokens=request.max_tokens,
@@ -55,7 +66,19 @@ def create_completion(request: CompletionRequest):
                 temperature=request.temperature,
                 top_p=request.top_p
             )
+            t3 = _time.time()
+            print(f"[TIMING] Model.generate: {t3 - t2:.3f} seconds")
         completion = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        t4 = _time.time()
+        print(f"[TIMING] Decoding: {t4 - t3:.3f} seconds")
+        print(f"[TIMING] Total: {t4 - t0:.3f} seconds")
+        # Remove the prompt from the start of the completion if present
+        prompt_text = request.prompt.strip()
+        completion_text = completion.strip()
+        if completion_text.startswith(prompt_text):
+            answer = completion_text[len(prompt_text):].lstrip("\n ")
+        else:
+            answer = completion_text
         response = {
             "id": f"cmpl-{int(time.time()*1000)}",
             "object": "text_completion",
@@ -63,7 +86,7 @@ def create_completion(request: CompletionRequest):
             "model": model_name,
             "choices": [
                 {
-                    "text": completion,
+                    "text": answer,
                     "index": 0,
                     "logprobs": None,
                     "finish_reason": "stop"

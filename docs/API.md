@@ -7,15 +7,11 @@
    pip install fastapi uvicorn torch transformers
    ```
 
-2. **Start the API server:**
-   - If `uvicorn` is on your PATH:
-     ```sh
-     uvicorn api.openai_api:app --host 0.0.0.0 --port 8000
-     ```
-   - If not, use the full path (replace USERNAME as needed):
-     ```sh
-     C:\Users\USERNAME\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\Scripts\uvicorn.exe api.openai_api:app --host 0.0.0.0 --port 8000
-     ```
+2. **Start the API server (recommended):**
+   ```sh
+   python -m uvicorn api.openai_api:app --host 0.0.0.0 --port 8000
+   ```
+   This method works on all platforms and does not require uvicorn to be in your PATH.
 
 3. **Test the API:**
    - Use the provided `scripts/test_api.py` script:
@@ -39,9 +35,9 @@ pip install fastapi uvicorn torch transformers
 ```
 
 ## Start the API Server
-If `uvicorn` is not on your PATH, use the full path (replace USERNAME as needed):
+Recommended (works everywhere):
 ```
-C:\Users\USERNAME\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\Scripts\uvicorn.exe api.openai_api:app --host 0.0.0.0 --port 8000
+python -m uvicorn api.openai_api:app --host 0.0.0.0 --port 8000
 ```
 
 ## API Endpoint

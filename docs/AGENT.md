@@ -30,7 +30,9 @@ This project is composed of modular components:
 - **Inference Backends:** Petals (distributed, PyTorch), proprietary custome backend BareMetalRT (native C++)
 - **Peer Discovery & Job Routing:** Hivemind, p2pd (currently incompatible with Windows due to DHT sockets); ZeroMQ (Actively researching)
 - **API Layer:** FastAPI (Python REST, OpenAI-compatible endpoints via `openai_api`), planned gRPC
-- **Web UI:** For prompt submission and job monitoring
+- **Web UI:** Chatbot UI (React/Next.js) for prompt submission and response display (OpenAI-compatible, single-user, no RAG/multi-user for MVP)
+    - **Note:** Supabase integration is not required for the MVP. All Supabase-related code is commented out in the frontend. No Supabase keys or configuration are needed for local or production use unless explicitly re-enabled in future updates.
+- **Frontend Dependency:** Node.js (v24.1 or later) is required to build and run the Chatbot UI frontend.
 
 ## Inference Backends
 

@@ -9,7 +9,8 @@ import { getMessagesByChatId } from "@/db/messages"
 import { getMessageImageFromStorage } from "@/db/storage/message-images"
 import { convertBlobToBase64 } from "@/lib/blob-to-b64"
 import useHotkey from "@/lib/hooks/use-hotkey"
-import { LLMID, MessageImage } from "@/types"
+import { LLMID, MessageImage, ChatMessage } from "@/types"
+import { Tables } from "@/supabase/types"
 import { useParams } from "next/navigation"
 import { FC, useContext, useEffect, useState } from "react"
 import { ChatHelp } from "./chat-help"
@@ -80,9 +81,9 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     const fetchedMessages = await getMessagesByChatId(params.chatid as string)
 
     const imagePromises: Promise<MessageImage>[] = fetchedMessages.flatMap(
-      message =>
-        message.image_paths
-          ? message.image_paths.map(async imagePath => {
+      (message: ChatMessage) =>
+        message.message.image_paths
+          ? message.message.image_paths.map(async (imagePath: string) => {
               const url = await getMessageImageFromStorage(imagePath)
 
               if (url) {
@@ -91,7 +92,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
                 const base64 = await convertBlobToBase64(blob)
 
                 return {
-                  messageId: message.id,
+                  messageId: message.message.id,
                   path: imagePath,
                   base64,
                   url,
@@ -100,7 +101,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
               }
 
               return {
-                messageId: message.id,
+                messageId: message.message.id,
                 path: imagePath,
                 base64: "",
                 url,
@@ -114,7 +115,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     setChatImages(images)
 
     const messageFileItemPromises = fetchedMessages.map(
-      async message => await getMessageFileItemsByMessageId(message.id)
+      async (message: ChatMessage) => await getMessageFileItemsByMessageId(message.message.id)
     )
 
     const messageFileItems = await Promise.all(messageFileItemPromises)
@@ -125,7 +126,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     const chatFiles = await getChatFilesByChatId(params.chatid as string)
 
     setChatFiles(
-      chatFiles.files.map(file => ({
+      chatFiles.files.map((file: Tables<"files">) => ({
         id: file.id,
         name: file.name,
         type: file.type,
@@ -136,13 +137,13 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     setUseRetrieval(true)
     setShowFilesDisplay(true)
 
-    const fetchedChatMessages = fetchedMessages.map(message => {
+    const fetchedChatMessages = fetchedMessages.map((message: ChatMessage) => {
       return {
         message,
         fileItems: messageFileItems
-          .filter(messageFileItem => messageFileItem.id === message.id)
+          .filter(messageFileItem => messageFileItem.id === message.message.id)
           .flatMap(messageFileItem =>
-            messageFileItem.file_items.map(fileItem => fileItem.id)
+            messageFileItem.file_items.map((fileItem: Tables<"file_items">) => fileItem.id)
           )
       }
     })

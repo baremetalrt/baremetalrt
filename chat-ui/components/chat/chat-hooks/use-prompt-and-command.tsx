@@ -111,11 +111,11 @@ export const usePromptAndCommand = () => {
     setNewMessageFiles(prev => {
       const newFiles = collectionFiles.files
         .filter(
-          file =>
+          (file: Tables<"files">) =>
             !prev.some(prevFile => prevFile.id === file.id) &&
             !chatFiles.some(chatFile => chatFile.id === file.id)
         )
-        .map(file => ({
+        .map((file: Tables<"files">) => ({
           id: file.id,
           name: file.name,
           type: file.type,

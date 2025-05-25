@@ -7,7 +7,7 @@
 import torch
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import os
 import time
 
@@ -15,12 +15,15 @@ model_name = "meta-llama/Llama-2-7b-chat-hf"
 hf_token = os.environ.get("HF_TOKEN", "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")
 
 # Load model and tokenizer at startup
-print("Loading Llama-2 7B Chat model (float16, GPU if available)...")
+if not torch.cuda.is_available():
+    raise RuntimeError("CUDA GPU is required, but was not detected. Please ensure you have a compatible NVIDIA GPU and the correct drivers/PyTorch installed.")
+print("Loading Llama-2 7B Chat model (8-bit quantized, GPU required)...")
 tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
+bnb_config = BitsAndBytesConfig(load_in_8bit=True)
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
-    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
     device_map="auto",
+    quantization_config=bnb_config,
     token=hf_token
 )
 print(f"Model loaded on device: {model.device}")

@@ -9,18 +9,31 @@ This guide provides the essential commands and steps to launch the backend and f
 
 ## 2. Backend (API) Setup
 
-### Install Python Dependencies
+### Create and Activate Virtual Environment
 ```sh
-pip install fastapi uvicorn torch transformers
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+### Install Python Dependencies in .venv
+```sh
+.venv\Scripts\pip install fastapi uvicorn torch transformers
 ```
 
 ### Start the Backend Server
+From the project root directory, run:
 ```sh
-uvicorn api.openai_api:app --host 0.0.0.0 --port 8000
+.\scripts\start-backend.bat
 ```
-
+- This will activate the virtual environment and start the backend reliably.
 - The backend will be available at: http://localhost:8000
 - CORS is enabled for http://localhost:3000 by default.
+- The first startup may take several minutes while the model loads.
+
+#### Troubleshooting
+- If you see `ModuleNotFoundError`, make sure you installed dependencies using `.venv\Scripts\pip` and are running the backend from the project root.
+- If `/docs` is not available, wait for the model to finish loading (watch the terminal for readiness messages).
+- For port conflicts, ensure no other process is using 8000 or 3000.
 
 ### Stopping the Backend Server (Windows)
 ```sh

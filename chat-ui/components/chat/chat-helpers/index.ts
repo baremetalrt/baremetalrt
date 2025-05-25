@@ -91,7 +91,7 @@ export const createTempMessages = (
   let tempUserChatMessage: ChatMessage = {
     message: {
       chat_id: "",
-      assistant_id: null,
+      assistant_id: null as string | null,
       content: messageContent,
       created_at: "",
       id: uuidv4(),
@@ -108,7 +108,7 @@ export const createTempMessages = (
   let tempAssistantChatMessage: ChatMessage = {
     message: {
       chat_id: "",
-      assistant_id: selectedAssistant?.id || null,
+      assistant_id: (selectedAssistant?.id ?? null) as string | null,
       content: "",
       created_at: "",
       id: uuidv4(),
@@ -357,7 +357,7 @@ export const handleCreateChat = async (
   const createdChat = await createChat({
     user_id: profile.user_id,
     workspace_id: selectedWorkspace.id,
-    assistant_id: selectedAssistant?.id || null,
+    assistant_id: (selectedAssistant?.id ?? null) as string | null,
     context_length: chatSettings.contextLength,
     include_profile_context: chatSettings.includeProfileContext,
     include_workspace_instructions: chatSettings.includeWorkspaceInstructions,
@@ -403,7 +403,7 @@ export const handleCreateMessages = async (
 ) => {
   const finalUserMessage: TablesInsert<"messages"> = {
     chat_id: currentChat.id,
-    assistant_id: null,
+    assistant_id: null as string | null,
     user_id: profile.user_id,
     content: messageContent,
     model: modelData.modelId,
@@ -414,7 +414,7 @@ export const handleCreateMessages = async (
 
   const finalAssistantMessage: TablesInsert<"messages"> = {
     chat_id: currentChat.id,
-    assistant_id: selectedAssistant?.id || null,
+    assistant_id: (selectedAssistant?.id ?? null) as string | null,
     user_id: profile.user_id,
     content: generatedText,
     model: modelData.modelId,

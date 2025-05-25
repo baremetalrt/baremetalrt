@@ -99,13 +99,12 @@ export default function HomePage() {
               onKeyDown={handleInputKeyDown}
               placeholder={placeholder}
               className="flex-grow min-w-0 border border-gray-400 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono transition-all duration-200 focus:shadow-[0_0_0_2px_#888] hover:shadow-[0_0_0_2px_#888]"
-            style={{
-              background: '#222',
-              color: '#eee',
-              fontFamily: 'Orbitron, monospace',
-              borderRadius: 0,
-              '::placeholder': { color: '#bbb', opacity: 1 }
-            }}
+              style={{
+                background: '#222',
+                color: '#eee',
+                fontFamily: 'Orbitron, monospace',
+                borderRadius: 0
+              }}
               autoFocus
               disabled={loading}
             />

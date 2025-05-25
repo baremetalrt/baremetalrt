@@ -59,16 +59,16 @@ export default function HomePage() {
         </div>
       </header>
       <main className="flex flex-1 flex-col items-center justify-center min-h-[70vh]">
-        <div className="w-full max-w-3xl px-4">
-          <div className="flex items-center gap-2">
+        <div className="w-full max-w-3xl px-4 mx-auto">
+          <div className="flex items-center flex-nowrap gap-2 w-full">
             <input
               ref={inputRef}
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleInputKeyDown}
-              placeholder="Send a message..."
-              className="w-full border border-r-0 border-gray-400 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono"
+              placeholder="Enter prompt"
+              className="flex-grow min-w-0 border border-gray-400 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono transition-all duration-200 focus:shadow-[0_0_0_2px_#888] hover:shadow-[0_0_0_2px_#888]"
             style={{
               background: '#222',
               color: '#eee',
@@ -81,7 +81,7 @@ export default function HomePage() {
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}
-              className="px-6 py-3 font-bold border border-gray-400 shadow transition-all"
+              className="px-6 py-3 font-bold border border-gray-400 shadow transition-all ml-2 transform-gpu transition-transform duration-150 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#888]"
             style={{
               background: 'linear-gradient(135deg, #555 0%, #888 60%, #bdbdbd 100%)',
               color: '#222',
@@ -99,8 +99,23 @@ export default function HomePage() {
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`rounded-lg px-5 py-3 text-lg whitespace-pre-line ${msg.role === "user" ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 self-end" : "bg-gradient-to-r from-gray-200 via-gray-300 to-gray-100 text-gray-800 self-start border border-gray-300 dark:border-gray-700"}`}
-              style={{ maxWidth: "80%" }}
+              className={`px-5 py-3 text-lg whitespace-pre-line self-${msg.role === "user" ? "end" : "start"} animate-fade-in-up`}
+              style={msg.role === "user" ? {
+                background: '#222',
+                color: '#eee',
+                borderRadius: 0,
+                maxWidth: '80%',
+                animationDelay: `${i * 60}ms`,
+                animationFillMode: 'backwards'
+              } : {
+                background: 'linear-gradient(135deg, #555 0%, #888 60%, #bdbdbd 100%)',
+                color: '#eee',
+                border: '1px solid #444',
+                borderRadius: 0,
+                maxWidth: '80%',
+                animationDelay: `${i * 60}ms`,
+                animationFillMode: 'backwards'
+              }}
             >
               {msg.content}
             </div>

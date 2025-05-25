@@ -27,6 +27,15 @@ print(f"Model loaded on device: {model.device}")
 
 app = FastAPI(title="OpenAI-Compatible LLM API", description="OpenAI-style local inference endpoint.")
 
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # or ["*"] for all origins (less secure)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class CompletionRequest(BaseModel):
     prompt: str
     max_tokens: int = 128

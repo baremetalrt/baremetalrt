@@ -35,8 +35,9 @@
 
 - 4.1 ✅ Add a REST inference API server (FastAPI) for single-node/local inference
 - 4.2 ✅ Define and document OpenAI-compatible endpoint(s) (`/v1/completions`) for prompt submission and completion retrieval (TensorRT-LLM style)
-- 4.3 ⬜ Integrate Chatbot UI frontend with the OpenAI-compatible inference API (`openai_api`) (MVP: single-user, no RAG, no multi-user)
-- 4.4 ⬜ Test end-to-end integration (web UI → API → model → UI)
+- 4.3 ✅ Integrate Chatbot UI frontend with the OpenAI-compatible inference API (`openai_api`) (MVP: single-user, no RAG, no multi-user)
+- 4.4 ✅ Test end-to-end integration (web UI → API → model → UI)
+- 🎉 **Milestone: First successful end-to-end chat response (frontend ↔ API ↔ model ↔ frontend) achieved!**
 - 4.5 ⬜ Implement authentication and CORS for API security
 - 4.6 ⬜ Document setup and usage in README/API.md
 

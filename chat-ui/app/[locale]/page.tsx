@@ -36,18 +36,34 @@ export default function HomePage() {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/v1/chat/completions", {
+      const res = await fetch("http://localhost:8000/v1/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "gpt-3.5-turbo", // or whatever your backend expects
-          messages: [...messages, userMessage].map(({role, content}) => ({role, content}))
+          prompt: [...messages, userMessage].map(m => m.content).join("\n"),
+          max_tokens: 128,
+          temperature: 0.7,
+          top_p: 0.95
         })
       });
-      const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content || "(No reply)";
-      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      console.log('Response status:', res.status);
+      const text = await res.text();
+      console.log('Raw response text:', text);
+      if (!res.ok) {
+        setMessages(prev => [...prev, { role: "assistant", content: `[Backend error: ${res.status}] ${text}` }]);
+      } else {
+        let data;
+        try {
+          data = JSON.parse(text);
+          const reply = data.choices?.[0]?.text || "(No reply)";
+          setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+        } catch (parseErr) {
+          console.error('Error parsing JSON:', parseErr);
+          setMessages(prev => [...prev, { role: "assistant", content: `[Error parsing backend response]` }]);
+        }
+      }
     } catch (e) {
+      console.error('Fetch error:', e);
       setMessages(prev => [...prev, { role: "assistant", content: "[Error contacting backend]" }]);
     }
     setLoading(false);
@@ -108,7 +124,7 @@ export default function HomePage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'linear-gradient(135deg, #222 0%, #555 60%, #888 100%)',
+                background: 'linear-gradient(135deg, #555 0%, #888 60%, #bdbdbd 100%)',
                 color: '#eee',
                 fontSize: '1.3rem',
                 transition: 'background 0.2s, transform 0.15s',

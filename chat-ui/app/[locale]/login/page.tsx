@@ -21,10 +21,7 @@ export default function Login() {
 
   const getEnvVarOrEdgeConfigValue = async (name: string) => {
     "use server"
-    if (process.env.EDGE_CONFIG) {
-      return await get<string>(name)
-    }
-
+    // Stubbed for MVP: Only returns environment variable
     return process.env[name]
   }
 

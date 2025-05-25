@@ -55,14 +55,10 @@ export default function HomePage() {
           className={`text-3xl font-extrabold tracking-tight ${METALLIC_GRADIENT} drop-shadow-lg flex items-center select-none`}
           style={{ fontFamily: 'Orbitron, monospace', letterSpacing: '0.08em' }}
         >
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-3 text-gray-400">
-            <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" fill="none" />
-            <path d="M7 7h10v10H7z" fill="currentColor" opacity="0.18" />
-          </svg>
-          Bare Metal <span className="ml-1">RT</span>
+          BareMetalRT
         </div>
       </header>
-      <main className="flex flex-1 flex-col items-center justify-start pt-10">
+      <main className="flex flex-1 flex-col items-center justify-center min-h-[70vh]">
         <div className="w-full max-w-3xl px-4">
           <div className="flex items-center gap-2">
             <input
@@ -72,14 +68,14 @@ export default function HomePage() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder="Send a message..."
-              className="w-full rounded-l-md border border-r-0 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono"
+              className="w-full border border-r-0 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono"
               autoFocus
               disabled={loading}
             />
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}
-              className="rounded-r-md px-6 py-3 font-bold text-gray-700 bg-gradient-to-br from-gray-200 via-gray-400 to-gray-100 border border-gray-300 dark:border-gray-700 shadow hover:from-gray-300 hover:to-gray-300 active:scale-95 transition-all"
+              className="px-6 py-3 font-bold text-gray-700 bg-gradient-to-br from-gray-200 via-gray-400 to-gray-100 border border-gray-300 dark:border-gray-700 shadow hover:from-gray-300 hover:to-gray-300 active:scale-95 transition-all"
               style={{ fontFamily: 'Orbitron, monospace', letterSpacing: '0.08em' }}
             >
               {loading ? "..." : "Send"}

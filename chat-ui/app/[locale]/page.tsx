@@ -52,7 +52,7 @@ export default function HomePage() {
     <div className="flex h-screen w-screen flex-col">
       <header className="flex items-center h-16 px-6">
         <div
-          className={`text-3xl font-extrabold tracking-tight ${METALLIC_GRADIENT} drop-shadow-lg flex items-center select-none`}
+          className={`text-2xl font-extrabold tracking-tight ${METALLIC_GRADIENT} drop-shadow-lg flex items-center select-none px-2`}
           style={{ fontFamily: 'Orbitron, monospace', letterSpacing: '0.08em' }}
         >
           BareMetalRT
@@ -73,7 +73,8 @@ export default function HomePage() {
               background: '#222',
               color: '#eee',
               fontFamily: 'Orbitron, monospace',
-              borderRadius: 0
+              borderRadius: 0,
+              '::placeholder': { color: '#bbb', opacity: 1 }
             }}
               autoFocus
               disabled={loading}
@@ -81,17 +82,26 @@ export default function HomePage() {
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}
-              className="px-6 py-3 font-bold border border-gray-400 shadow transition-all ml-2 transform-gpu transition-transform duration-150 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#888]"
-            style={{
-              background: 'linear-gradient(135deg, #555 0%, #888 60%, #bdbdbd 100%)',
-              color: '#222',
-              fontFamily: 'Orbitron, monospace',
-              letterSpacing: '0.08em',
-              boxShadow: '0 2px 8px 0 rgba(90,90,90,0.22)',
-              borderRadius: 0
-            }}
+              aria-label="Submit prompt"
+              className="ml-2 flex items-center justify-center border border-gray-400 shadow transition-all focus:outline-none focus:ring-2 focus:ring-[#888] bg-[#222] hover:bg-[#333] active:scale-95 animate-enter-btn"
+              style={{
+                height: '48px', // matches input height (py-3 + border)
+                width: '64px',
+                minWidth: '64px',
+                minHeight: '48px',
+                borderRadius: 0,
+                boxShadow: '0 2px 8px 0 rgba(90,90,90,0.22)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #222 0%, #555 60%, #888 100%)',
+                color: '#eee',
+                fontSize: '1.3rem',
+                transition: 'background 0.2s, transform 0.15s',
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
             >
-              {loading ? "..." : "Send"}
+              {loading ? "..." : <span style={{display:'flex',alignItems:'center',justifyContent:'center',width:'100%',height:'100%'}}>&#x23CE;</span>}
             </button>
           </div>
         </div>

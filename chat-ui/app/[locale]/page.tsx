@@ -50,7 +50,7 @@ export default function HomePage() {
 
   return (
     <div className="flex h-screen w-screen flex-col">
-      <header className="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-800">
+      <header className="flex items-center h-16 px-6">
         <div
           className={`text-3xl font-extrabold tracking-tight ${METALLIC_GRADIENT} drop-shadow-lg flex items-center select-none`}
           style={{ fontFamily: 'Orbitron, monospace', letterSpacing: '0.08em' }}
@@ -68,15 +68,28 @@ export default function HomePage() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder="Send a message..."
-              className="w-full border border-r-0 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono"
+              className="w-full border border-r-0 border-gray-400 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono"
+            style={{
+              background: '#222',
+              color: '#eee',
+              fontFamily: 'Orbitron, monospace',
+              borderRadius: 0
+            }}
               autoFocus
               disabled={loading}
             />
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}
-              className="px-6 py-3 font-bold text-gray-700 bg-gradient-to-br from-gray-200 via-gray-400 to-gray-100 border border-gray-300 dark:border-gray-700 shadow hover:from-gray-300 hover:to-gray-300 active:scale-95 transition-all"
-              style={{ fontFamily: 'Orbitron, monospace', letterSpacing: '0.08em' }}
+              className="px-6 py-3 font-bold border border-gray-400 shadow transition-all"
+            style={{
+              background: 'linear-gradient(135deg, #555 0%, #888 60%, #bdbdbd 100%)',
+              color: '#222',
+              fontFamily: 'Orbitron, monospace',
+              letterSpacing: '0.08em',
+              boxShadow: '0 2px 8px 0 rgba(90,90,90,0.22)',
+              borderRadius: 0
+            }}
             >
               {loading ? "..." : "Send"}
             </button>

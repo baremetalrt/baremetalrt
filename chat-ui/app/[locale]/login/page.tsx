@@ -10,21 +10,6 @@ import { redirect } from "next/navigation"
 export default function Login() {
   redirect("/")
   return null
-  if (session) {
-    // This block will never be executed since session is always null
-    // const { data: homeWorkspace, error } = await supabase
-    //   .from("workspaces")
-    //   .select("*")
-    //   .eq("user_id", session.user.id)
-    //   .eq("is_home", true)
-    //   .single()
-
-    // if (!homeWorkspace) {
-    //   throw new Error(error.message)
-    // }
-
-    // return redirect(`/${homeWorkspace.id}/chat`)
-  }
 
   const signIn = async (formData: FormData) => {
     "use server"

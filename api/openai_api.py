@@ -39,7 +39,10 @@ def health():
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # or ["*"] for all origins (less secure)
+    allow_origins=[
+        "http://localhost:3000",
+        "https://picture-pockets-herald-toys.trycloudflare.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

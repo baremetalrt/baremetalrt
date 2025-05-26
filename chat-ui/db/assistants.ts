@@ -96,7 +96,7 @@ export const createAssistants = async (
   }
 
   await createAssistantWorkspaces(
-    createdAssistants.map(assistant => ({
+    createdAssistants.map((assistant: { user_id: string; id: string }) => ({
       user_id: assistant.user_id,
       assistant_id: assistant.id,
       workspace_id

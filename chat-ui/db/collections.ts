@@ -96,7 +96,7 @@ export const createCollections = async (
   }
 
   await createCollectionWorkspaces(
-    createdCollections.map(collection => ({
+    createdCollections.map((collection: { user_id: string; id: string }) => ({
       user_id: collection.user_id,
       collection_id: collection.id,
       workspace_id

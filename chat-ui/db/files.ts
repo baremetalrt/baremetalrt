@@ -231,7 +231,7 @@ export const createFiles = async (
   }
 
   await createFileWorkspaces(
-    createdFiles.map(file => ({
+    createdFiles.map((file: { user_id: string; id: string }) => ({
       user_id: file.user_id,
       file_id: file.id,
       workspace_id

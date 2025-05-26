@@ -92,7 +92,7 @@ export const createPrompts = async (
   }
 
   await createPromptWorkspaces(
-    createdPrompts.map(prompt => ({
+    createdPrompts.map((prompt: { user_id: string; id: string }) => ({
       user_id: prompt.user_id,
       prompt_id: prompt.id,
       workspace_id

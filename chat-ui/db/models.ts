@@ -92,7 +92,7 @@ export const createModels = async (
   }
 
   await createModelWorkspaces(
-    createdModels.map(model => ({
+    createdModels.map((model: { user_id: string; id: string }) => ({
       user_id: model.user_id,
       model_id: model.id,
       workspace_id

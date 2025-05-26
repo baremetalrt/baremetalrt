@@ -92,7 +92,7 @@ export const createTools = async (
   }
 
   await createToolWorkspaces(
-    createdTools.map(tool => ({
+    createdTools.map((tool: { user_id: string; id: string }) => ({
       user_id: tool.user_id,
       tool_id: tool.id,
       workspace_id

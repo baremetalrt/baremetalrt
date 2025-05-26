@@ -92,7 +92,7 @@ export const createPresets = async (
   }
 
   await createPresetWorkspaces(
-    createdPresets.map(preset => ({
+    createdPresets.map((preset: { user_id: string; id: string }) => ({
       user_id: preset.user_id,
       preset_id: preset.id,
       workspace_id

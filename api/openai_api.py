@@ -41,7 +41,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://picture-pockets-herald-toys.trycloudflare.com"
+        "https://picture-pockets-herald-toys.trycloudflare.com",
+        "https://baremetalrt.ai"
     ],
     allow_credentials=True,
     allow_methods=["*"],

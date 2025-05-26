@@ -30,6 +30,21 @@ From the project root directory, run:
 - CORS is enabled for http://localhost:3000 by default.
 - The first startup may take several minutes while the model loads.
 
+### Public (Online) Access: Running Backend and Cloudflare Tunnel
+To make your backend accessible online (for Netlify or remote frontend), you must run both your backend and the Cloudflare Tunnel in **separate terminal windows**:
+
+1. **Start the backend** (as above):
+   ```sh
+   .\scripts\start-backend.bat
+   ```
+2. **In a new terminal window, start the Cloudflare Tunnel:**
+   ```sh
+   cd external
+   cloudflared\cloudflared-windows-amd64.exe tunnel --url http://localhost:8000
+   ```
+   - This will provide a public `.trycloudflare.com` URL for your backend.
+   - Both windows must remain open for your backend to be accessible online.
+
 #### Troubleshooting
 - If you see `ModuleNotFoundError`, make sure you installed dependencies using `.venv\Scripts\pip` and are running the backend from the project root.
 - If `/docs` is not available, wait for the model to finish loading (watch the terminal for readiness messages).

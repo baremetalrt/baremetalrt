@@ -45,6 +45,15 @@ To make your backend accessible online (for Netlify or remote frontend), you mus
    - This will provide a public `.trycloudflare.com` URL for your backend.
    - Both windows must remain open for your backend to be accessible online.
 
+### Checking If Your Backend and Tunnel Are Working
+
+After starting both the backend and the Cloudflare Tunnel, you can check if your API server and docs are accessible:
+
+- **Local backend docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Public (tunnel) docs:** [https://picture-pockets-herald-toys.trycloudflare.com/docs](https://picture-pockets-herald-toys.trycloudflare.com/docs)
+
+If both links load the Swagger UI, your backend and tunnel are working correctly.
+
 #### Troubleshooting
 - If you see `ModuleNotFoundError`, make sure you installed dependencies using `.venv\Scripts\pip` and are running the backend from the project root.
 - If `/docs` is not available, wait for the model to finish loading (watch the terminal for readiness messages).

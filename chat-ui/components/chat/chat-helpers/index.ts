@@ -1,6 +1,7 @@
 // Only used in use-chat-handler.tsx to keep it clean
 
 import { createChatFiles } from "@/db/chat-files"
+import { API_URL } from "@/lib/api"
 import { createChat } from "@/db/chats"
 import { createMessageFileItems } from "@/db/message-file-items"
 import { createMessages, updateMessage } from "@/db/messages"
@@ -215,8 +216,7 @@ export const handleHostedChat = async (
     formattedMessages = draftMessages
   }
 
-  const apiEndpoint =
-    provider === "custom" ? "/api/chat/custom" : `/api/chat/${provider}`
+  const apiEndpoint = `${API_URL}/v1/completions`
 
   const requestBody = {
     chatSettings: payload.chatSettings,

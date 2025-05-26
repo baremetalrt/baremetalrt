@@ -12,6 +12,45 @@ const METALLIC_GRADIENT = "bg-gradient-to-r from-gray-100 via-gray-400 to-gray-2
 import { API_URL } from "@/lib/api";
 
 export default function HomePage() {
+  const [models, setModels] = useState<{id:string, name:string, status:string, description:string}[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string>("");
+  const [modelsLoading, setModelsLoading] = useState(true);
+  const [firstLoad, setFirstLoad] = useState(true);
+  const fetchModels = async () => {
+    if (firstLoad) setModelsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/models`);
+      if (!res.ok) throw new Error('Failed to fetch models');
+      const data = await res.json();
+      setModels(data);
+    } catch {
+      setModels([]); // treat as offline
+    }
+    setModelsLoading(false);
+    setFirstLoad(false);
+  };
+  React.useEffect(() => {
+    fetchModels();
+    const interval = setInterval(fetchModels, 10000); // poll every 10s
+    return () => clearInterval(interval);
+  }, []);
+
+  // Model switch handler
+  const handleModelSelect = async (modelId: string) => {
+    if (models.find(m => m.id === modelId && m.status === 'online')) {
+      setSelectedModelId(modelId);
+      try {
+        await fetch(`${API_URL}/api/switch_model`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model_id: modelId })
+        });
+      } catch (e) {
+        // Optionally show error
+      }
+    }
+  };
+
   const [input, setInput] = useState("");
   const [placeholder, setPlaceholder] = useState("");
 
@@ -91,6 +130,80 @@ export default function HomePage() {
         </div>
       </header>
       <main className="flex flex-1 flex-col items-center justify-center min-h-[70vh]">
+        {/* Model selector UI */}
+        <div className="w-full max-w-3xl px-4 mx-auto mt-4 mb-2">
+          <div className="flex gap-4 items-center">
+            <span className="font-mono font-bold text-lg">Model:</span>
+            {models.length === 0 ? (
+              <span className="text-gray-400">No models found</span>
+            ) : (
+              <div className="flex gap-2">
+                {models.map(model => (
+                  <button
+                    key={model.id}
+                    disabled={model.status === 'offline'}
+                    onClick={() => handleModelSelect(model.id)}
+                    title={model.description}
+                    style={{
+                      opacity: model.status === 'offline' ? 0.5 : 1,
+                      cursor: model.status === 'offline' ? 'not-allowed' : 'pointer',
+                      background: selectedModelId === model.id ? '#222' : '#e5e7eb',
+                      color: selectedModelId === model.id ? '#fff' : '#222',
+                      border: '1px solid #bdbdbd',
+                      borderRadius: 4,
+                      padding: '8px 16px',
+                      fontWeight: 600,
+                      fontFamily: 'Orbitron, monospace',
+                      marginRight: 8
+                    }}
+                  >
+                    {model.name}
+                    {model.status === 'offline' && (
+                      <span style={{ marginLeft: 8, color: '#e53e3e', fontWeight: 'bold', fontSize: 12 }}>OFFLINE</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Model status bar */}
+        <div className="w-full max-w-3xl px-4 mx-auto mt-4 mb-2">
+          <div className="flex items-center gap-3">
+            {firstLoad && modelsLoading ? (
+              <span className="text-gray-400 font-mono text-sm">Checking model status...</span>
+            ) : models.length === 0 ? (
+              <span className="text-red-500 font-mono text-sm">No models online</span>
+            ) : models.map(model => (
+              <span key={model.id} className="flex items-center gap-1 font-mono text-sm">
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    marginRight: 6,
+                    background: model.status === 'online' ? '#27c93f' : '#888',
+                    border: model.status === 'online' ? '2px solid #27c93f' : '2px solid #aaa',
+                    boxShadow: model.status === 'online' ? '0 0 8px #27c93f, 0 0 0 #27c93f' : undefined,
+                    transition: 'background 0.4s, border 0.4s, box-shadow 0.4s',
+                    animation: model.status === 'online' ? 'pulse-dot 1.3s infinite ease-in-out' : undefined
+                  }}
+                ></span>
+                {model.name}
+                <span className="ml-2 text-gray-400">{model.status === 'online' ? 'Online' : 'Offline'}</span>
+              </span>
+            ))}
+          </div>
+        {/* Pulse animation style */}
+        <style>{`
+          @keyframes pulse-dot {
+            0% { box-shadow: 0 0 8px #27c93f, 0 0 0 #27c93f; }
+            50% { box-shadow: 0 0 16px #27c93f, 0 0 8px #27c93f33; }
+            100% { box-shadow: 0 0 8px #27c93f, 0 0 0 #27c93f; }
+          }
+        `}</style>
+        </div>
         <div className="w-full max-w-3xl px-4 mx-auto">
           <div className="flex items-center flex-nowrap gap-2 w-full">
             <input

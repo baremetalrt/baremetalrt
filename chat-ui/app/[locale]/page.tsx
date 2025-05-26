@@ -9,6 +9,8 @@ import React, { useState, useRef } from "react";
 
 const METALLIC_GRADIENT = "bg-gradient-to-r from-gray-100 via-gray-400 to-gray-200 bg-clip-text text-transparent";
 
+import { API_URL } from "@/lib/api";
+
 export default function HomePage() {
   const [input, setInput] = useState("");
   const [placeholder, setPlaceholder] = useState("");
@@ -36,7 +38,7 @@ export default function HomePage() {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/v1/completions", {
+      const res = await fetch(`${API_URL}/v1/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

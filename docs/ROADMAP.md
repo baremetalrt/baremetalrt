@@ -5,6 +5,7 @@
 - ✅ Petals/Hivemind compiles and installs on Windows (distributed inference not functional)
 - ✅ BareMetalRT CLI validated for local inference
 - ✅ FastAPI REST API operational for local inference
+- ✅ Full-stack (Chatbot UI frontend + API server) integration operational and production-tested (Cloudflare Tunnel, Netlify, CORS, environment variables)
 - ✅ Model loading and quantized inference validated (Llama 2 7B, Mistral 7B, GPT-2)
 - ⏸️ Distributed inference (Petals/Hivemind) deferred pending DHT/network compatibility
 
@@ -36,11 +37,11 @@
 - 4.1 ✅ Add a REST inference API server (FastAPI) for single-node/local inference
 - 4.2 ✅ Define and document OpenAI-compatible endpoint(s) (`/v1/completions`) for prompt submission and completion retrieval (TensorRT-LLM style)
 - 4.3 ✅ Integrate Chatbot UI frontend with the OpenAI-compatible inference API (`openai_api`) (MVP: single-user, no RAG, no multi-user)
-- 4.4 ✅ Test end-to-end integration (web UI → API → model → UI)
-- 🎉 **Milestone: First successful end-to-end chat response (frontend ↔ API ↔ model ↔ frontend) achieved!**
-- 4.5 ⬜ Implement authentication and CORS for API security
-- 4.6 ⬜ Document setup and usage in README/API.md
-
+- 4.4 ✅ Test end-to-end integration (Chatbot UI frontend → API server → model → Chatbot UI frontend)
+- 4.5 ✅ Production CORS and API URL validation (Cloudflare Tunnel, Netlify, environment variables) — Confirmed operational and robust.
+- 4.6 ✅ Supabase integration stubbed/disabled for MVP to prevent build errors; can be re-enabled in future milestones.
+- 4.7 ⬜ Implement authentication and CORS for API security
+- 4.8 ⬜ Document setup and usage in README/API.md
 
 ## 5. Lightweight Optimization
 

@@ -7,15 +7,7 @@ import { WithTooltip } from "../ui/with-tooltip"
 interface ChatSecondaryButtonsProps {}
 
 export const ChatSecondaryButtons: FC<ChatSecondaryButtonsProps> = ({}) => {
-  console.log("ChatSecondaryButtons rendered!");
-  // DEV MODE indicator for debugging
-  return (
-
-  );
-
-  // --- original code below ---
   const { selectedChat } = useContext(ChatbotUIContext)
-
   const { handleNewChat } = useChatHandler()
 
   return (
@@ -27,11 +19,10 @@ export const ChatSecondaryButtons: FC<ChatSecondaryButtonsProps> = ({}) => {
             display={
               <div>
                 <div className="text-xl font-bold">Chat Info</div>
-
                 <div className="mx-auto mt-2 max-w-xs space-y-2 sm:max-w-sm md:max-w-md lg:max-w-lg">
-  <div>Active Model: {selectedChat?.model ?? "No chat selected"}</div>
-  {/* Only show the currently active model above the prompt box */}
-</div>
+                  <div>Active Model: {selectedChat?.model ?? "No chat selected"}</div>
+                  {/* Only show the currently active model above the prompt box */}
+                </div>
               </div>
             }
             trigger={

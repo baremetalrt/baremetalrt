@@ -340,30 +340,22 @@ export default function HomePage() {
             `}</style>
           </div>
         )}
-        <div className="w-full max-w-3xl px-4 mt-8 flex flex-col gap-4">
-          {messages.map((msg, i) => (
+        <div className="w-full max-w-3xl px-4 mt-8 flex flex-col gap-4" style={{ fontSize: '1rem', lineHeight: 1.6 }}>
+          {messages.map((msg, idx) => (
             <div
-              key={i}
-              className={`px-5 py-3 text-lg whitespace-pre-line self-${msg.role === "user" ? "end" : "start"} animate-fade-in-up`}
-              style={msg.role === "user"
-  ? {
-      background: '#222',
-      color: '#eee',
-      borderRadius: 0,
-      maxWidth: '80%',
-      animationDelay: `${i * 60}ms`,
-      animationFillMode: 'backwards'
-    }
-  : {
-      background: '#e5e7eb',
-      color: '#222',
-      border: '1px solid #bdbdbd',
-      borderRadius: 0,
-      maxWidth: '80%',
-      animationDelay: `${i * 60}ms`,
-      animationFillMode: 'backwards'
-    }
-}
+              key={idx}
+              className={`px-5 py-3 whitespace-pre-line self-${msg.role === "user" ? "end" : "start"} animate-fade-in-up`}
+              style={{
+                fontSize: '1rem',
+                lineHeight: 1.6,
+                background: msg.role === "user" ? '#222' : '#e5e7eb',
+                color: msg.role === "user" ? '#eee' : '#222',
+                border: msg.role === "user" ? undefined : '1px solid #bdbdbd',
+                borderRadius: 0,
+                maxWidth: '80%',
+                animationDelay: `${idx * 60}ms`,
+                animationFillMode: 'backwards',
+              }}
             >
               {msg.content}
             </div>

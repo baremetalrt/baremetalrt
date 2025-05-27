@@ -9,10 +9,6 @@ interface ChatSecondaryButtonsProps {}
 export const ChatSecondaryButtons: FC<ChatSecondaryButtonsProps> = ({}) => {
   console.log("ChatSecondaryButtons rendered!");
   // DEV MODE indicator for debugging
-  return (
-
-  );
-
   // --- original code below ---
   const { selectedChat } = useContext(ChatbotUIContext)
 

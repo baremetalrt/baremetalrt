@@ -200,10 +200,28 @@ export default function HomePage() {
           100% { opacity: 1; transform: scale(1); }
         }
         @keyframes model-btn-pulse {
-          0% { box-shadow: 0 0 0 0 #27c93f44, 0 0 0 0 #27c93f22; transform: scale(1); }
-          60% { box-shadow: 0 0 8px 4px #27c93f55, 0 0 0 6px #27c93f22; transform: scale(1.04); }
-          100% { box-shadow: 0 0 0 0 #27c93f44, 0 0 0 0 #27c93f22; transform: scale(1); }
-        }
+  0% {
+    box-shadow:
+      0 0 0 0 #f8f8fa88,
+      0 0 0 0 #c0c0c0bb,
+      0 0 0 0 #bdbdbd44;
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 12px 6px #f8f8fa88,
+      0 0 24px 12px #c0c0c0bb,
+      0 0 32px 18px #bdbdbd44;
+    transform: scale(1.045);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 #f8f8fa88,
+      0 0 0 0 #c0c0c0bb,
+      0 0 0 0 #bdbdbd44;
+    transform: scale(1);
+  }
+}
         @keyframes online-green-pulse {
           0% { color: #27c93f; text-shadow: 0 0 4px #27c93f66, 0 0 12px #27c93f22; }
           50% { color: #27c93f; text-shadow: 0 0 16px #27c93fcc, 0 0 32px #27c93f77; }
@@ -238,12 +256,12 @@ export default function HomePage() {
           filter: grayscale(0.2) brightness(1.0);
         }
         .model-btn.selected {
-          background: linear-gradient(90deg, #f8f8fa 0%, #c0c0c0 50%, #bdbdbd 100%) !important;
-          color: #222 !important;
-          border: 2px solid #bdbdbd !important;
-          animation: model-btn-pulse 1.1s infinite;
-          box-shadow: 0 0 0 3px #f8f8fa99, 0 0 16px 4px #c0c0c0cc;
-        }
+  background: linear-gradient(90deg, #f8f8fa 0%, #c0c0c0 50%, #bdbdbd 100%) !important;
+  color: #222 !important;
+  border: 2px solid #bdbdbd !important;
+  animation: model-btn-pulse 1.5s infinite;
+  box-shadow: 0 0 0 3px #f8f8fa99, 0 0 16px 4px #c0c0c0cc;
+}
         .model-btn:active:not(:disabled) {
           transform: scale(0.96);
         }

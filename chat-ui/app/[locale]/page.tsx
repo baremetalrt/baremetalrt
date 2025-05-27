@@ -70,7 +70,7 @@ export default function HomePage() {
   }, []);
   const [messages, setMessages] = useState<{role: "user"|"assistant", content: string}[]>([]);
   const [loading, setLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -113,7 +113,7 @@ export default function HomePage() {
     inputRef.current?.focus();
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !loading) {
       handleSend();
     }
@@ -210,12 +210,12 @@ export default function HomePage() {
           100% { color: #27c93f; text-shadow: 0 0 4px #27c93f66, 0 0 12px #27c93f22; }
         }
         @keyframes pulse-select {
-            0% { opacity: 1; text-shadow: 0 0 2px #bdbdbd, 0 0 4px #c0c0c022; }
-            50% { opacity: 0.75; text-shadow: 0 0 7px #bdbdbd77, 0 0 14px #c0c0c044; }
-            100% { opacity: 1; text-shadow: 0 0 2px #bdbdbd, 0 0 4px #c0c0c022; }
+            0% { opacity: 0.85; text-shadow: 0 0 0.5px #bdbdbd33, 0 0 1px #c0c0c011; }
+            50% { opacity: 0.55; text-shadow: 0 0 1.5px #bdbdbd22, 0 0 3px #c0c0c022; }
+            100% { opacity: 0.85; text-shadow: 0 0 0.5px #bdbdbd33, 0 0 1px #c0c0c011; }
           }
           .pulse-select {
-            animation: pulse-select 2.2s infinite;
+            animation: pulse-select 3.5s infinite;
           }
         .model-btn {
           transition: background 0.22s, color 0.22s, transform 0.18s cubic-bezier(.35,1.6,.6,1), box-shadow 0.18s;
@@ -254,23 +254,24 @@ export default function HomePage() {
         </div>
         <div className="w-full max-w-3xl px-4 mx-auto">
           <div className="flex items-center flex-nowrap gap-2 w-full">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleInputKeyDown}
-              placeholder={placeholder}
-              className="flex-grow min-w-0 border border-gray-400 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono transition-all duration-200 focus:shadow-[0_0_0_2px_#888] hover:shadow-[0_0_0_2px_#888]"
-              style={{
-                background: '#222',
-                color: '#eee',
-                fontFamily: 'Orbitron, monospace',
-                borderRadius: 0
-              }}
-              autoFocus
-              disabled={loading}
-            />
+            <textarea
+               ref={inputRef}
+               value={input}
+               onChange={e => setInput(e.target.value)}
+               onKeyDown={handleInputKeyDown}
+               placeholder={placeholder}
+               rows={3}
+               className="flex-grow min-w-0 border border-gray-400 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono transition-all duration-200 focus:shadow-[0_0_0_2px_#888] hover:shadow-[0_0_0_2px_#888] resize-none"
+               style={{
+                 background: '#222',
+                 color: '#eee',
+                 fontFamily: 'Orbitron, monospace',
+                 borderRadius: 0,
+                 fontSize: '1rem'
+               }}
+               autoFocus
+               disabled={loading}
+             />
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}

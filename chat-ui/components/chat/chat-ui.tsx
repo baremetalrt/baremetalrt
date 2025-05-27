@@ -220,19 +220,18 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
         </div>
       </div>
 
-      <div
-        className="flex size-full flex-col overflow-auto border-b"
-        onScroll={handleScroll}
-      >
-        <div ref={messagesStartRef} />
-
-        <ChatMessages />
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div className="relative w-full min-w-[300px] items-end px-2 pb-3 pt-0 sm:w-[600px] sm:pb-8 sm:pt-5 md:w-[700px] lg:w-[700px] xl:w-[800px]">
-        <ChatInput />
+      {/* Main chat area with prompt box always visible above the bottom and messages scrollable */}
+      <div className="flex flex-col h-[calc(100vh-140px)] w-full max-w-[800px] mx-auto">
+        {/* Message list area with scroll */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 border-b" onScroll={handleScroll}>
+          <div ref={messagesStartRef} />
+          <ChatMessages />
+          <div ref={messagesEndRef} />
+        </div>
+        {/* Prompt input area, always above the bottom */}
+        <div className="relative w-full min-w-[300px] items-end pt-0 pb-3 sm:w-[600px] md:w-[700px] lg:w-[700px] xl:w-[800px] bg-background z-10" style={{boxShadow: '0 -2px 8px rgba(0,0,0,0.04)'}}>
+          <ChatInput />
+        </div>
       </div>
 
       <div className="absolute bottom-2 right-2 hidden md:block lg:bottom-4 lg:right-4">

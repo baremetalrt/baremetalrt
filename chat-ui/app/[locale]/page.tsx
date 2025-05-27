@@ -343,45 +343,53 @@ export default function HomePage() {
           </div>
         )}
         <div className="w-full max-w-3xl px-4 mt-8 flex flex-col gap-4" style={{ fontSize: '1rem', lineHeight: 1.6 }}>
-          {(() => {
-  const [showAllMessages, setShowAllMessages] = React.useState(false);
-  const visibleMessages = showAllMessages || messages.length <= 3 ? messages : messages.slice(-3);
-  return <>
-    {messages.length > 3 && !showAllMessages && (
-      <button
-        className="mb-2 text-xs px-3 py-1 bg-[#232428] text-gray-200 hover:bg-[#333] border border-gray-500"
-        style={{ alignSelf: 'center', borderRadius: 0 }}
-        onClick={() => setShowAllMessages(true)}
-      >
-        Load previous messages
-      </button>
-    )}
-    {visibleMessages.map((msg, idx) => (
-      <div
-        key={showAllMessages ? idx : messages.length - visibleMessages.length + idx}
-        className={`px-5 py-3 whitespace-pre-line self-${msg.role === "user" ? "end" : "start"} animate-fade-in-up`}
-        style={{
-          fontSize: '1rem',
-          lineHeight: 1.6,
-          background: msg.role === "user" ? '#222' : '#e5e7eb',
-          color: msg.role === "user" ? '#eee' : '#222',
-          border: msg.role === "user" ? undefined : '1px solid #bdbdbd',
-          borderRadius: 0,
-          maxWidth: '80%',
-          maxHeight: 300,
-          overflowY: 'auto',
-          animationDelay: `${idx * 60}ms`,
-          animationFillMode: 'backwards',
-          wordBreak: 'break-word',
-        }}
-      >
-        {msg.content}
-      </div>
-    ))}
-  </>;
-})()}
-
-
+          {/* Chat message area with scroll and max height to prevent clipping into prompt */}
+          <div style={{
+            maxHeight: '45vh', // or 340px if you prefer a fixed px value
+            minHeight: '120px',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+          }}>
+            {(() => {
+              const [showAllMessages, setShowAllMessages] = React.useState(false);
+              const visibleMessages = showAllMessages || messages.length <= 3 ? messages : messages.slice(-3);
+              return <>
+                {messages.length > 3 && !showAllMessages && (
+                  <button
+                    className="mb-2 text-xs px-3 py-1 bg-[#232428] text-gray-200 hover:bg-[#333] border border-gray-500"
+                    style={{ alignSelf: 'center', borderRadius: 0 }}
+                    onClick={() => setShowAllMessages(true)}
+                  >
+                    Load previous messages
+                  </button>
+                )}
+                {visibleMessages.map((msg, idx) => (
+                  <div
+                    key={showAllMessages ? idx : messages.length - visibleMessages.length + idx}
+                    className={`px-5 py-3 whitespace-pre-line self-${msg.role === "user" ? "end" : "start"} animate-fade-in-up`}
+                    style={{
+                      fontSize: '1rem',
+                      lineHeight: 1.6,
+                      background: msg.role === "user" ? '#222' : '#e5e7eb',
+                      color: msg.role === "user" ? '#eee' : '#222',
+                      border: msg.role === "user" ? undefined : '1px solid #bdbdbd',
+                      borderRadius: 0,
+                      maxWidth: '80%',
+                      maxHeight: 300,
+                      overflowY: 'auto',
+                      animationDelay: `${idx * 60}ms`,
+                      animationFillMode: 'backwards',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {msg.content}
+                  </div>
+                ))}
+              </>;
+            })()}
+          </div>
         </div>
       </main>
     </div>

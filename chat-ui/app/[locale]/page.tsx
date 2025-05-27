@@ -271,35 +271,36 @@ export default function HomePage() {
       `}</style>
         </div>
         <div className="w-full max-w-3xl px-4 mx-auto">
-          <div className="flex items-center flex-nowrap gap-2 w-full">
+          <div className="flex items-end flex-nowrap gap-2 w-full">
             <textarea
-               ref={inputRef}
-               value={input}
-               onChange={e => setInput(e.target.value)}
-               onKeyDown={handleInputKeyDown}
-               placeholder={placeholder}
-               rows={3}
-               className="flex-grow min-w-0 border border-gray-400 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono transition-all duration-200 focus:shadow-[0_0_0_2px_#888] hover:shadow-[0_0_0_2px_#888] resize-none"
-               style={{
-                 background: '#222',
-                 color: '#eee',
-                 fontFamily: 'Orbitron, monospace',
-                 borderRadius: 0,
-                 fontSize: '1rem'
-               }}
-               autoFocus
-               disabled={loading}
-             />
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleInputKeyDown}
+              placeholder={placeholder}
+              rows={3}
+              className="flex-grow min-w-0 border border-gray-400 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-400 font-mono transition-all duration-200 focus:shadow-[0_0_0_2px_#888] hover:shadow-[0_0_0_2px_#888] resize-none"
+              style={{
+                background: '#222',
+                color: '#eee',
+                fontFamily: 'Orbitron, monospace',
+                borderRadius: 0,
+                fontSize: '1rem',
+                alignSelf: 'stretch',
+                marginBottom: 0
+              }}
+              autoFocus
+              disabled={loading}
+            />
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}
               aria-label="Submit prompt"
               className="ml-2 flex items-center justify-center border border-gray-400 shadow transition-all focus:outline-none focus:ring-2 focus:ring-[#888] bg-[#222] hover:bg-[#333] active:scale-95 animate-enter-btn"
               style={{
-                height: '48px', // matches input height (py-3 + border)
+                alignSelf: 'flex-end',
                 width: '64px',
                 minWidth: '64px',
-                minHeight: '48px',
                 borderRadius: 0,
                 boxShadow: '0 2px 8px 0 rgba(90,90,90,0.22)',
                 display: 'flex',
@@ -310,6 +311,7 @@ export default function HomePage() {
                 fontSize: '1.3rem',
                 transition: 'background 0.2s, transform 0.15s',
                 cursor: loading ? 'not-allowed' : 'pointer',
+                marginBottom: 0
               }}
             >
               {loading ? "..." : <span style={{display:'flex',alignItems:'center',justifyContent:'center',width:'100%',height:'100%'}}>&#x23CE;</span>}
@@ -353,13 +355,17 @@ export default function HomePage() {
                 border: msg.role === "user" ? undefined : '1px solid #bdbdbd',
                 borderRadius: 0,
                 maxWidth: '80%',
+                maxHeight: 300,
+                overflowY: 'auto',
                 animationDelay: `${idx * 60}ms`,
                 animationFillMode: 'backwards',
+                wordBreak: 'break-word',
               }}
             >
               {msg.content}
             </div>
           ))}
+
         </div>
       </main>
     </div>

@@ -162,7 +162,15 @@ export default function HomePage() {
                     animation: 'fadeScaleIn 0.4s cubic-bezier(.35,1.6,.6,1)'
                   }}
                 >
-                  {model.name}
+                  {(() => {
+                    const match = model.name.match(/^(.*?)(\s*\(.*\))$/);
+                    if (match) {
+                      return <span style={{display:'inline-block',textAlign:'center'}}>
+                        {match[1].trim()}<br/>{match[2].trim()}
+                      </span>;
+                    }
+                    return model.name;
+                  })()}
                 </button>
               ))}
             </div>

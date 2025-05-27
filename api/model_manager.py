@@ -7,8 +7,9 @@ router = APIRouter()
 @router.get("/models")
 async def get_models():
     return [
-        {"id": "llama2_7b_chat_8int", "name": "Llama 2 7B Chat (8-bit)", "status": "online"},
-        {"id": "llama2_70b_chat_petals", "name": "Llama 2 70B Chat (Petals mesh)", "status": "offline"}
+        {"id": "llama2_7b_chat_8int", "name": "Llama 2 7B Chat 8INT (4070 Super)", "status": "online"},
+        {"id": "llama2_70b_chat_petals", "name": "Llama 2 70B Chat (Petals mesh)", "status": "offline"},
+        {"id": "mistral_7b_instruct_8bit", "name": "Mistral 7B Instruct 8INT (4070 Super)", "status": "offline"}
     ]
 
 # For now, we hardcode the available models. Later, this can be extended to scan scripts or config.

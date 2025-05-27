@@ -1,6 +1,7 @@
 "use client"
 
 import { ChatbotUISVG } from "@/components/icons/chatbotui-svg"
+import { DevModeBanner } from "./DevModeBanner"
 import { IconArrowRight } from "@tabler/icons-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
@@ -127,6 +128,7 @@ export default function HomePage() {
           style={{ fontFamily: 'Orbitron, monospace', letterSpacing: '0.08em' }}
         >
           BareMetalRT
+          {process.env.NODE_ENV === 'development' && <DevModeBanner />}
         </div>
       </header>
       <main className="flex flex-1 flex-col items-center justify-center min-h-[70vh]">

@@ -180,14 +180,16 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
       includeWorkspaceInstructions: chat.include_workspace_instructions,
       embeddingsProvider: chat.embeddings_provider as "openai" | "local"
     })
-  }
+  } // <-- Properly close fetchChat function
 
   if (loading) {
     return <Loading />
   }
 
   return (
-    <div className="relative flex h-full flex-col items-center">
+    <>
+
+      <div className="relative flex h-full flex-col items-center">
       <div className="absolute left-4 top-2.5 flex justify-center">
         <ChatScrollButtons
           isAtTop={isAtTop}
@@ -198,7 +200,17 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
         />
       </div>
 
-      <div className="absolute right-4 top-1 flex h-[40px] items-center space-x-2">
+      {/* Move model selector/status indicator to 75% of the screen height */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          transform: "translateX(-50%)",
+          bottom: "25%",
+          zIndex: 20,
+        }}
+        className="flex h-[40px] items-center space-x-2"
+      >
         <ChatSecondaryButtons />
       </div>
 
@@ -227,5 +239,6 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
         <ChatHelp />
       </div>
     </div>
-  )
+  </>
+)
 }

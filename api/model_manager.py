@@ -14,8 +14,9 @@ def get_petals_status():
     if not os.path.exists(PETALS_SCRIPT):
         return False, "Not available on this node. Script missing."
     try:
+        import sys
         result = subprocess.run([
-            "python", PETALS_SCRIPT, "--check"
+            sys.executable, PETALS_SCRIPT, "--check"
         ], capture_output=True, text=True, timeout=30)
         if result.returncode == 0 and "ONLINE" in result.stdout:
             return True, "Available. Mesh connection OK."

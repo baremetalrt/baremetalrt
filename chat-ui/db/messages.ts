@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase/browser-client"
+import { supabase } from "@/lib/supabase/client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 
 export const getMessageById = async (messageId: string) => {

@@ -114,8 +114,8 @@ export const ChatFilesDisplay: FC<ChatFilesDisplayProps> = ({}) => {
           </Button>
         </div>
 
-        <div className="overflow-auto">
-          <div className="flex gap-2 overflow-auto pt-2">
+        <div className="overflow-auto max-h-[180px]">
+          <div className="flex gap-2 overflow-x-auto pt-2">
             {messageImages.map((image, index) => (
               <div
                 key={index}

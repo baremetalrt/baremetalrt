@@ -10,22 +10,28 @@ interface ModelOptionProps {
 }
 
 export const ModelOption: FC<ModelOptionProps> = ({ model, onSelect }) => {
+  const isOffline = (model as any).status === 'offline';
   return (
     <WithTooltip
       display={
         <div>
-          {model.provider !== "ollama" && model.pricing && (
-            <div className="space-y-1 text-sm">
+          {isOffline && (
+            <div className="text-red-500 text-xs font-semibold">
+              {model.description || 'Model is offline or not available on this node.'}
+            </div>
+          )}
+          {model.provider !== "ollama" && (model as any).pricing && (
+            <div className="space-y-1 text-sm mt-1">
               <div>
                 <span className="font-semibold">Input Cost:</span>{" "}
-                {model.pricing.inputCost} {model.pricing.currency} per{" "}
-                {model.pricing.unit}
+                {(model as any).pricing.inputCost} {(model as any).pricing.currency} per{" "}
+                {(model as any).pricing.unit}
               </div>
-              {model.pricing.outputCost && (
+              {(model as any).pricing.outputCost && (
                 <div>
                   <span className="font-semibold">Output Cost:</span>{" "}
-                  {model.pricing.outputCost} {model.pricing.currency} per{" "}
-                  {model.pricing.unit}
+                  {(model as any).pricing.outputCost} {(model as any).pricing.currency} per{" "}
+                  {(model as any).pricing.unit}
                 </div>
               )}
             </div>
@@ -35,15 +41,20 @@ export const ModelOption: FC<ModelOptionProps> = ({ model, onSelect }) => {
       side="bottom"
       trigger={
         <div
-          className="hover:bg-accent flex w-full cursor-pointer justify-start space-x-3 truncate rounded p-2 hover:opacity-50"
-          onClick={onSelect}
+          className={`flex w-full justify-start space-x-3 truncate rounded p-2 ${isOffline ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60' : 'hover:bg-accent cursor-pointer hover:opacity-50'}`}
+          onClick={isOffline ? undefined : onSelect}
+          style={isOffline ? { pointerEvents: 'none' } : {}}
         >
           <div className="flex items-center space-x-2">
             <ModelIcon provider={model.provider} width={28} height={28} />
             <div className="text-sm font-semibold">{model.modelName}</div>
+            {isOffline && (
+              <span className="ml-2 text-xs text-red-500 font-bold">OFFLINE</span>
+            )}
           </div>
         </div>
       }
     />
   )
 }
+

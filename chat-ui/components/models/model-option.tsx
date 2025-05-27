@@ -7,9 +7,10 @@ import { WithTooltip } from "../ui/with-tooltip"
 interface ModelOptionProps {
   model: LLM
   onSelect: () => void
+  selected?: boolean
 }
 
-export const ModelOption: FC<ModelOptionProps> = ({ model, onSelect }) => {
+export const ModelOption: FC<ModelOptionProps> = ({ model, onSelect, selected }) => {
   const isOffline = (model as any).status === 'offline';
   return (
     <WithTooltip
@@ -41,7 +42,9 @@ export const ModelOption: FC<ModelOptionProps> = ({ model, onSelect }) => {
       side="bottom"
       trigger={
         <div
-          className={`flex w-full justify-start space-x-3 truncate rounded p-2 ${isOffline ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60' : 'hover:bg-accent cursor-pointer hover:opacity-50'}`}
+          className={`flex w-full justify-start space-x-3 truncate rounded p-2 
+            ${selected ? 'bg-gradient-to-r from-gray-200 to-gray-400 animate-pulse ring-2 ring-slate-400' : ''}
+            ${isOffline ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60' : 'hover:bg-accent cursor-pointer hover:opacity-50'}`}
           onClick={isOffline ? undefined : onSelect}
           style={isOffline ? { pointerEvents: 'none' } : {}}
         >

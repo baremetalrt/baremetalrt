@@ -45,7 +45,8 @@ export const ModelSelect: FC<ModelSelectProps> = ({
     }
   }, [isOpen])
 
-  const handleSelectModel = (modelId: LLMID) => {
+  const handleSelectModel = (modelId: LLMID, isOffline = false) => {
+    if (isOffline) return;
     onSelectModel(modelId)
     setIsOpen(false)
   }
@@ -76,9 +77,16 @@ export const ModelSelect: FC<ModelSelectProps> = ({
     {}
   )
 
-  const selectedModel = allModels.find(
-    model => model.modelId === selectedModelId
-  )
+  // Always select Llama 2 by default if nothing selected or if Petals is selected
+  let selectedModel = allModels.find(model => model.modelId === selectedModelId)
+  const llama2Model = allModels.find(model => String(model.modelId) === 'llama2_7b_chat_8int')
+  if (!selectedModel || (typeof selectedModel === 'object' && 'status' in selectedModel && (selectedModel as any).status === 'offline')) {
+    selectedModel = llama2Model
+    if (llama2Model && String(selectedModelId) !== String(llama2Model.modelId)) {
+      // Auto-select Llama 2 if not already selected
+      onSelectModel(llama2Model.modelId)
+    }
+  }
 
   if (!profile) return null
 
@@ -175,23 +183,28 @@ export const ModelSelect: FC<ModelSelectProps> = ({
 
                 <div className="mb-4">
                   {filteredModels.map(model => {
-                    return (
-                      <div
-                        key={model.modelId}
-                        className="flex items-center space-x-1"
-                      >
-                        {selectedModelId === model.modelId && (
-                          <IconCheck className="ml-2" size={32} />
-                        )}
-
-                        <ModelOption
-                          key={model.modelId}
-                          model={model}
-                          onSelect={() => handleSelectModel(model.modelId)}
-                        />
-                      </div>
-                    )
-                  })}
+  const isOffline = (model as any).status === 'offline';
+  return (
+    <div
+      key={model.modelId}
+      className="flex items-center space-x-1"
+    >
+      {selectedModelId === model.modelId && !isOffline && (
+        <IconCheck className="ml-2" size={32} />
+      )}
+      <ModelOption
+        key={model.modelId}
+        model={model}
+        onSelect={() => handleSelectModel(model.modelId, isOffline)}
+        selected={selectedModelId === model.modelId && !isOffline}
+      />
+      {/* Status indicator */}
+      <span className={`ml-2 text-xs font-bold ${isOffline ? 'text-red-500' : 'text-green-600'}`}>
+        {isOffline ? 'OFFLINE' : 'ONLINE'}
+      </span>
+    </div>
+  );
+})}
                 </div>
               </div>
             )

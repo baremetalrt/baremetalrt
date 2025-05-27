@@ -5,6 +5,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 model_name = "meta-llama/Llama-2-7b-chat-hf"
 hf_token = "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"  # Your HuggingFace token
 
+import sys
+
 def main():
     print("Loading tokenizer and model in 8-bit mode. This may take a few minutes on first run...")
     tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
@@ -23,4 +25,7 @@ def main():
     print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 
 if __name__ == "__main__":
+    if '--check' in sys.argv:
+        print('ONLINE')
+        sys.exit(0)
     main()

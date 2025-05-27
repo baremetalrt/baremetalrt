@@ -4,7 +4,7 @@ export function DevModeBanner() {
   if (process.env.NODE_ENV !== "development") return null;
   return (
     <span style={{
-      color: "red",
+      color: "#c0c0c0",
       fontWeight: "bold",
       fontSize: 16,
       marginLeft: 12,

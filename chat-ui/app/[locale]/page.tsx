@@ -5,6 +5,7 @@ import { DevModeBanner } from "./DevModeBanner"
 import { IconArrowRight } from "@tabler/icons-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
+import { AnimatedEllipsis } from "./AnimatedEllipsis";
 
 import React, { useState, useRef } from "react";
 
@@ -118,7 +119,7 @@ export default function HomePage() {
     }
   };
 
-
+  const activeModel = models.find(m => m.id === selectedModelId);
 
   return (
     <div className="flex h-screen w-screen flex-col">
@@ -128,83 +129,128 @@ export default function HomePage() {
           style={{ fontFamily: 'Orbitron, monospace', letterSpacing: '0.08em' }}
         >
           BareMetalRT
-          {process.env.NODE_ENV === 'development' && <DevModeBanner />}
+          {process.env.NODE_ENV === 'development' && <span style={{color:'#c0c0c0'}}><DevModeBanner /></span>}
         </div>
       </header>
-      <main className="flex flex-1 flex-col items-center justify-center min-h-[70vh]">
-        {/* Model selector UI */}
-        <div className="w-full max-w-3xl px-4 mx-auto mt-4 mb-2">
-          <div className="flex gap-4 items-center">
-            <span className="font-mono font-bold text-lg">Model:</span>
-            {models.length === 0 ? (
-              <span className="text-gray-400">No models found</span>
-            ) : (
-              <div className="flex gap-2">
-                {models.map(model => (
-                  <button
-                    key={model.id}
-                    disabled={model.status === 'offline'}
-                    onClick={() => handleModelSelect(model.id)}
-                    title={model.description}
-                    style={{
-                      opacity: model.status === 'offline' ? 0.5 : 1,
-                      cursor: model.status === 'offline' ? 'not-allowed' : 'pointer',
-                      background: selectedModelId === model.id ? '#222' : '#e5e7eb',
-                      color: selectedModelId === model.id ? '#fff' : '#222',
-                      border: '1px solid #bdbdbd',
-                      borderRadius: 4,
-                      padding: '8px 16px',
-                      fontWeight: 600,
-                      fontFamily: 'Orbitron, monospace',
-                      marginRight: 8
-                    }}
-                  >
-                    {model.name}
-                    {model.status === 'offline' && (
-                      <span style={{ marginLeft: 8, color: '#e53e3e', fontWeight: 'bold', fontSize: 12 }}>OFFLINE</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* Model selector UI */}
+      <div className="w-full max-w-3xl px-4 mx-auto mt-4 mb-2">
+        <div className="flex justify-center gap-2 items-center">
+          {models.length === 0 ? (
+            <span className="text-gray-400 searching-ellipsis">Searching for models<span className="ellipsis">…</span></span>
+          ) : (
+            <div className="flex gap-3">
+              {models.map(model => (
+                <button
+                  key={model.id}
+                  disabled={model.status === 'offline'}
+                  onClick={() => handleModelSelect(model.id)}
+                  title={model.status === 'offline' ? `${model.name} (Offline)` : model.description}
+                  className={`model-btn${selectedModelId === model.id ? ' selected' : ''}${model.status === 'offline' ? ' offline-btn' : ''}${model.name.toLowerCase().includes('llama 2 70b') && selectedModelId !== model.id && model.status !== 'offline' ? ' llama-btn' : ''}`}
+                  style={{
+                    opacity: model.status === 'offline' ? 0.7 : 1,
+                    cursor: model.status === 'offline' ? 'not-allowed' : 'pointer',
+                    background: model.status === 'offline' ? '#181A1B' : (model.name.toLowerCase() === 'petals' && selectedModelId !== model.id ? '#181A1B' : (model.name.toLowerCase().includes('llama 2 70b') && selectedModelId !== model.id ? '#232428' : '#222')),
+                    color: model.status === 'offline' ? '#888' : (model.name.toLowerCase().includes('llama 2 70b') && selectedModelId !== model.id ? '#e8e9ea' : '#fff'),
+                    border: model.status === 'offline' ? '1.5px solid #232428' : '1px solid #bdbdbd',
+                    borderRadius: 0,
+                    padding: '2px 7px',
+                    fontSize: '0.83rem',
+                    fontWeight: 500,
+                    fontFamily: 'Orbitron, monospace',
+                    marginRight: 0,
+                    minWidth: 0,
+                    animation: 'fadeScaleIn 0.4s cubic-bezier(.35,1.6,.6,1)'
+                  }}
+                >
+                  {model.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+      </div>
+
+      <main className="flex flex-1 flex-col items-center justify-center min-h-[70vh]">
+
         {/* Model status bar */}
         <div className="w-full max-w-3xl px-4 mx-auto mt-4 mb-2">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-2">
             {firstLoad && modelsLoading ? (
               <span className="text-gray-400 font-mono text-sm">Checking model status...</span>
             ) : models.length === 0 ? (
               <span className="text-red-500 font-mono text-sm">No models online</span>
-            ) : models.map(model => (
-              <span key={model.id} className="flex items-center gap-1 font-mono text-sm">
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    marginRight: 6,
-                    background: model.status === 'online' ? '#27c93f' : '#888',
-                    border: model.status === 'online' ? '2px solid #27c93f' : '2px solid #aaa',
-                    boxShadow: model.status === 'online' ? '0 0 8px #27c93f, 0 0 0 #27c93f' : undefined,
-                    transition: 'background 0.4s, border 0.4s, box-shadow 0.4s',
-                    animation: model.status === 'online' ? 'pulse-dot 1.3s infinite ease-in-out' : undefined
-                  }}
-                ></span>
-                {model.name}
-                <span className="ml-2 text-gray-400">{model.status === 'online' ? 'Online' : 'Offline'}</span>
-              </span>
-            ))}
+            ) : (
+              activeModel ? (
+                <div key={activeModel.id} className="flex items-center gap-2 font-mono text-sm py-1 px-2 rounded bg-black/10">
+                  <span>{activeModel.name}</span>
+                  <span className={"ml-2 font-bold online-pulse" + (activeModel.status === 'online' ? '' : ' text-gray-400')}>
+                    {activeModel.status === 'online' ? 'Online' : 'Offline'}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-gray-400 font-mono text-sm pulse-select">Select a model</span>
+              )
+            )}
           </div>
-        {/* Pulse animation style */}
-        <style>{`
-          @keyframes pulse-dot {
-            0% { box-shadow: 0 0 8px #27c93f, 0 0 0 #27c93f; }
-            50% { box-shadow: 0 0 16px #27c93f, 0 0 8px #27c93f33; }
-            100% { box-shadow: 0 0 8px #27c93f, 0 0 0 #27c93f; }
+        {/* Model button animations and status pulses */}
+      <style>{`
+
+          0% { opacity: 0; transform: scale(0.7); }
+          80% { opacity: 1; transform: scale(1.05); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes model-btn-pulse {
+          0% { box-shadow: 0 0 0 0 #27c93f44, 0 0 0 0 #27c93f22; transform: scale(1); }
+          60% { box-shadow: 0 0 8px 4px #27c93f55, 0 0 0 6px #27c93f22; transform: scale(1.04); }
+          100% { box-shadow: 0 0 0 0 #27c93f44, 0 0 0 0 #27c93f22; transform: scale(1); }
+        }
+        @keyframes online-green-pulse {
+          0% { color: #27c93f; text-shadow: 0 0 4px #27c93f66, 0 0 12px #27c93f22; }
+          50% { color: #27c93f; text-shadow: 0 0 16px #27c93fcc, 0 0 32px #27c93f77; }
+          100% { color: #27c93f; text-shadow: 0 0 4px #27c93f66, 0 0 12px #27c93f22; }
+        }
+        @keyframes pulse-select {
+            0% { opacity: 1; text-shadow: 0 0 2px #bdbdbd, 0 0 4px #c0c0c022; }
+            50% { opacity: 0.75; text-shadow: 0 0 7px #bdbdbd77, 0 0 14px #c0c0c044; }
+            100% { opacity: 1; text-shadow: 0 0 2px #bdbdbd, 0 0 4px #c0c0c022; }
           }
-        `}</style>
+          .pulse-select {
+            animation: pulse-select 2.2s infinite;
+          }
+        .model-btn {
+          transition: background 0.22s, color 0.22s, transform 0.18s cubic-bezier(.35,1.6,.6,1), box-shadow 0.18s;
+          background: #222;
+          color: #fff;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+        }
+        .model-btn:hover:not(:disabled), .model-btn:focus-visible:not(:disabled) {
+          background: #222 !important;
+          color: #fff !important;
+          transform: scale(1.08);
+          box-shadow: none;
+        }
+        .model-btn.offline-btn {
+          background: #181A1B !important;
+          color: #888 !important;
+          border: 1.5px solid #232428 !important;
+          font-weight: 600;
+          filter: grayscale(0.2) brightness(1.0);
+        }
+        .model-btn.selected {
+          background: linear-gradient(90deg, #f8f8fa 0%, #c0c0c0 50%, #bdbdbd 100%) !important;
+          color: #222 !important;
+          border: 2px solid #bdbdbd !important;
+          animation: model-btn-pulse 1.1s infinite;
+          box-shadow: 0 0 0 3px #f8f8fa99, 0 0 16px 4px #c0c0c0cc;
+        }
+        .model-btn:active:not(:disabled) {
+          transform: scale(0.96);
+        }
+        .online-pulse {
+          animation: online-silver-pulse 1.1s infinite;
+        }
+      `}</style>
         </div>
         <div className="w-full max-w-3xl px-4 mx-auto">
           <div className="flex items-center flex-nowrap gap-2 w-full">

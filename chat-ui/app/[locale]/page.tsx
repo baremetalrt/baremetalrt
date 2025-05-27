@@ -84,7 +84,7 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: userMessage.content,
-          max_tokens: 128,
+          max_tokens: 512,
           temperature: 0.7,
           top_p: 0.95
         })

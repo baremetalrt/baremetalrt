@@ -31,7 +31,8 @@ def main():
     # --------------------------------------------
 
     prompt = "What's the capital of France?"
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
     with torch.no_grad():
         outputs = model.generate(**inputs, max_new_tokens=64)
     print("\n--- Model Output ---\n")

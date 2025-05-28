@@ -13,17 +13,17 @@ import time
 
 import gc
 from threading import Lock
-try:
-    from petals import AutoDistributedModelForCausalLM
-    PETALS_AVAILABLE = True
-except ImportError:
-    PETALS_AVAILABLE = False
+# try:
+#     from petals import AutoDistributedModelForCausalLM
+#     PETALS_AVAILABLE = True
+# except ImportError:
+#     PETALS_AVAILABLE = False
 
 model = None
 model_name = None
 tokenizer = None
-petals_model = None
-petals_tokenizer = None
+# petals_model = None
+# petals_tokenizer = None
 current_model_id = None
 model_lock = Lock()
 hf_token = os.environ.get("HF_TOKEN", "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")
@@ -42,12 +42,12 @@ def unload_model():
         gc.collect()
         model = None
         tokenizer = None
-    if petals_model is not None:
-        del petals_model
-        del petals_tokenizer
-        gc.collect()
-        petals_model = None
-        petals_tokenizer = None
+    # if petals_model is not None:
+    #     del petals_model
+    #     del petals_tokenizer
+    #     gc.collect()
+    #     petals_model = None
+    #     petals_tokenizer = None
 
 def update_model_status(model_id, status):
     import os, json
@@ -66,7 +66,8 @@ def update_model_status(model_id, status):
         json.dump(status_dict, f, indent=2)
 
 def load_model(model_id):
-    global model, model_name, tokenizer, petals_model, petals_tokenizer, current_model_id
+    global model, model_name, tokenizer, current_model_id
+    # petals_model, petals_tokenizer
     unload_model()
     if model_id == "llama2_7b_chat_8int":
         model_name = "meta-llama/Llama-2-7b-chat-hf"
@@ -83,7 +84,7 @@ def load_model(model_id):
         petals_model = None
         petals_tokenizer = None
     elif model_id == "llama3_8b_chat_4bit":
-        model_name = "TheBloke/Llama-3-8B-Chat-GPTQ"
+        model_name = "astronomer/Llama-3-8B-Instruct-GPTQ-4-Bit"
         print("Loading Llama-3 8B Chat model (4-bit quantized, GPU required)...")
         tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token, use_fast=True)
         bnb_config = BitsAndBytesConfig(load_in_4bit=True)
@@ -151,8 +152,8 @@ def load_model(model_id):
     current_model_id = model_id
     update_model_status(model_id, "online")
 
-# Load Deepseek LLM 7B Chat (4-bit quantized) model by default at startup
-load_model("deepseek_llm_7b_chat_4bit")
+# Load Llama 2 7B Chat (8-bit quantized) model by default at startup
+load_model("llama2_7b_chat_8int")
 
 @app.post("/api/switch_model")
 def switch_model(request: dict):
@@ -173,8 +174,8 @@ def health():
         if current_model_id == "llama2_7b_chat_8int" and model is not None:
             device = str(model.device)
             return {"status": "ok", "model_loaded": True, "device": device, "active_model": current_model_id}
-        elif current_model_id == "llama2_70b_chat_petals" and petals_model is not None:
-            return {"status": "ok", "model_loaded": True, "device": "petals_mesh", "active_model": current_model_id}
+        # elif current_model_id == "llama2_70b_chat_petals" and petals_model is not None:
+        #     return {"status": "ok", "model_loaded": True, "device": "petals_mesh", "active_model": current_model_id}
         else:
             return {"status": "error", "model_loaded": False, "active_model": current_model_id}
 
@@ -208,13 +209,15 @@ def create_completion(request: CompletionRequest):
             try:
                 t0 = _time.time()
                 inputs = tokenizer(request.prompt, return_tensors="pt")
+                # Move tensors to the correct device (for quantized models, do NOT use .to() on model)
+                inputs = {k: v.to(model.device) for k, v in inputs.items()}
                 t1 = _time.time()
                 print(f"[TIMING] Tokenization: {t1 - t0:.3f} seconds")
                 with torch.no_grad():
                     t2 = _time.time()
                     outputs = model.generate(
-                        input_ids=inputs["input_ids"].to(model.device),
-                        attention_mask=inputs["attention_mask"].to(model.device),
+                        input_ids=inputs["input_ids"],
+                        attention_mask=inputs["attention_mask"],
                         max_new_tokens=request.max_tokens,
                         temperature=request.temperature,
                         top_p=request.top_p,

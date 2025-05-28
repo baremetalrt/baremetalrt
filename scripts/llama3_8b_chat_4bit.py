@@ -13,6 +13,7 @@ Requirements:
 import sys
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+import torch
 
 MODEL_NAME = "TheBloke/Meta-Llama-3-8B-Instruct-GPTQ"  # Change to your preferred Q4 checkpoint
 
@@ -31,6 +32,29 @@ except Exception:
 # Fallback to environment variable
 if not hf_token:
     hf_token = os.environ.get("HF_TOKEN")
+
+# Aggressive 4-bit quantization settings
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_compute_dtype=torch.float16,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4"
+)
+
+# Try to load the model with max_memory constraint
+try:
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=hf_token, use_fast=True)
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL_NAME,
+        device_map="auto",
+        quantization_config=bnb_config,
+        token=hf_token,
+        max_memory={0: "11GiB"}
+    )
+    print(f"Model loaded successfully on device: {model.device}")
+except Exception as e:
+    print(f"Failed to load model: {e}")
+    sys.exit(1)
 
 if len(sys.argv) > 1 and sys.argv[1] in ("--help", "-h"):
     print(f"""

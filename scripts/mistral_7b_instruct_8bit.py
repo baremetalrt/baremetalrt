@@ -10,10 +10,11 @@ import sys
 def main():
     print("Loading Mistral 7B Instruct in 8-bit mode. This may take a few minutes on first run...")
     tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
+    quant_config = BitsAndBytesConfig(load_in_8bit=True)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         device_map="auto",
-        load_in_8bit=True,  # Enable 8-bit quantization
+        quantization_config=quant_config,
         token=hf_token
     )
 
@@ -24,8 +25,28 @@ def main():
     print("\n--- Model Output ---\n")
     print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 
+import atexit
+import json
+import os
+
+STATUS_PATH = os.path.join(os.path.dirname(__file__), '..', 'api', 'model_status.json')
+MODEL_ID = "mistral_7b_instruct_8bit"
+
+def set_status(status):
+    try:
+        with open(STATUS_PATH, 'r') as f:
+            data = json.load(f)
+    except Exception:
+        data = {}
+    data[MODEL_ID] = status
+    with open(STATUS_PATH, 'w') as f:
+        json.dump(data, f, indent=2)
+
+def mark_offline():
+    set_status("offline")
+
+set_status("online")
+atexit.register(mark_offline)
+
 if __name__ == "__main__":
-    if '--check' in sys.argv:
-        print('ONLINE')
-        sys.exit(0)
     main()

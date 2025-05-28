@@ -29,8 +29,28 @@ def main():
     print("\n--- Model Output ---\n")
     print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 
+import atexit
+import json
+import os
+
+STATUS_PATH = os.path.join(os.path.dirname(__file__), '..', 'api', 'model_status.json')
+MODEL_ID = "mixtral_8x7b_instruct_4bit"
+
+def set_status(status):
+    try:
+        with open(STATUS_PATH, 'r') as f:
+            data = json.load(f)
+    except Exception:
+        data = {}
+    data[MODEL_ID] = status
+    with open(STATUS_PATH, 'w') as f:
+        json.dump(data, f, indent=2)
+
+def mark_offline():
+    set_status("offline")
+
+set_status("online")
+atexit.register(mark_offline)
+
 if __name__ == "__main__":
-    if '--check' in sys.argv:
-        print('ONLINE')
-        sys.exit(0)
     main()

@@ -49,6 +49,22 @@ def unload_model():
         petals_model = None
         petals_tokenizer = None
 
+def update_model_status(model_id, status):
+    import os, json
+    base_dir = os.path.dirname(__file__)
+    status_path = os.path.abspath(os.path.join(base_dir, "model_status.json"))
+    if os.path.exists(status_path):
+        with open(status_path, "r") as f:
+            status_dict = json.load(f)
+    else:
+        status_dict = {}
+    # Set all models offline, then set the current one online
+    for k in status_dict:
+        status_dict[k] = "offline"
+    status_dict[model_id] = status
+    with open(status_path, "w") as f:
+        json.dump(status_dict, f, indent=2)
+
 def load_model(model_id):
     global model, model_name, tokenizer, petals_model, petals_tokenizer, current_model_id
     unload_model()
@@ -66,6 +82,46 @@ def load_model(model_id):
         print(f"Model loaded on device: {model.device}")
         petals_model = None
         petals_tokenizer = None
+    elif model_id == "llama3_8b_chat_4bit":
+        model_name = "TheBloke/Llama-3-8B-Chat-GPTQ"
+        print("Loading Llama-3 8B Chat model (4-bit quantized, GPU required)...")
+        tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token, use_fast=True)
+        bnb_config = BitsAndBytesConfig(load_in_4bit=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            device_map="auto",
+            quantization_config=bnb_config,
+            token=hf_token
+        )
+        print(f"Model loaded on device: {model.device}")
+        petals_model = None
+        petals_tokenizer = None
+    elif model_id == "mistral_7b_instruct_8bit":
+        model_name = "mistralai/Mistral-7B-Instruct-v0.2"
+        print("Loading Mistral 7B Instruct model (8-bit quantized, GPU required)...")
+        tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
+        bnb_config = BitsAndBytesConfig(load_in_8bit=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            device_map="auto",
+            quantization_config=bnb_config,
+            token=hf_token
+        )
+        print(f"Model loaded on device: {model.device}")
+        petals_model = None
+        petals_tokenizer = None
+    elif model_id == "llama2_13b_chat_4bit":
+        model_name = "TheBloke/Llama-2-13B-chat-GPTQ"
+        print("Loading Llama-2 13B Chat model (4-bit GPTQ, GPU required)...")
+        tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token, use_fast=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            device_map="auto",
+            token=hf_token
+        )
+        print(f"Model loaded on device: {model.device}")
+        petals_model = None
+        petals_tokenizer = None
     elif model_id == "llama2_70b_chat_petals":
         if not PETALS_AVAILABLE:
             raise HTTPException(status_code=503, detail="Petals is not installed. Please install the 'petals' package to use the 70B model.")
@@ -77,12 +133,26 @@ def load_model(model_id):
         model = None
         tokenizer = None
         model_name = petals_model_name
+    elif model_id == "deepseek_llm_7b_chat_4bit":
+        model_name = "TheBloke/deepseek-llm-7b-chat-GPTQ"
+        print("Loading Deepseek LLM 7B Chat model (4-bit GPTQ, GPU required)...")
+        tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token, use_fast=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            device_map="auto",
+            trust_remote_code=True,
+            token=hf_token
+        )
+        print(f"Model loaded on device: {model.device}")
+        petals_model = None
+        petals_tokenizer = None
     else:
         raise ValueError(f"Unknown model_id: {model_id}")
     current_model_id = model_id
+    update_model_status(model_id, "online")
 
-# Load 7B model by default at startup
-load_model("llama2_7b_chat_8int")
+# Load Deepseek LLM 7B Chat (4-bit quantized) model by default at startup
+load_model("deepseek_llm_7b_chat_4bit")
 
 @app.post("/api/switch_model")
 def switch_model(request: dict):
@@ -124,7 +194,7 @@ app.add_middleware(
 
 class CompletionRequest(BaseModel):
     prompt: str
-    max_tokens: int = 128
+    max_tokens: int = 512
     temperature: float = 0.7
     top_p: float = 0.95
 
@@ -133,39 +203,36 @@ def create_completion(request: CompletionRequest):
     """OpenAI-compatible completion endpoint."""
     import time as _time
     with model_lock:
-        if current_model_id == "llama2_7b_chat_8int" and model is not None:
+        allowed_models = ["llama2_7b_chat_8int", "deepseek_llm_7b_chat_4bit"]
+        if model is not None and current_model_id in allowed_models:
             try:
                 t0 = _time.time()
-                inputs = tokenizer(request.prompt, return_tensors="pt").to(model.device)
+                inputs = tokenizer(request.prompt, return_tensors="pt")
                 t1 = _time.time()
                 print(f"[TIMING] Tokenization: {t1 - t0:.3f} seconds")
                 with torch.no_grad():
                     t2 = _time.time()
                     outputs = model.generate(
-                        **inputs,
+                        input_ids=inputs["input_ids"].to(model.device),
+                        attention_mask=inputs["attention_mask"].to(model.device),
                         max_new_tokens=request.max_tokens,
-                        do_sample=True,
                         temperature=request.temperature,
-                        top_p=request.top_p
+                        top_p=request.top_p,
+                        do_sample=True
                     )
                     t3 = _time.time()
-                    print(f"[TIMING] Model.generate: {t3 - t2:.3f} seconds")
-                completion = tokenizer.decode(outputs[0], skip_special_tokens=True)
-                t4 = _time.time()
-                print(f"[TIMING] Decoding: {t4 - t3:.3f} seconds")
-                print(f"[TIMING] Total: {t4 - t0:.3f} seconds")
-                # Remove the prompt from the start of the completion if present
-                prompt_text = request.prompt.strip()
-                completion_text = completion.strip()
-                if completion_text.startswith(prompt_text):
-                    answer = completion_text[len(prompt_text):].lstrip("\n ")
-                else:
-                    answer = completion_text
+                    print(f"[TIMING] Generation: {t3 - t2:.3f} seconds")
+                    # Only decode new tokens (not the prompt)
+                    prompt_len = inputs["input_ids"].shape[-1]
+                    generated_tokens = outputs[0][prompt_len:]
+                    answer = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+                    t4 = _time.time()
+                    print(f"[TIMING] Decoding: {t4 - t3:.3f} seconds")
                 response = {
                     "id": f"cmpl-{int(time.time()*1000)}",
                     "object": "text_completion",
-                    "created": int(time.time()),
-                    "model": model_name,
+                    "created": int(_time.time()),
+                    "model": current_model_id,
                     "choices": [
                         {
                             "text": answer,

@@ -7,44 +7,53 @@ router = APIRouter()
 # List available models
 @router.get("/models")
 async def get_models():
-    import sys
-    import subprocess
+    import json
+    import os
     base_dir = os.path.dirname(__file__)
-    scripts_dir = os.path.abspath(os.path.join(base_dir, "..", "scripts"))
+    status_path = os.path.abspath(os.path.join(base_dir, "model_status.json"))
     models = [
         {
             "id": "llama2_7b_chat_8int",
-            "name": "Llama 2 7B Chat 8INT (4070 Super)",
-            "script": os.path.join(scripts_dir, "llama2_7b_chat_8int.py")
+            "name": "Llama 2 7B Chat INT8"
         },
         {
-            "id": "llama2_70b_chat_petals",
-            "name": "Llama 2 70B Chat (Petals mesh)",
-            "script": os.path.join(scripts_dir, "petals_llama2_70b_chat.py")
+            "id": "llama2_13b_chat_4bit",
+            "name": "Llama 2 13B Chat INT4"
+        },
+        {
+            "id": "llama2_7b_chat_fp16",
+            "name": "Llama 2 7B Chat FP16"
+        },
+        {
+            "id": "llama3_8b_chat_4bit",
+            "name": "Llama-3 8B Chat INT4"
+        },
+        {
+            "id": "deepseek_llm_7b_chat_4bit",
+            "name": "Deepseek LLM 7B Chat INT4"
         },
         {
             "id": "mistral_7b_instruct_8bit",
-            "name": "Mistral 7B Instruct 8INT (4070 Super)",
-            "script": os.path.join(scripts_dir, "mistral_7b_instruct_8bit.py")
+            "name": "Mistral 7B Instruct INT8"
+        },
+        {
+            "id": "mixtral_8x7b_instruct_4bit",
+            "name": "Mixtral 8x7B Instruct INT4"
+        },
+        {
+            "id": "llama2_70b_chat_petals",
+            "name": "Llama 2 70B Chat (petals)"
         }
     ]
+    # Load status from JSON
+    if os.path.exists(status_path):
+        with open(status_path, "r") as f:
+            status_dict = json.load(f)
+    else:
+        status_dict = {}
     result = []
     for model in models:
-        script_path = model["script"]
-        if not os.path.exists(script_path):
-            status = "offline"
-        else:
-            try:
-                proc = subprocess.run(
-                    [sys.executable, script_path, "--check"],
-                    capture_output=True, text=True, timeout=5
-                )
-                if proc.returncode == 0 and "ONLINE" in proc.stdout:
-                    status = "online"
-                else:
-                    status = "offline"
-            except Exception:
-                status = "offline"
+        status = status_dict.get(model["id"], "offline")
         result.append({
             "id": model["id"],
             "name": model["name"],

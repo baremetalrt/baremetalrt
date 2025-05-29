@@ -77,29 +77,33 @@ To make your backend accessible online (for Netlify or remote frontend), you mus
    .\scripts\start-backend.bat
    ```
 
-2. **In a new terminal window, start the Cloudflare Tunnel:**
+2. **In a new terminal window, start the Cloudflare Tunnel (production subdomain):**
    - Change directory to the `external` folder inside your project root:
 
      ```sh
      cd C:\Github\baremetalrt\external
      ```
 
-   - Then start the tunnel:
+   - Then start the named tunnel (replace `my-backend-tunnel` with your tunnel name if different):
 
      ```sh
-     .\cloudflared-windows-amd64.exe tunnel --url http://localhost:8000
+     .\cloudflared-windows-amd64.exe tunnel run my-backend-tunnel
      ```
 
-   - This will provide a public `.trycloudflare.com` URL for your backend.
+   - This will expose your backend at your custom subdomain, e.g.:
+     ```
+     https://api.baremetalrt.ai
+     ```
    - **Both windows must remain open** for your backend to be accessible online.
 
 ---
 
-**Important: The Cloudflare Tunnel URL changes every time you restart the tunnel!**
+**Important: The Cloudflare Tunnel URL is now permanent and does NOT change each time you restart the tunnel!**
 
-- Each time you start a new tunnel, you will get a new `.trycloudflare.com` URL.
-- You must update your frontend `.env.local` file (for local development) and your Netlify environment variable (for production/preview) to use this new URL.
-- After updating the environment variable, restart your frontend dev server (locally) or trigger a redeploy on Netlify.
+- Set your frontend’s API URL (in `.env.local` for local dev and as a Netlify env var for production) to your custom subdomain, e.g.:
+  ```
+  NEXT_PUBLIC_API_URL=https://api.baremetalrt.ai
+  ```
 
 If you do not update the API URL, your frontend will not be able to connect to the backend.
 

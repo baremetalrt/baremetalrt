@@ -71,6 +71,12 @@ To add a new model to your BareMetalRT setup:
 
 To make your backend accessible online (for Netlify or remote frontend), you must run both your backend and the Cloudflare Tunnel in **separate terminal windows**:
 
+**Note:**
+- A *public* tunnel exposes your backend to the internet at a stable URL for anyone to access (useful for production, Netlify, or remote clients).
+- A *private* tunnel restricts access to your backend (e.g., only your devices, your team, or users with Cloudflare Access/Zero Trust policies).
+
+See below for both options.
+
 1. **Start the backend** (from your project root):
 
    ```sh
@@ -84,11 +90,12 @@ To make your backend accessible online (for Netlify or remote frontend), you mus
      cd C:\Github\baremetalrt\external
      ```
 
-   - Then start the named tunnel (replace `my-backend-tunnel` with your tunnel name if different):
+   - Then start the named tunnel (replace `my-backend-tunnel` with your tunnel name if different). On Windows, use the correct executable name:
 
      ```sh
-     .\cloudflared-windows-amd64.exe tunnel run my-backend-tunnel
+     .\cloudflared.exe tunnel run my-backend-tunnel
      ```
+     *(If your file is named differently, use the actual filename as shown in the folder.)*
 
    - This will expose your backend at your custom subdomain, e.g.:
      ```
@@ -106,6 +113,38 @@ To make your backend accessible online (for Netlify or remote frontend), you mus
   ```
 
 If you do not update the API URL, your frontend will not be able to connect to the backend.
+
+---
+
+### Private Tunnel Access (Recommended for Personal or Restricted Use)
+
+If you want to keep your backend private (not accessible to the public internet), you can:
+- Use a tunnel with a random hostname (e.g., `cloudflared tunnel --url http://localhost:8000`), which will generate a temporary URL only you know.
+- Or, use a named tunnel with Cloudflare Access/Zero Trust policies to restrict who can reach your backend (e.g., by email, IP, or login).
+
+**To start a private tunnel (temporary/random URL):**
+
+1. Change directory to where your cloudflared executable is located (usually `external`):
+   ```sh
+   cd C:\Github\baremetalrt\external
+   ```
+2. Run:
+   ```sh
+   .\cloudflared.exe tunnel --url http://localhost:8000
+   ```
+   *(If your file is named differently, use the actual filename as shown in the folder.)*
+
+- This will print a unique URL (like `https://random-words.trycloudflare.com`) each time. Only those with the link can access it.
+- For more security, use Cloudflare Access to require authentication for your tunnel. See [Cloudflare Zero Trust docs](https://developers.cloudflare.com/cloudflare-one/identity/) for details.
+
+**To start a private tunnel with a permanent name but restricted access:**
+
+1. Set up your tunnel as usual (`cloudflared tunnel create my-private-tunnel`).
+2. In the Cloudflare dashboard, configure Access Policies for your tunnel subdomain.
+3. Start the tunnel as you would for public, but only authorized users will be able to access it:
+   ```sh
+   cloudflared tunnel run my-private-tunnel
+   ```
 
 ---
 

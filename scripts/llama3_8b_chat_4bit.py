@@ -17,21 +17,8 @@ import torch
 
 MODEL_NAME = "TheBloke/Meta-Llama-3-8B-Instruct-GPTQ"  # Change to your preferred Q4 checkpoint
 
-# Try to read token from llama2_7b_chat_8int.py for consistency
-hf_token = None
-try:
-    from importlib.util import spec_from_file_location, module_from_spec
-    llama_path = os.path.join(os.path.dirname(__file__), "llama2_7b_chat_8int.py")
-    spec = spec_from_file_location("llama2_7b_chat_8int", llama_path)
-    llama_mod = module_from_spec(spec)
-    spec.loader.exec_module(llama_mod)
-    hf_token = getattr(llama_mod, "hf_token", None)
-except Exception:
-    pass
-
-# Fallback to environment variable
-if not hf_token:
-    hf_token = os.environ.get("HF_TOKEN")
+# Hardcoded Hugging Face token for model access
+hf_token = "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"  # Your HuggingFace token
 
 # Aggressive 4-bit quantization settings
 bnb_config = BitsAndBytesConfig(

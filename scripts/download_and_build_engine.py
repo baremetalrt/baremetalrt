@@ -6,10 +6,9 @@ from huggingface_hub import snapshot_download, login
 # CONFIGURABLE PARAMETERS
 MODEL_ID = "meta-llama/Llama-2-7b-chat-hf"  # Change as needed
 LOCAL_MODEL_DIR = "./Llama-2-7b-chat-hf"
-TRTLLM_EXPORT_SCRIPT = "examples/llama/export.py"  # Path to export.py in your TensorRT-LLM repo
-TRTLLM_BUILD_SCRIPT = "examples/llama/build.py"    # Path to build.py in your TensorRT-LLM repo
-TRTLLM_MODEL_DIR = "./trtllm-model"
-TRTLLM_ENGINE_DIR = "./trtllm-engine"
+# Path to new Llama conversion script in TensorRT-LLM
+TRTLLM_CONVERT_SCRIPT = "/home/brian/baremetalrt/TensorRT-LLM/examples/models/core/llama/convert_checkpoint.py"
+TRTLLM_MODEL_DIR = "./trtllm-model"  # Output dir for converted model (adjust as needed)
 
 # Set your Hugging Face token if required (Llama-2 is gated)
 HF_TOKEN = os.environ.get("HUGGINGFACE_HUB_TOKEN")
@@ -31,28 +30,21 @@ def ensure_model_downloaded(model_id, local_dir):
     else:
         print(f"[INFO] Model directory {local_dir} already exists and is not empty.")
 
-# 2. Export to TensorRT-LLM format
-def export_to_trtllm(model_dir, output_dir):
-    if not os.path.exists(output_dir) or not os.listdir(output_dir):
-        print(f"[INFO] Exporting model to TensorRT-LLM format...")
-        cmd = [sys.executable, TRTLLM_EXPORT_SCRIPT, "--model_dir", model_dir, "--output_dir", output_dir]
-        print("[CMD]", " ".join(cmd))
+# 2. Convert Hugging Face model to TensorRT-LLM format using new script
+def convert_to_trtllm(model_dir, output_dir):
+    print(f"[INFO] Converting model using TensorRT-LLM convert_checkpoint.py...")
+    cmd = [sys.executable, TRTLLM_CONVERT_SCRIPT, \
+           "--input_dir", model_dir, "--output_dir", output_dir]
+    print("[CMD]", " ".join(cmd))
+    try:
         subprocess.check_call(cmd)
-    else:
-        print(f"[INFO] TRT-LLM export directory {output_dir} already exists and is not empty.")
-
-# 3. Build the TensorRT engine
-def build_engine(model_dir, output_dir):
-    if not os.path.exists(output_dir) or not os.listdir(output_dir):
-        print(f"[INFO] Building TensorRT engine...")
-        cmd = [sys.executable, TRTLLM_BUILD_SCRIPT, "--model_dir", model_dir, "--output_dir", output_dir, "--dtype", "float16", "--max_input_len", "4096", "--max_output_len", "1024"]
-        print("[CMD]", " ".join(cmd))
-        subprocess.check_call(cmd)
-    else:
-        print(f"[INFO] Engine directory {output_dir} already exists and is not empty.")
+    except Exception as e:
+        print("[ERROR] Conversion failed. Printing help for convert_checkpoint.py:")
+        help_cmd = [sys.executable, TRTLLM_CONVERT_SCRIPT, "--help"]
+        subprocess.call(help_cmd)
+        raise e
 
 if __name__ == "__main__":
     ensure_model_downloaded(MODEL_ID, LOCAL_MODEL_DIR)
-    export_to_trtllm(LOCAL_MODEL_DIR, TRTLLM_MODEL_DIR)
-    build_engine(TRTLLM_MODEL_DIR, TRTLLM_ENGINE_DIR)
-    print("[SUCCESS] Model downloaded, exported, and engine built!")
+    convert_to_trtllm(LOCAL_MODEL_DIR, TRTLLM_MODEL_DIR)
+    print("[SUCCESS] Model downloaded and converted!")

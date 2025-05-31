@@ -12,12 +12,11 @@ REM List available models
 setlocal enabledelayedexpansion
 set MODELS[0]=llama2_7b_chat_8int.py
 set MODELS[1]=llama2_13b_chat_4bit.py
-set MODELS[2]=llama2_7b_chat_fp16.py
-set MODELS[3]=mistral_7b_instruct_8bit.py
-set MODELS[4]=mixtral_8x7b_instruct_4bit.py
-set MODELS[5]=petals_llama2_70b_chat.py
+set MODELS[2]=mistral_7b_instruct_8bit.py
+set MODELS[3]=mixtral_8x7b_instruct_4bit.py
+set MODELS[4]=petals_llama2_70b_chat.py
 
-set NMODELS=6
+set NMODELS=5
 
 :show_menu
 @echo.

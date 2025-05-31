@@ -21,10 +21,6 @@ async def get_models():
             "name": "Llama 2 13B Chat INT4"
         },
         {
-            "id": "llama2_7b_chat_fp16",
-            "name": "Llama 2 7B Chat FP16"
-        },
-        {
             "id": "llama3_8b_chat_4bit",
             "name": "Llama-3 8B Chat INT4"
         },

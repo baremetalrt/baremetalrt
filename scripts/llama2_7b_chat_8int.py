@@ -1,6 +1,9 @@
 # Requires: pip install bitsandbytes transformers accelerate
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import TextIteratorStreamer
+import threading
+import time
 
 model_name = "meta-llama/Llama-2-7b-chat-hf"
 hf_token = "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"  # Your HuggingFace token
@@ -34,9 +37,28 @@ def main():
     inputs = tokenizer(prompt, return_tensors="pt")
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=64)
-    print("\n--- Model Output ---\n")
-    print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+        t0 = time.time()
+        generation_thread = threading.Thread(target=model.generate, kwargs={
+            **inputs,
+            'max_new_tokens': 64,
+            'streamer': streamer
+        })
+        generation_thread.start()
+        print("\n--- Model Output (streaming) ---\n")
+        first_token_time = None
+        output_str = ""
+        for token in streamer:
+            if first_token_time is None:
+                first_token_time = time.time()
+                print(f"[TIMING] Time to first token: {first_token_time - t0:.3f} seconds")
+            print(token, end='', flush=True)
+            output_str += token
+        print("\n\n--- End of Output ---\n")
+        if first_token_time is not None:
+            print(f"[TIMING] Total generation time: {time.time() - t0:.3f} seconds")
+        else:
+            print("[ERROR] No tokens were generated.")
 
 import atexit
 import json

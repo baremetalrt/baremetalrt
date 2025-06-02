@@ -166,6 +166,34 @@ def load_model(model_id):
             else:
                 tokenizer = None
                 print("Warning: tokenizer.json not found, proceeding without tokenizer.")
+            # Improved warmup: multiple realistic prompts with higher max_tokens
+            try:
+                from tensorrt_llm import SamplingParams
+                warmup_prompts = [
+                    ("Hello!", 8),
+                    ("What is the capital of France? Explain in detail.", 256),
+                    ("Write a Python function to compute Fibonacci numbers.", 128),
+                    ("Summarize the theory of relativity in 100 words.", 200),
+                    ("Explain the difference between supervised and unsupervised learning.", 128),
+                    ("Generate a short story about a robot and a cat.", 150),
+                    ("List the first 20 prime numbers.", 32),
+                    ("Translate the following English text to French: 'The quick brown fox jumps over the lazy dog.'", 32),
+                    ("Write a poem about the ocean.", 64),
+                    ("Explain how to implement a binary search algorithm in Python.", 128),
+                    ("Describe the process of photosynthesis.", 96)
+                ]
+                print("Warming up TRT-LLM engine with multiple prompts...")
+                for prompt, tokens in warmup_prompts:
+                    warmup_params = SamplingParams(
+                        temperature=0.7,
+                        top_p=0.95,
+                        max_tokens=tokens,
+                        end_id=2
+                    )
+                    _ = model.generate([prompt], warmup_params)
+                print("[INFO] TRT-LLM engine full warmup complete.")
+            except Exception as e:
+                print(f"[WARN] TRT-LLM warmup failed: {e}")
         except Exception as e:
             print(f"[ERROR] Failed to load TRT-LLM engine: {e}")
             model = None
@@ -228,7 +256,7 @@ app.add_middleware(
 
 class CompletionRequest(BaseModel):
     prompt: str
-    max_tokens: int = 512
+    max_tokens: int = 1024  # Increased default for more verbose completions
     temperature: float = 0.7
     top_p: float = 0.95
 
@@ -337,15 +365,21 @@ def create_completion(request: CompletionRequest):
                     input_ids = None
                 # Use default sampling params or map from request
                 from tensorrt_llm import SamplingParams
+                # Cap max_tokens to 2048 for safety
+                max_tokens = min(getattr(request, 'max_tokens', 1024), 2048)
                 sampling_params = SamplingParams(
                     temperature=request.temperature,
                     top_p=request.top_p,
-                    max_new_tokens=request.max_tokens,
+                    max_tokens=max_tokens,
                     end_id=2  # EOS token for Llama models (adjust if needed)
                 )
                 # TRT-LLM expects a list of prompts
                 outputs = model.generate([prompt], sampling_params)
-                output_text = outputs[0].outputs[0].text if outputs and outputs[0].outputs else ""
+                # Concatenate all outputs for the first prompt (if multiple candidates are returned)
+                if outputs and outputs[0].outputs:
+                    output_text = "".join([seq.text for seq in outputs[0].outputs])
+                else:
+                    output_text = ""
                 t1 = _time.time()
                 print(f"[TIMING] TRT-LLM Generation: {t1 - t0:.3f} seconds")
                 response = {

@@ -12,6 +12,7 @@ import { Input } from "../ui/input"
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import { ModelIcon } from "./model-icon"
 import { ModelOption } from "./model-option"
+import { LLM_LIST } from "@/lib/models/llm/llm-list"
 
 interface ModelSelectProps {
   selectedModelId: string
@@ -51,14 +52,12 @@ export const ModelSelect: FC<ModelSelectProps> = ({
     setIsOpen(false)
   }
 
+  // Merge backend status with frontend model list by modelId
+  const backendStatusMap = Object.fromEntries(models.map((m: any) => [m.id, m.status]))
   const allModels = [
-    ...models.map(model => ({
-      modelId: model.model_id as LLMID,
-      modelName: model.name,
-      provider: "custom" as ModelProvider,
-      hostedId: model.id,
-      platformLink: "",
-      imageInput: false
+    ...LLM_LIST.map((model: LLM) => ({
+      ...model,
+      status: backendStatusMap[model.modelId] || "offline"
     })),
     ...availableHostedModels,
     ...availableLocalModels,

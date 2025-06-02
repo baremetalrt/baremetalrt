@@ -1,9 +1,8 @@
 {
-  "llama2_7b_chat_8int": "online",
-  "llama2_13b_chat_4bit": "offline",
-  "llama3_8b_chat_4bit": "offline",
-  "deepseek_llm_7b_chat_4bit": "offline",
-  "mistral_7b_instruct_8bit": "offline",
+  "llama3.1_8b_trtllm_4int": "online",
+  "llama2_8b_int8": "offline",
+  "deepseek_7b": "offline",
   "mixtral_8x7b_instruct_4bit": "offline",
-  "llama2_70b_chat_petals": "offline"
+  "llama3.1_405b_petals": "offline",
+  "llama2_7b_chat_8int": "offline"
 }

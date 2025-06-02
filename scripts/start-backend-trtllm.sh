@@ -1,12 +1,50 @@
 #!/bin/bash
-# Activate the TensorRT-LLM Python virtual environment
+# Enhanced backend launcher with interactive model selection for TRTLLM
+
+# Activate venv (edit path if your venv is elsewhere)
 source ~/trtllm-venv/bin/activate
 
-# Path to your HuggingFace model directory (AutoDeploy will handle engine loading)
-MODEL_DIR="/home/brian/baremetalrt/models/Llama-3.1-8b-hf"
+cd /mnt/c/Github/baremetalrt
 
-# Start the official TensorRT-LLM OpenAI-compatible API server (on port 8001)
-python -m tensorrt_llm.llmapi.server \
-  --model $MODEL_DIR \
-  --backend trtllm \
-  --port 8000
+# List of available models
+MODELS=(
+  "llama3.1_8b_trtllm_4int"
+  "llama2_8b_int8"
+  "deepseek_7b"
+  "mixtral_8x7b_instruct_4bit"
+  "llama3.1_405b_petals"
+  "llama2_7b_chat_8int"
+)
+
+echo "Select a model to set as 'online':"
+for i in "${!MODELS[@]}"; do
+  echo "  $i: ${MODELS[$i]}"
+done
+
+read -p "Enter model number (0-${#MODELS[@]}-1): " CHOICE
+
+if [[ "$CHOICE" =~ ^[0-9]+$ ]] && [ "$CHOICE" -ge 0 ] && [ "$CHOICE" -lt "${#MODELS[@]}" ]; then
+  # Build JSON with selected model online, others offline
+  JSON="{"
+  for i in "${!MODELS[@]}"; do
+    STATUS="offline"
+    if [ "$i" -eq "$CHOICE" ]; then
+      STATUS="online"
+    fi
+    JSON+="\"${MODELS[$i]}\": \"$STATUS\""
+    if [ "$i" -lt $((${#MODELS[@]}-1)) ]; then
+      JSON+=", "
+    fi
+  done
+  JSON+="}"
+
+  # Write to model_status.json
+  echo "$JSON" > api/model_status.json
+  echo "Set ${MODELS[$CHOICE]} as online in api/model_status.json."
+else
+  echo "Invalid selection. Exiting."
+  exit 1
+fi
+
+# Start backend
+uvicorn api.openai_api:app --host 0.0.0.0 --port 8000

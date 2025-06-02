@@ -13,32 +13,28 @@ async def get_models():
     status_path = os.path.abspath(os.path.join(base_dir, "model_status.json"))
     models = [
         {
-            "id": "llama2_7b_chat_8int",
-            "name": "Llama 2 7B Chat INT8"
+            "id": "llama3.1_8b_trtllm_4int",
+            "name": "Llama 3.1 8B (TensorRT-LLM, 4INT)"
         },
         {
-            "id": "llama2_13b_chat_4bit",
-            "name": "Llama 2 13B Chat INT4"
+            "id": "llama2_8b_int8",
+            "name": "Llama 2 8B (INT8)"
         },
         {
-            "id": "llama3_8b_chat_4bit",
-            "name": "Llama-3 8B Chat INT4"
-        },
-        {
-            "id": "deepseek_llm_7b_chat_4bit",
-            "name": "Deepseek LLM 7B Chat INT4"
-        },
-        {
-            "id": "mistral_7b_instruct_8bit",
-            "name": "Mistral 7B Instruct INT8"
+            "id": "deepseek_7b",
+            "name": "Deepseek LLM 7B"
         },
         {
             "id": "mixtral_8x7b_instruct_4bit",
-            "name": "Mixtral 8x7B Instruct INT4"
+            "name": "Mixtral 8x7B Instruct (4INT)"
         },
         {
-            "id": "llama2_70b_chat_petals",
-            "name": "Llama 2 70B Chat (petals)"
+            "id": "llama3.1_405b_petals",
+            "name": "Llama 3.1 405B (Petals, API)"
+        },
+        {
+            "id": "llama2_7b_chat_8int",
+            "name": "Llama 2 7B Chat INT8"
         }
     ]
     # Load status from JSON

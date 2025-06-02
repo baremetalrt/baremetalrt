@@ -147,13 +147,46 @@ def load_model(model_id):
         print(f"Model loaded on device: {model.device}")
         petals_model = None
         petals_tokenizer = None
+    elif model_id == "llama3.1_8b_trtllm_4int":
+        # Actual TensorRT-LLM engine loading
+        print("Loading Llama-3.1 8B (TensorRT-LLM, 4INT) engine (ultra-fast, INT4+INT8KV, GPU required)...")
+        try:
+            from tensorrt_llm import LLM
+            from transformers import PreTrainedTokenizerFast
+            ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
+            model = LLM(model=ENGINE_DIR)
+            model_name = "llama3.1_8b_trtllm_4int"
+            print("TensorRT-LLM engine loaded successfully.")
+            # Try to load tokenizer from tokenizer.json if present
+            import os
+            tokenizer_path = os.path.join(ENGINE_DIR, "tokenizer.json")
+            if os.path.exists(tokenizer_path):
+                tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
+                print("Loaded tokenizer.json with PreTrainedTokenizerFast.")
+            else:
+                tokenizer = None
+                print("Warning: tokenizer.json not found, proceeding without tokenizer.")
+        except Exception as e:
+            print(f"[ERROR] Failed to load TRT-LLM engine: {e}")
+            model = None
+            tokenizer = None
+        petals_model = None
+        petals_tokenizer = None
+        print("Model loaded on device: cuda:0 (TensorRT-LLM)")
     else:
         raise ValueError(f"Unknown model_id: {model_id}")
     current_model_id = model_id
     update_model_status(model_id, "online")
 
-# Load Llama 2 7B Chat (8-bit quantized) model by default at startup
-load_model("llama2_7b_chat_8int")
+# Load the first model marked 'online' in model_status.json at startup
+import json
+status_path = os.path.join(os.path.dirname(__file__), "model_status.json")
+with open(status_path, "r") as f:
+    status_dict = json.load(f)
+for model_id, status in status_dict.items():
+    if status == "online":
+        load_model(model_id)
+        break
 
 @app.post("/api/switch_model")
 def switch_model(request: dict):
@@ -292,6 +325,46 @@ def create_completion(request: CompletionRequest):
                 return response
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
+        elif current_model_id == "llama3.1_8b_trtllm_4int" and model is not None:
+            # TRT-LLM inference path
+            try:
+                t0 = _time.time()
+                prompt = request.prompt
+                # Use tokenizer if available for input_ids, else just pass prompt
+                if tokenizer is not None:
+                    input_ids = tokenizer.encode(prompt, return_tensors=None)
+                else:
+                    input_ids = None
+                # Use default sampling params or map from request
+                from tensorrt_llm import SamplingParams
+                sampling_params = SamplingParams(
+                    temperature=request.temperature,
+                    top_p=request.top_p,
+                    max_new_tokens=request.max_tokens,
+                    end_id=2  # EOS token for Llama models (adjust if needed)
+                )
+                # TRT-LLM expects a list of prompts
+                outputs = model.generate([prompt], sampling_params)
+                output_text = outputs[0].outputs[0].text if outputs and outputs[0].outputs else ""
+                t1 = _time.time()
+                print(f"[TIMING] TRT-LLM Generation: {t1 - t0:.3f} seconds")
+                response = {
+                    "id": f"cmpl-{int(time.time()*1000)}",
+                    "object": "text_completion",
+                    "created": int(_time.time()),
+                    "model": current_model_id,
+                    "choices": [
+                        {
+                            "text": output_text,
+                            "index": 0,
+                            "logprobs": None,
+                            "finish_reason": "stop"
+                        }
+                    ]
+                }
+                return response
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"TRT-LLM inference failed: {e}")
         else:
             raise HTTPException(status_code=503, detail="No model loaded or model is still loading. Please switch to a model and try again.")
 

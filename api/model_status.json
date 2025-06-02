@@ -1,5 +1,5 @@
 {
-  "llama2_7b_chat_8int": "offline",
+  "llama2_7b_chat_8int": "online",
   "llama2_13b_chat_4bit": "offline",
   "llama3_8b_chat_4bit": "offline",
   "deepseek_llm_7b_chat_4bit": "offline",

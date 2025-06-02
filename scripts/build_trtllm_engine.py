@@ -22,7 +22,7 @@ TensorRT-LLM 0.19.0 engine build script for Llama 3.1-8B INT4+INT8KV
 (Code-backed, no guessing: imports LLaMAForCausalLM from correct submodule)
 """
 from tensorrt_llm.models.llama.model import LLaMAForCausalLM
-from tensorrt_llm.builder import Builder, build
+from tensorrt_llm.builder import BuildConfig, build
 
 checkpoint_dir = "/home/brian/baremetalrt/models/Llama-3.1-8b-trtllm-int4-int8kv"
 output_dir = "/home/brian/baremetalrt/models/Llama-3.1-8b-trtllm-engine"
@@ -30,10 +30,9 @@ output_dir = "/home/brian/baremetalrt/models/Llama-3.1-8b-trtllm-engine"
 # Load model from checkpoint (confirmed method)
 model = LLaMAForCausalLM.from_checkpoint(checkpoint_dir)
 
-# Create builder and build config (NVIDIA best practice, precision required as first positional argument)
-builder = Builder()
-config = builder.create_builder_config(
-    "float16",            # precision (required positional argument)
+# Create build config directly (avoid Builder factory due to native handle issues)
+config = BuildConfig(
+    precision="float16",
     max_batch_size=4,
     max_input_len=2048,
     tp_size=1,

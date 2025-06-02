@@ -103,7 +103,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
-trtlllm-venv/
+trtllm-venv/
 env/
 venv/
 ENV/

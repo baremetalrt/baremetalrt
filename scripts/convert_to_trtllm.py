@@ -3,9 +3,9 @@ import subprocess
 import sys
 
 # Adjust these paths as needed for your environment
-TRTLLM_CONVERT_SCRIPT = "/home/brian/baremetalrt/TensorRT-LLM/examples/models/core/llama/convert_checkpoint.py"
-LOCAL_MODEL_DIR = "./Llama-2-7b-chat-hf"  # Input dir for downloaded model (relative to scripts/)
-TRTLLM_MODEL_DIR = "./trtllm-Llama-2-7b-chat-hf"  # Output dir for converted model
+TRTLLM_CONVERT_SCRIPT = "/mnt/c/Github/baremetalrt/external/TensorRT-LLM-0.19.0/examples/models/core/llama/convert_checkpoint.py"
+LOCAL_MODEL_DIR = "../external/models/Llama-3.1-8B"  # Input dir for original model (relative to scripts/)
+TRTLLM_MODEL_DIR = "../external/models/trtllm-Llama-3.1-8B"  # Output dir for converted model
 
 def convert_to_trtllm(model_dir, output_dir):
     print(f"[INFO] Converting model using TensorRT-LLM convert_checkpoint.py...")

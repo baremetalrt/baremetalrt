@@ -1,4 +1,11 @@
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+import os
+import json
+try:
+    from api.openai_api import model_ready
+except ImportError:
+    model_ready = True  # fallback if import fails (for testing)
 from pydantic import BaseModel
 from typing import List
 
@@ -14,11 +21,7 @@ async def get_models():
     models = [
         {
             "id": "llama3.1_8b_trtllm_4int",
-            "name": "Llama 3.1 8B (TensorRT-LLM, 4INT)"
-        },
-        {
-            "id": "llama2_8b_int8",
-            "name": "Llama 2 8B (INT8)"
+            "name": "Llama 3.1 8B (INT4)"
         },
         {
             "id": "deepseek_7b",
@@ -55,6 +58,12 @@ async def get_models():
 
 # For now, we hardcode the available models. Later, this can be extended to scan scripts or config.
 import os
+
+@router.get("/health")
+def api_health_check():
+    if model_ready:
+        return {"status": "ready"}
+    return JSONResponse(status_code=503, content={"status": "warming_up"})
 
 import subprocess
 PETALS_SCRIPT = os.path.join(os.path.dirname(__file__), "..", "scripts", "petals_llama2_70b_chat.py")

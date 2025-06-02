@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import os
 import time
-
+import threading
 import gc
 from threading import Lock
 # try:
@@ -26,6 +26,7 @@ tokenizer = None
 # petals_tokenizer = None
 current_model_id = None
 model_lock = Lock()
+model_ready = False
 hf_token = os.environ.get("HF_TOKEN", "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")
 
 app = FastAPI(title="OpenAI-Compatible LLM API", description="OpenAI-style local inference endpoint.")
@@ -66,6 +67,8 @@ def update_model_status(model_id, status):
         json.dump(status_dict, f, indent=2)
 
 def load_model(model_id):
+    global model_ready
+    model_ready = False
     global model, model_name, tokenizer, current_model_id
     # petals_model, petals_tokenizer
     unload_model()
@@ -194,6 +197,7 @@ def load_model(model_id):
                 print("[INFO] TRT-LLM engine full warmup complete.")
             except Exception as e:
                 print(f"[WARN] TRT-LLM warmup failed: {e}")
+            model_ready = True
         except Exception as e:
             print(f"[ERROR] Failed to load TRT-LLM engine: {e}")
             model = None
@@ -206,15 +210,22 @@ def load_model(model_id):
     current_model_id = model_id
     update_model_status(model_id, "online")
 
-# Load the first model marked 'online' in model_status.json at startup
-import json
-status_path = os.path.join(os.path.dirname(__file__), "model_status.json")
-with open(status_path, "r") as f:
-    status_dict = json.load(f)
-for model_id, status in status_dict.items():
-    if status == "online":
-        load_model(model_id)
-        break
+def get_online_model_id():
+    import json
+    status_path = os.path.join(os.path.dirname(__file__), "model_status.json")
+    with open(status_path, "r") as f:
+        status_dict = json.load(f)
+    for model_id, status in status_dict.items():
+        if status == "online":
+            return model_id
+    raise ValueError("No model marked as online in model_status.json")
+
+def background_load_model():
+    load_model(get_online_model_id())
+
+@app.on_event("startup")
+def startup_event():
+    threading.Thread(target=background_load_model, daemon=True).start()
 
 @app.post("/api/switch_model")
 def switch_model(request: dict):
@@ -240,7 +251,6 @@ def health():
         else:
             return {"status": "error", "model_loaded": False, "active_model": current_model_id}
 
-
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
@@ -262,6 +272,8 @@ class CompletionRequest(BaseModel):
 
 @app.post("/v1/completions")
 def create_completion(request: CompletionRequest):
+    if not model_ready:
+        raise HTTPException(status_code=503, detail="Model is warming up, please try again in a few seconds.")
     """OpenAI-compatible completion endpoint."""
     import time as _time
     with model_lock:

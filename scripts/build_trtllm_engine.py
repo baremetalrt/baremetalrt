@@ -22,28 +22,29 @@ TensorRT-LLM 0.19.0 engine build script for Llama 3.1-8B INT4+INT8KV
 (Code-backed, no guessing: imports LLaMAForCausalLM from correct submodule)
 """
 from tensorrt_llm.models.llama.model import LLaMAForCausalLM
-from tensorrt_llm.builder import BuildConfig, build
+from tensorrt_llm.builder import build, BuildConfig
 
-checkpoint_dir = "/home/brian/baremetalrt/models/Llama-3.1-8b-trtllm-int4-int8kv"
-output_dir = "/home/brian/baremetalrt/models/Llama-3.1-8b-trtllm-engine"
+# NOTE: As of TensorRT-LLM 0.19.0, there is no official CLI engine build script. The recommended method is to use the Python API as shown here.
 
-# Load model from checkpoint (confirmed method)
-model = LLaMAForCausalLM.from_checkpoint(checkpoint_dir)
+checkpoint_dir = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-int4-int8kv"
+output_dir = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
 
-# Create build config directly (avoid Builder factory due to native handle issues)
-config = BuildConfig(
-    precision="float16",
-    max_batch_size=4,
-    max_input_len=2048,
-    tp_size=1,
-    parallel_build=True,
-    workers=4,
-    output_dir=output_dir
-)
+try:
+    # Load model from checkpoint (confirmed method)
+    model = LLaMAForCausalLM.from_checkpoint(checkpoint_dir)
 
-# Build engine
-engine = build(model, config.to_dict())
+    # Create BuildConfig with correct engine build parameters
+    build_config = BuildConfig(
+        max_batch_size=4,                # Explicitly set max batch size for 4070 Super
+        strongly_typed=True,
+        profiling_verbosity="layer_names_only",
+        use_refit=False
+        # Add other BuildConfig fields as needed (max_input_len, max_seq_len, etc.)
+    )
 
-# Save engine to output_dir
-engine.save(output_dir)
-print(f"Engine built and saved to {output_dir}")
+    # Build engine using BuildConfig (dataclass)
+    engine = build(model, build_config)
+    engine.save(output_dir)
+    print(f"Engine built and saved to {output_dir}")
+except Exception as e:
+    print(f"Engine build failed: {e}")

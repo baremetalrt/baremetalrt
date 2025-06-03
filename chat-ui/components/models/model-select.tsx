@@ -82,7 +82,7 @@ export const ModelSelect: FC<ModelSelectProps> = ({
   )
 
   // Find the model marked as online by the backend
-  const backendOnlineModel = allModels.find(model => hasStatus(model) && (models.find((m: any) => m.id === model.modelId)?.status === 'online'));
+  const backendOnlineModel = allModels.find(model => backendStatusMap[model.modelId] === 'online');
   let selectedModel = allModels.find(model => model.modelId === selectedModelId);
   // If no model is selected, or the selected model is offline, auto-select the backend online model
   useEffect(() => {

@@ -33,18 +33,33 @@ except Exception:
 if not hf_token:
     hf_token = os.environ.get("HF_TOKEN")
 
+if len(sys.argv) > 1 and sys.argv[1] in ("--help", "-h"):
+    print(f"""
+Petals Llama 2 70B Chat Inference Script
+Usage:
+    python {sys.argv[0]} [PROMPT]
+    python {sys.argv[0]} --check    # Check mesh connectivity
+    python {sys.argv[0]} --help     # Show this help message
+
+PROMPT: The prompt to send to the model (default: 'Hello, world!')
+""")
+    sys.exit(0)
+
 if not hf_token:
     print("Error: HuggingFace token not found. Please set HF_TOKEN env var or define hf_token in llama2_7b_chat_8int.py.")
     sys.exit(1)
 
+import time
+
 if len(sys.argv) > 1 and sys.argv[1] == "--check":
     try:
         print(f"Checking Petals mesh connectivity for {MODEL_NAME}...")
+        t0 = time.time()
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=hf_token)
         model = AutoDistributedModelForCausalLM.from_pretrained(MODEL_NAME, token=hf_token)
-        # Try a dummy forward pass (no actual generation)
         _ = model.config
-        print("ONLINE")
+        t1 = time.time()
+        print(f"ONLINE (connected in {t1-t0:.2f}s)")
         sys.exit(0)
     except Exception as e:
         print(f"OFFLINE: {e}")
@@ -56,12 +71,19 @@ else:
         prompt = "Hello, world!"
 
     print(f"Connecting to Petals mesh for {MODEL_NAME}...")
+    t0 = time.time()
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=hf_token)
     model = AutoDistributedModelForCausalLM.from_pretrained(MODEL_NAME, token=hf_token)
+    t1 = time.time()
+    print(f"Connected to mesh in {t1-t0:.2f}s")
 
+    print(f"\nPrompt: {prompt}\nGenerating...")
+    t2 = time.time()
     inputs = tokenizer(prompt, return_tensors="pt")
     outputs = model.generate(**inputs, max_new_tokens=64)
+    t3 = time.time()
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    print(f"Generation time: {t3-t2:.2f}s")
 
     print("\n=== Response ===\n")
     print(response)

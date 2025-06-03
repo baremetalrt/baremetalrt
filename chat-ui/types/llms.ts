@@ -7,6 +7,13 @@ export type LLMID =
   | MistralLLMID
   | GroqLLMID
   | PerplexityLLMID
+  // --- Custom/Local Models (baremetalrt) ---
+  | "llama3.1_8b_trtllm_4int"
+  | "llama2_8b_int8"
+  | "deepseek_7b"
+  | "mixtral_8x7b_instruct_4bit"
+  | "llama3.1_405b_petals"
+  | "llama2_7b_chat_8int"
 
 // OpenAI Models (UPDATED 5/13/24)
 export type OpenAILLMID =

@@ -12,6 +12,7 @@ import { Input } from "../ui/input"
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import { ModelIcon } from "./model-icon"
 import { ModelOption } from "./model-option"
+import { LLM_LIST } from "@/lib/models/llm/llm-list"
 
 interface ModelSelectProps {
   selectedModelId: string
@@ -51,19 +52,22 @@ export const ModelSelect: FC<ModelSelectProps> = ({
     setIsOpen(false)
   }
 
-  const allModels = [
-    ...models.map(model => ({
-      modelId: model.model_id as LLMID,
-      modelName: model.name,
-      provider: "custom" as ModelProvider,
-      hostedId: model.id,
-      platformLink: "",
-      imageInput: false
+  // Merge backend status with frontend model list by modelId
+  const backendStatusMap = Object.fromEntries(models.map((m: any) => [m.id, m.status]))
+  type LLMWithStatus = LLM & { status?: string };
+  const allModels: LLMWithStatus[] = [
+    ...LLM_LIST.map((model: LLM) => ({
+      ...model,
+      status: backendStatusMap[model.modelId] || "offline"
     })),
     ...availableHostedModels,
     ...availableLocalModels,
     ...availableOpenRouterModels
   ]
+
+  const hasStatus = (model: LLMWithStatus): model is LLMWithStatus & { status: string } => {
+    return 'status' in model && model.status !== undefined;
+  }
 
   const groupedModels = allModels.reduce<Record<string, LLM[]>>(
     (groups, model) => {
@@ -77,16 +81,19 @@ export const ModelSelect: FC<ModelSelectProps> = ({
     {}
   )
 
-  // Always select Llama 2 by default if nothing selected or if Petals is selected
-  let selectedModel = allModels.find(model => model.modelId === selectedModelId)
-  const llama2Model = allModels.find(model => String(model.modelId) === 'llama2_7b_chat_8int')
-  if (!selectedModel || (typeof selectedModel === 'object' && 'status' in selectedModel && (selectedModel as any).status === 'offline')) {
-    selectedModel = llama2Model
-    if (llama2Model && String(selectedModelId) !== String(llama2Model.modelId)) {
-      // Auto-select Llama 2 if not already selected
-      onSelectModel(llama2Model.modelId)
+  // Find the model marked as online by the backend
+  const backendOnlineModel = allModels.find(model => hasStatus(model) && (models.find((m: any) => m.id === model.modelId)?.status === 'online'));
+  let selectedModel = allModels.find(model => model.modelId === selectedModelId);
+  // If no model is selected, or the selected model is offline, auto-select the backend online model
+  useEffect(() => {
+    if (!selectedModel || (hasStatus(selectedModel) && selectedModel.status === 'offline')) {
+      if (backendOnlineModel && selectedModelId !== backendOnlineModel.modelId) {
+        onSelectModel(backendOnlineModel.modelId);
+      }
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [models, selectedModelId]);
+  selectedModel = backendOnlineModel || selectedModel;
 
   if (!profile) return null
 
@@ -183,7 +190,7 @@ export const ModelSelect: FC<ModelSelectProps> = ({
 
                 <div className="mb-4">
                   {filteredModels.map(model => {
-  const isOffline = (model as any).status === 'offline';
+  const isOffline = hasStatus(model) ? model.status === 'offline' : false;
   return (
     <div
       key={model.modelId}

@@ -25,7 +25,35 @@
   - Docker and WSL are not required for basic usage, but some advanced features may still require a Linux environment.
   - See `windows_patches.md` for any known issues or limitations.
 
-### Quickstart for Windows
+### Quickstart
+
+### 1. Launch the Backend
+
+```bash
+# Activate your Python virtual environment
+source ~/trtllm-venv/bin/activate
+
+# Change to your project directory
+cd /mnt/c/Github/baremetalrt
+
+# Start the backend (model selection prompt will appear)
+bash scripts/start-backend-trtllm.sh
+```
+
+### 2. Start Cloudflared Tunnel
+
+```bash
+# In a new terminal (while backend is running)
+cloudflared tunnel run <YOUR_TUNNEL_NAME>
+```
+- Replace `<YOUR_TUNNEL_NAME>` with your configured tunnel name (see your Cloudflare dashboard or tunnel config).
+- Make sure your Cloudflared tunnel is configured to point to `localhost:8000` (or your backend port).
+
+### 3. Troubleshooting
+- If you get `No such file or directory`, make sure you are in the correct project directory.
+- If you see long delays on first request, wait for the backend model to finish warming up. You can check readiness at `/api/health` (returns `{"status": "ready"}` when ready).
+- If you get 503 errors, the model is still warming up—try again in a few seconds.
+- For Cloudflared setup help, see https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/ for Windows
 
 1. **Install Python 3.8+ and create a virtual environment**
 2. **Install Go (for building p2pd.exe):** https://go.dev/dl/

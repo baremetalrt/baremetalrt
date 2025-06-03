@@ -34,7 +34,7 @@ export default function HomePage() {
   };
   React.useEffect(() => {
     fetchModels();
-    const interval = setInterval(fetchModels, 10000); // poll every 10s
+    const interval = setInterval(fetchModels, 15000); // poll every 15s
     return () => clearInterval(interval);
   }, []);
 

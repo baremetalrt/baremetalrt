@@ -1,0 +1,8 @@
+{
+  "llama3.1_8b_trtllm_4int": "online",
+  "llama2_8b_int8": "offline",
+  "deepseek_7b": "offline",
+  "mixtral_8x7b_instruct_4bit": "offline",
+  "llama3.1_405b_petals": "offline",
+  "llama2_7b_chat_8int": "offline"
+}

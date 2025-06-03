@@ -1,4 +1,11 @@
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+import os
+import json
+try:
+    from api.openai_api import model_ready
+except ImportError:
+    model_ready = True  # fallback if import fails (for testing)
 from pydantic import BaseModel
 from typing import List
 
@@ -7,13 +14,59 @@ router = APIRouter()
 # List available models
 @router.get("/models")
 async def get_models():
-    return [
-        {"id": "llama2_7b_chat_8int", "name": "Llama 2 7B Chat (8-bit)", "status": "online"},
-        {"id": "llama2_70b_chat_petals", "name": "Llama 2 70B Chat (Petals mesh)", "status": "offline"}
+    import json
+    import os
+    base_dir = os.path.dirname(__file__)
+    status_path = os.path.abspath(os.path.join(base_dir, "model_status.json"))
+    models = [
+        {
+            "id": "llama3.1_8b_trtllm_4int",
+            "name": "Llama 3.1 8B (INT4)"
+        },
+        {
+            "id": "deepseek_7b",
+            "name": "Deepseek LLM 7B"
+        },
+        {
+            "id": "mixtral_8x7b_instruct_4bit",
+            "name": "Mixtral 8x7B Instruct (4INT)"
+        },
+        {
+            "id": "llama3.1_405b_petals",
+            "name": "Llama 3.1 405B (Petals, API)"
+        },
+        {
+            "id": "llama2_7b_chat_8int",
+            "name": "Llama 2 7B Chat INT8"
+        }
     ]
+    # Load status from JSON
+    if os.path.exists(status_path):
+        with open(status_path, "r") as f:
+            status_dict = json.load(f)
+    else:
+        status_dict = {}
+    # If no model is online, set llama3.1_8b_trtllm_4int as online in-memory (do not write to file)
+    if not any(status == "online" for status in status_dict.values()):
+        status_dict["llama3.1_8b_trtllm_4int"] = "online"
+    result = []
+    for model in models:
+        status = status_dict.get(model["id"], "offline")
+        result.append({
+            "id": model["id"],
+            "name": model["name"],
+            "status": status
+        })
+    return result
 
 # For now, we hardcode the available models. Later, this can be extended to scan scripts or config.
 import os
+
+@router.get("/health")
+def api_health_check():
+    if model_ready:
+        return {"status": "ready"}
+    return JSONResponse(status_code=503, content={"status": "warming_up"})
 
 import subprocess
 PETALS_SCRIPT = os.path.join(os.path.dirname(__file__), "..", "scripts", "petals_llama2_70b_chat.py")

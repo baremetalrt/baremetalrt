@@ -14,16 +14,87 @@ This guide provides the essential commands and steps to launch the backend and f
 
 ```sh
 python -m venv .venv
+```
+
+#### Activate the Virtual Environment (Windows)
+
+```sh
 .venv\Scripts\activate
 ```
 
+#### Activate the Virtual Environment (macOS/Linux/WSL2)
+
+```sh
+source .venv/bin/activate
+```
+
+> **Note:** If you are using WSL2 (Windows Subsystem for Linux), use the Linux activation command above.
+>
+> **If you used a different virtual environment name (e.g., `trtllm-venv`), replace `.venv` with your venv name in all commands below.**
 ### Install Python Dependencies in .venv
 
 ```sh
 .venv\Scripts\pip install fastapi uvicorn torch transformers
 ```
 
-### Start the Backend Server
+### Navigating to the Scripts Directory (WSL2/Linux/macOS)
+
+To move into the scripts directory from your project root, use:
+
+```sh
+cd scripts
+```
+
+If you are elsewhere, use the full path (replace `USERNAME` with your Linux username):
+
+```sh
+cd /home/USERNAME/Github/baremetalrt/scripts
+```
+
+You can list available scripts with:
+
+```sh
+ls
+```
+
+### Start the Backend Server (WSL2/Linux/macOS)
+
+1. **Navigate to your project root**
+
+   ```sh
+   cd ~/your-project-folder  # e.g., cd ~/baremetalrt or cd ~/mtg-something
+   ```
+
+2. **Activate your Python virtual environment**
+
+   ```sh
+   source .venv/bin/activate
+   # Or, if your venv is named differently:
+   source ~/trtllm-venv/bin/activate
+   ```
+
+3. **(Optional, but recommended) Convert scripts to Unix line endings**
+   If you see errors like `$'\r': command not found`, install dos2unix and convert:
+   ```sh
+   sudo apt update && sudo apt install dos2unix
+   dos2unix scripts/start-backend-trtllm.sh
+   ```
+
+4. **Navigate to the scripts directory**
+
+   ```sh
+   cd scripts
+   ```
+
+5. **Start the backend using the provided script**
+
+   ```sh
+   bash start-backend-trtllm.sh
+   # Or, if executable:
+   ./start-backend-trtllm.sh
+   ```
+
+### Start the Backend Server (Windows)
 
 From the project root directory, run:
 
@@ -35,7 +106,6 @@ From the project root directory, run:
 - The backend will be available at: [http://localhost:8000](http://localhost:8000)
 - CORS is enabled for [http://localhost:3000](http://localhost:3000) by default.
 - The first startup may take several minutes while the model loads.
-
 
 ## 3. Adding More Models
 

@@ -21,17 +21,19 @@ Best-practice TensorRT-LLM 0.19.0 engine build script (pure Python API version).
 TensorRT-LLM 0.19.0 engine build script for Llama 3.1-8B INT4+INT8KV
 (Code-backed, no guessing: imports LLaMAForCausalLM from correct submodule)
 """
+import traceback
 from tensorrt_llm.models.llama.model import LLaMAForCausalLM
 from tensorrt_llm.builder import build, BuildConfig
 
 # NOTE: As of TensorRT-LLM 0.19.0, there is no official CLI engine build script. The recommended method is to use the Python API as shown here.
 
-checkpoint_dir = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-int4-int8kv"
-output_dir = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
+checkpoint_dir = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
+output_dir = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine-fp16"
 
 try:
     # Load model from checkpoint (confirmed method)
     model = LLaMAForCausalLM.from_checkpoint(checkpoint_dir)
+    model.architecture = "llama3"
 
     # Create BuildConfig with correct engine build parameters
     build_config = BuildConfig(
@@ -47,4 +49,6 @@ try:
     engine.save(output_dir)
     print(f"Engine built and saved to {output_dir}")
 except Exception as e:
-    print(f"Engine build failed: {e}")
+    print("Engine build failed:")
+    traceback.print_exc()
+

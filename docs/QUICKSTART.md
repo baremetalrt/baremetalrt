@@ -37,6 +37,16 @@ source .venv/bin/activate
 .venv\Scripts\pip install fastapi uvicorn torch transformers
 ```
 
+### Navigating to Your Project Directory (WSL2/Linux/macOS)
+
+If your project is located on your Windows C: drive (e.g., C:\Github\mtg-something), you can access it from WSL2 with:
+
+```sh
+cd /mnt/c/Github/mtg-something
+```
+
+Replace `mtg-something` with your actual project folder name. Use `ls /mnt/c/Github` to list available folders.
+
 ### Navigating to the Scripts Directory (WSL2/Linux/macOS)
 
 To move into the scripts directory from your project root, use:

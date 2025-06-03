@@ -26,18 +26,6 @@ async def get_models():
         {
             "id": "deepseek_7b",
             "name": "Deepseek LLM 7B"
-        },
-        {
-            "id": "mixtral_8x7b_instruct_4bit",
-            "name": "Mixtral 8x7B Instruct (4INT)"
-        },
-        {
-            "id": "llama3.1_405b_petals",
-            "name": "Llama 3.1 405B (Petals, API)"
-        },
-        {
-            "id": "llama2_7b_chat_8int",
-            "name": "Llama 2 7B Chat INT8"
         }
     ]
     # Load status from JSON

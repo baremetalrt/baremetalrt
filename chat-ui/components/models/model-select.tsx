@@ -60,10 +60,7 @@ export const ModelSelect: FC<ModelSelectProps> = ({
     ...LLM_LIST.map((model: LLM) => ({
       ...model,
       status: backendStatusMap[model.modelId] || "offline"
-    })),
-    ...availableHostedModels,
-    ...availableLocalModels,
-    ...availableOpenRouterModels
+    }))
   ]
 
   const hasStatus = (model: LLMWithStatus): model is LLMWithStatus & { status: string } => {

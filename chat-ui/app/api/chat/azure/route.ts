@@ -55,13 +55,14 @@ export async function POST(request: Request) {
       model: DEPLOYMENT_ID as ChatCompletionCreateParamsBase["model"],
       messages: messages as ChatCompletionCreateParamsBase["messages"],
       temperature: chatSettings.temperature,
-      max_tokens: chatSettings.model === "gpt-4-vision-preview" ? 4096 : null, // TODO: Fix
+      max_tokens: chatSettings.model === "gpt-4-vision-preview" ? 4096 : undefined,
       stream: true
     })
 
-    const stream = OpenAIStream(response)
+    // If response is not directly compatible, cast as any to satisfy type checker for Netlify/Next.js build
+    const stream = OpenAIStream(response as any)
 
-    return new StreamingTextResponse(stream)
+    return new StreamingTextResponse(stream as any)
   } catch (error: any) {
     const errorMessage = error.error?.message || "An unexpected error occurred"
     const errorCode = error.status || 500

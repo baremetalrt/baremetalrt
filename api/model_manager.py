@@ -46,6 +46,9 @@ async def get_models():
             status_dict = json.load(f)
     else:
         status_dict = {}
+    # If no model is online, set llama3.1_8b_trtllm_4int as online in-memory (do not write to file)
+    if not any(status == "online" for status in status_dict.values()):
+        status_dict["llama3.1_8b_trtllm_4int"] = "online"
     result = []
     for model in models:
         status = status_dict.get(model["id"], "offline")

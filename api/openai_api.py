@@ -221,7 +221,14 @@ def get_online_model_id():
     raise ValueError("No model marked as online in model_status.json")
 
 def background_load_model():
-    load_model(get_online_model_id())
+    try:
+        model_id = get_online_model_id()
+    except Exception:
+        # No model marked as online, set default
+        model_id = "llama3.1_8b_trtllm_4int"
+        update_model_status(model_id, "online")
+    load_model(model_id)
+
 
 @app.on_event("startup")
 def startup_event():

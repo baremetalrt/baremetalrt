@@ -70,6 +70,8 @@ def load_model(model_id):
     global model_ready
     model_ready = False
     global model, model_name, tokenizer, current_model_id
+    # Set status to warming_up as soon as loading starts
+    update_model_status(model_id, "warming_up")
     # petals_model, petals_tokenizer
     unload_model()
     if model_id == "llama2_7b_chat_8int":
@@ -234,17 +236,7 @@ def background_load_model():
 def startup_event():
     threading.Thread(target=background_load_model, daemon=True).start()
 
-@app.post("/api/switch_model")
-def switch_model(request: dict):
-    """Switch the active model for inference."""
-    model_id = request.get("model_id")
-    with model_lock:
-        try:
-            load_model(model_id)
-            return {"status": "ok", "active_model": model_id}
-        except Exception as e:
-            unload_model()
-            raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/health")
 def health():

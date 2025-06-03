@@ -38,19 +38,10 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Model switch handler
-  const handleModelSelect = async (modelId: string) => {
+  // Model select handler (no backend switch)
+  const handleModelSelect = (modelId: string) => {
     if (models.find(m => m.id === modelId && m.status === 'online')) {
       setSelectedModelId(modelId);
-      try {
-        await fetch(`${API_URL}/api/switch_model`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model_id: modelId })
-        });
-      } catch (e) {
-        // Optionally show error
-      }
     }
   };
 

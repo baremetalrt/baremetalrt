@@ -48,6 +48,7 @@ export const ModelSelect: FC<ModelSelectProps> = ({
 
   const handleSelectModel = (modelId: LLMID, isOffline = false) => {
     if (isOffline) return;
+    if (modelId === selectedModelId) return; // Prevent redundant reload/warmup
     onSelectModel(modelId)
     setIsOpen(false)
   }
@@ -69,7 +70,7 @@ export const ModelSelect: FC<ModelSelectProps> = ({
     return 'status' in model && model.status !== undefined;
   }
 
-  const groupedModels = allModels.reduce<Record<string, LLM[]>>(
+  const groupedModels = allModels.reduce<Record<string, LLMWithStatus[]>>(
     (groups, model) => {
       const key = model.provider
       if (!groups[key]) {
@@ -84,16 +85,15 @@ export const ModelSelect: FC<ModelSelectProps> = ({
   // Find the model marked as online by the backend
   const backendOnlineModel = allModels.find(model => backendStatusMap[model.modelId] === 'online');
   let selectedModel = allModels.find(model => model.modelId === selectedModelId);
-  // If no model is selected, or the selected model is offline, auto-select the backend online model
-  useEffect(() => {
-    if (!selectedModel || (hasStatus(selectedModel) && selectedModel.status === 'offline')) {
-      if (backendOnlineModel && selectedModelId !== backendOnlineModel.modelId) {
-        onSelectModel(backendOnlineModel.modelId);
-      }
+// If no model is selected, or the selected model is offline, auto-select the backend online model
+useEffect(() => {
+  if (!selectedModel || (hasStatus(selectedModel) && selectedModel.status === 'offline')) {
+    if (backendOnlineModel && selectedModelId !== backendOnlineModel.modelId) {
+      onSelectModel(backendOnlineModel.modelId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [models, selectedModelId]);
-  selectedModel = backendOnlineModel || selectedModel;
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [models, selectedModelId]);
 
   if (!profile) return null
 
@@ -167,7 +167,7 @@ export const ModelSelect: FC<ModelSelectProps> = ({
 
         <div className="max-h-[300px] overflow-auto">
           {Object.entries(groupedModels).map(([provider, models]) => {
-            const filteredModels = models
+            const filteredModels = (models as LLMWithStatus[])
               .filter(model => {
                 if (tab === "hosted") return model.provider !== "ollama"
                 if (tab === "local") return model.provider === "ollama"
@@ -206,8 +206,18 @@ export const ModelSelect: FC<ModelSelectProps> = ({
         selected={selectedModelId === model.modelId && !isOffline}
       />
       {/* Status indicator */}
-      <span className={`ml-2 text-xs font-bold ${isOffline ? 'text-red-500' : 'text-green-600'}`}>
-        {isOffline ? 'OFFLINE' : 'ONLINE'}
+      <span
+        className={`ml-2 text-xs font-bold ${
+          model.status === 'offline' || model.status === 'warming_up'
+            ? 'text-red-500'
+            : 'text-green-600'
+        }`}
+      >
+        {model.status === 'offline'
+          ? 'OFFLINE'
+          : model.status === 'warming_up'
+          ? 'WARMING UP'
+          : 'ONLINE'}
       </span>
     </div>
   );

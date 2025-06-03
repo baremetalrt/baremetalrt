@@ -4,5 +4,6 @@
   "deepseek_7b": "offline",
   "mixtral_8x7b_instruct_4bit": "offline",
   "llama3.1_405b_petals": "offline",
-  "llama2_7b_chat_8int": "offline"
+  "llama2_7b_chat_8int": "offline",
+  "null": "offline"
 }

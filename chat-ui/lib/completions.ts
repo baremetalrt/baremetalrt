@@ -6,7 +6,7 @@ export async function fetchCompletion(prompt: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       prompt,
-      max_tokens: 512,
+      max_tokens: 8192,
       temperature: 0.7,
       top_p: 0.95,
     }),

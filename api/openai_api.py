@@ -572,12 +572,14 @@ def create_completion(request: CompletionRequest):
                 print(f"[DEBUG] Using end_id for INT4 SamplingParams: {eos_token_id}")
                 # Use max_tokens (not max_new_tokens) and set a high default if not provided
                 # Set max_tokens to maximum allowed by context window
-                max_tokens = getattr(request, 'max_tokens', None)
-                if max_tokens is None:
-                    max_tokens = 8192 - len(input_ids)
+                # Get model's max_seq_len (TRT-LLM INT4 engine is typically 2048)
+                max_seq_len = getattr(model, 'max_seq_len', 2048)
+                print(f"[DEBUG] TRT-LLM max_seq_len: {max_seq_len}")
+                user_max_tokens = getattr(request, 'max_tokens', None)
+                if user_max_tokens is None:
+                    max_tokens = max_seq_len - len(input_ids)
                 else:
-                    # Ensure user-requested max_tokens does not exceed context window
-                    max_tokens = min(max_tokens, 8192 - len(input_ids))
+                    max_tokens = min(user_max_tokens, max_seq_len - len(input_ids))
                 # Smart default stop: prevent Q&A chains, allow multi-line answers
                 # Use only EOS token as stop sequence (most robust for TRT-LLM INT4)
                 stop = getattr(request, 'stop', None)
@@ -588,9 +590,11 @@ def create_completion(request: CompletionRequest):
                     temperature=request.temperature,
                     top_p=request.top_p,
                     max_tokens=max_tokens,
+                    max_new_tokens=max_tokens,  # Patch: set both for backend compatibility
                     end_id=eos_token_id,
                     stop=stop
                 )
+                print(f"[DEBUG] SamplingParams: max_tokens={sampling_params.max_tokens}, max_new_tokens={getattr(sampling_params, 'max_new_tokens', None)}, temperature={sampling_params.temperature}, top_p={sampling_params.top_p}, end_id={sampling_params.end_id}, stop={sampling_params.stop}")
                 outputs = model.generate(input_batch, sampling_params)
                 print(f"[DEBUG] Prompt: {prompt}")
                 print(f"[DEBUG] Input IDs: {input_ids}")

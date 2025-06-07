@@ -557,12 +557,25 @@ def create_completion(request: CompletionRequest):
                         eos_token_id = 2
                 print(f"[DEBUG] Using end_id for INT4 SamplingParams: {eos_token_id}")
                 # Use max_tokens (not max_new_tokens) and set a high default if not provided
-                max_tokens = getattr(request, 'max_tokens', 2048) or 2048
+                # Set max_tokens to maximum allowed by context window
+                max_tokens = getattr(request, 'max_tokens', None)
+                if max_tokens is None:
+                    max_tokens = 8192 - len(input_ids)
+                else:
+                    # Ensure user-requested max_tokens does not exceed context window
+                    max_tokens = min(max_tokens, 8192 - len(input_ids))
+                # Smart default stop: prevent Q&A chains, allow multi-line answers
+                # Use only EOS token as stop sequence (most robust for TRT-LLM INT4)
+                stop = getattr(request, 'stop', None)
+                if stop is None:
+                    stop = [tokenizer.eos_token] if hasattr(tokenizer, 'eos_token') and tokenizer.eos_token else None
+                # Do not call setup; pass stop directly as EOS
                 sampling_params = SamplingParams(
                     temperature=request.temperature,
                     top_p=request.top_p,
                     max_tokens=max_tokens,
                     end_id=eos_token_id,
+                    stop=stop
                 )
                 outputs = model.generate(input_batch, sampling_params)
                 print(f"[DEBUG] Prompt: {prompt}")
@@ -573,8 +586,16 @@ def create_completion(request: CompletionRequest):
                     for i, seq in enumerate(outputs[0].outputs):
                         print(f"[DEBUG] Candidate {i}: {seq.text!r}")
                 # outputs is a list of RequestOutput objects; each has .outputs (list of candidates), each with .text
+                import re
                 if outputs and hasattr(outputs[0], 'outputs') and outputs[0].outputs:
-                    answer = "".join([seq.text for seq in outputs[0].outputs])
+                    full_answer = "".join([seq.text for seq in outputs[0].outputs])
+                    # Remove everything from the first question onwards (including the question)
+                    pattern = re.compile(r"(\n.*?\?)", re.IGNORECASE)
+                    match = pattern.search(full_answer)
+                    if match:
+                        answer = full_answer[:match.start()].rstrip()
+                    else:
+                        answer = full_answer
                 else:
                     answer = ""
                 t1 = _time.time()

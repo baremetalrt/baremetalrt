@@ -170,11 +170,13 @@ See below for both options.
      cd C:\Github\baremetalrt\external
      ```
 
-   - Then start the named tunnel (replace `my-backend-tunnel` with your tunnel name if different). On Windows, use the correct executable name:
+   - Then start the named tunnel (replace `my-backend-tunnel` with your tunnel name if different). On Windows, use the correct executable name (as found in your `external` folder):
 
      ```sh
-     .\cloudflared.exe tunnel run my-backend-tunnel
+     .\cloudflared-windows-amd64.exe tunnel run my-backend-tunnel
      ```
+
+     > **Note:** If the file is named differently (such as `cloudflared.exe`), adjust the command accordingly. The default provided with this repo is `cloudflared-windows-amd64.exe`.
      *(If your file is named differently, use the actual filename as shown in the folder.)*
 
    - This will expose your backend at your custom subdomain, e.g.:
@@ -222,9 +224,10 @@ If you want to keep your backend private (not accessible to the public internet)
 1. Set up your tunnel as usual (`cloudflared tunnel create my-private-tunnel`).
 2. In the Cloudflare dashboard, configure Access Policies for your tunnel subdomain.
 3. Start the tunnel as you would for public, but only authorized users will be able to access it:
-   ```sh
-   cloudflared tunnel run my-private-tunnel
+   ```powershell
+   .\cloudflared-windows-amd64.exe tunnel run my-private-tunnel
    ```
+   *(Replace `my-private-tunnel` with your actual tunnel name if it’s different. Run this from the folder containing your cloudflared executable.)*
 
 ---
 

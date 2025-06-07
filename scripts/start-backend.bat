@@ -10,25 +10,21 @@ call .venv\Scripts\activate.bat
 
 REM List available models
 setlocal enabledelayedexpansion
-set MODELS[0]=llama2_7b_chat_8int.py
-set MODELS[1]=llama2_13b_chat_4bit.py
-set MODELS[2]=mistral_7b_instruct_8bit.py
-set MODELS[3]=mixtral_8x7b_instruct_4bit.py
-set MODELS[4]=petals_llama2_70b_chat.py
-
-set NMODELS=5
+set MODELS[0]=llama3_1_8b
+set MODELS[1]=llama2_7b_chat_8int
+set NMODELS=2
 
 :show_menu
 @echo.
-@echo Select a model to launch:
-for /L %%i in (0,1,%NMODELS%) do (
+@echo Select a model to set as 'online':
+for /L %%i in (0,1,%NMODELS%-1) do (
     if defined MODELS[%%i] echo   %%i: !MODELS[%%i]!
 )
 set /p CHOICE=Enter model number (0-%NMODELS%-1): 
 
 REM Validate input
 set VALID=0
-for /L %%i in (0,1,%NMODELS%) do (
+for /L %%i in (0,1,%NMODELS%-1) do (
     if "!CHOICE!"=="%%i" set VALID=1
 )
 if %VALID%==0 (
@@ -37,8 +33,22 @@ if %VALID%==0 (
     exit /b 1
 )
 
-REM Launch the selected model script
-start "Model" python scripts\!MODELS[%CHOICE%]!
+REM Build JSON with selected model online, others offline
+setlocal EnableDelayedExpansion
+set JSON={
+for /L %%i in (0,1,%NMODELS%-1) do (
+    set STATUS=offline
+    if %%i==%CHOICE% set STATUS=online
+    set MODEL=!MODELS[%%i]!
+    set JSON=!JSON!"!MODEL!": "!STATUS!"
+    if not %%i==%NMODELS%-1 set JSON=!JSON!, 
+)
+set JSON=!JSON!}
+
+REM Write to api/model_status.json
+echo !JSON! > api\model_status.json
+echo Set !MODELS[%CHOICE%]! as online in api\model_status.json.
+endlocal
 
 REM Start the FastAPI backend server
 start "Backend" python -m uvicorn api.openai_api:app --host 0.0.0.0 --port 8000

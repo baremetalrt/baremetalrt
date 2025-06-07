@@ -20,8 +20,16 @@ async def get_models():
     status_path = os.path.abspath(os.path.join(base_dir, "model_status.json"))
     models = [
         {
-            "id": "llama3.1_8b_trtllm_4int",
-            "name": "Llama 3.1 8B (INT4)"
+            "id": "llama3.1_8b_trtllm_instruct",
+            "name": "Llama 3.1 8B Instruct (INT8)"
+        },
+        {
+            "id": "llama3.1_8b_trtllm_instruct_int4",
+            "name": "Llama 3.1 8B Instruct (INT4)"
+        },
+        {
+            "id": "llama2_7b_chat_8int",
+            "name": "Llama 2 7B Chat (INT8)"
         },
         {
             "id": "deepseek_7b",

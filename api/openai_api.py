@@ -8,6 +8,7 @@ import torch
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+import os as _os
 import os
 import time
 import threading
@@ -80,7 +81,116 @@ def load_model(model_id):
     # petals_model, petals_tokenizer
     unload_model()
     try:
-        if model_id == "llama2_7b_chat_8int":
+        if model_id == "llama3.1_8b_trtllm_instruct":
+            print("Loading Llama-3.1 8B Instruct (TensorRT-LLM, INT8) engine (instruction-tuned, GPU required)...")
+            try:
+                from tensorrt_llm import LLM
+                from transformers import PreTrainedTokenizerFast
+                ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
+                model = LLM(model=ENGINE_DIR)
+                model_name = "llama3.1_8b_trtllm_instruct"
+                print("TensorRT-LLM Instruct INT8 engine loaded successfully.")
+                # Try to load tokenizer from tokenizer.json if present
+                tokenizer_path = os.path.join(ENGINE_DIR, "tokenizer.json")
+                if os.path.exists(tokenizer_path):
+                    tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
+                    print("Loaded tokenizer from engine directory.")
+                else:
+                    tokenizer = None
+                    print("[WARN] No tokenizer found in engine directory.")
+                # Warmup
+                from tensorrt_llm import SamplingParams
+                warmup_prompts = [
+                    ("What is the capital of France? Explain in detail.", 256),
+                    ("Write a Python function to compute Fibonacci numbers.", 128),
+                    ("Summarize the theory of relativity in 100 words.", 200),
+                    ("Explain the difference between supervised and unsupervised learning.", 128),
+                    ("Generate a short story about a robot and a cat.", 150)
+                ]
+                print("Warming up TRT-LLM Instruct engine with multiple prompts...")
+                for prompt, tokens in warmup_prompts:
+                    warmup_params = SamplingParams(
+                        temperature=0.7,
+                        top_p=0.95,
+                        max_tokens=tokens,
+                        end_id=2
+                    )
+                    _ = model.generate([prompt], warmup_params)
+                print("[INFO] TRT-LLM Instruct engine full warmup complete.")
+            except Exception as e:
+                print(f"[ERROR] Failed to load TRT-LLM Instruct engine: {e}")
+                model = None
+                tokenizer = None
+                model_ready = False
+            else:
+                if model is not None and tokenizer is not None:
+                    model_ready = True
+                else:
+                    print("[ERROR] TRT-LLM Instruct engine or tokenizer failed to load correctly!")
+                    model_ready = False
+            petals_model = None
+            petals_tokenizer = None
+            print("Model loaded on device: cuda:0 (TensorRT-LLM Instruct)")
+        elif model_id == "llama3.1_8b_trtllm_instruct_int4":
+            print("Loading Llama-3.1 8B Instruct (TensorRT-LLM, INT4) engine (instruction-tuned, GPU required)...")
+            try:
+                from tensorrt_llm import LLM
+                from transformers import PreTrainedTokenizerFast
+                ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
+                model = LLM(model=ENGINE_DIR)
+                model_name = "llama3.1_8b_trtllm_instruct_int4"
+                print("TensorRT-LLM Instruct INT4 engine loaded successfully.")
+                tokenizer_path = os.path.join(ENGINE_DIR, "tokenizer.json")
+                if os.path.exists(tokenizer_path):
+                    tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
+                    print("Loaded tokenizer from engine directory.")
+                else:
+                    tokenizer = None
+                    print("[WARN] No tokenizer found in engine directory.")
+                from tensorrt_llm import SamplingParams
+                warmup_prompts = [
+                    ("What is the capital of France? Explain in detail.", 256),
+                    ("Write a Python function to compute Fibonacci numbers.", 128),
+                    ("Summarize the theory of relativity in 100 words.", 200),
+                    ("Explain the difference between supervised and unsupervised learning.", 128),
+                    ("Generate a short story about a robot and a cat.", 150)
+                ]
+                print("Warming up TRT-LLM Instruct INT4 engine with multiple prompts...")
+                print(f"[DEBUG] Tokenizer object at warmup: {tokenizer}")
+                print(f"[DEBUG] Model object at warmup: {model}")
+                for prompt, tokens in warmup_prompts:
+                    warmup_params = SamplingParams(
+                        temperature=0.7,
+                        top_p=0.95,
+                        max_tokens=tokens,
+                        end_id=2
+                    )
+                    try:
+                        inputs = tokenizer(prompt)
+                        input_ids = inputs["input_ids"]  # This is a list of ints
+                        _ = model.generate([input_ids], warmup_params)
+                    except Exception as e:
+                        print(f"[ERROR] Exception during warmup for prompt '{prompt}': {e}")
+                        import traceback
+                        traceback.print_exc()
+                print("[INFO] TRT-LLM Instruct INT4 engine full warmup complete.")
+            except Exception as e:
+                print(f"[ERROR] Failed to load TRT-LLM Instruct INT4 engine: {e}")
+                model = None
+                tokenizer = None
+                model_ready = False
+            else:
+                if model is not None and tokenizer is not None:
+                    model_ready = True
+                else:
+                    print("[ERROR] TRT-LLM Instruct INT4 engine or tokenizer failed to load correctly!")
+                    model_ready = False
+            petals_model = None
+            petals_tokenizer = None
+            print("Model loaded on device: cuda:0 (TensorRT-LLM Instruct INT4)")
+        elif model_id == "llama2_7b_chat_8int":
+
+
             model_name = "meta-llama/Llama-2-7b-chat-hf"
             print("Loading Llama-2 7B Chat model (8-bit quantized, GPU required)...")
             tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
@@ -158,20 +268,22 @@ def load_model(model_id):
             print(f"Model loaded on device: {model.device}")
             petals_model = None
             petals_tokenizer = None
-        elif model_id == "llama3.1_8b_trtllm_4int":
-            # Actual TensorRT-LLM engine loading
-            print("Loading Llama-3.1 8B (TensorRT-LLM, 4INT) engine (ultra-fast, INT4+INT8KV, GPU required)...")
+
+        elif model_id == "llama3.1_8b_trtllm_8int":
+
+            print("Loading Llama-3.1 8B (TensorRT-LLM, INT8) engine (ultra-fast, INT8 quantized, GPU required)...")
             try:
                 from tensorrt_llm import LLM
                 from transformers import PreTrainedTokenizerFast
                 ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
                 model = LLM(model=ENGINE_DIR)
-                model_name = "llama3.1_8b_trtllm_4int"
-                print("TensorRT-LLM engine loaded successfully.")
+                model_name = "llama3.1_8b_trtllm_8int"
+                print("TensorRT-LLM INT8 engine loaded successfully.")
+                model_ready = True
                 # Try to load tokenizer from tokenizer.json if present
-                import os
-                tokenizer_path = os.path.join(ENGINE_DIR, "tokenizer.json")
-                if os.path.exists(tokenizer_path):
+                import os as _os
+                tokenizer_path = _os.path.join(ENGINE_DIR, "tokenizer.json")
+                if _os.path.exists(tokenizer_path):
                     tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
                     print("Loaded tokenizer.json with")
                 else:
@@ -225,7 +337,7 @@ def load_model(model_id):
 
 def get_online_model_id():
     import json
-    status_path = os.path.join(os.path.dirname(__file__), "model_status.json")
+    status_path = _os.path.join(_os.path.dirname(__file__), "model_status.json")
     with open(status_path, "r") as f:
         status_dict = json.load(f)
     for model_id, status in status_dict.items():
@@ -236,9 +348,10 @@ def get_online_model_id():
 def background_load_model():
     try:
         model_id = get_online_model_id()
-    except Exception:
-        # No model marked as online, set default
-        model_id = "llama3.1_8b_trtllm_4int"
+        print(f"[INFO] Model marked as online in status file: {model_id}")
+    except Exception as e:
+        print(f"[WARN] No model marked as online in model_status.json ({e}), setting default to 8INT Instruct.")
+        model_id = "llama3.1_8b_trtllm_instruct"
         update_model_status(model_id, "online")
     load_model(model_id)
 
@@ -375,7 +488,7 @@ def create_completion(request: CompletionRequest):
                 return response
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
-        elif current_model_id == "llama3.1_8b_trtllm_4int" and model is not None:
+        elif current_model_id == "llama3.1_8b_trtllm_instruct" and model is not None:
             # TRT-LLM inference path
             try:
                 t0 = _time.time()
@@ -421,6 +534,68 @@ def create_completion(request: CompletionRequest):
                 return response
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"TRT-LLM inference failed: {e}")
+        elif current_model_id == "llama3.1_8b_trtllm_instruct_int4" and model is not None:
+            # TRT-LLM INT4 inference path
+            try:
+                t0 = _time.time()
+                prompt = request.prompt
+                # Explicitly tokenize prompt to list of ints
+                input_ids = tokenizer(prompt)["input_ids"]
+                input_batch = [input_ids]  # Batch of 1
+                from tensorrt_llm.llmapi import SamplingParams
+                # Set EOS token for end_id (prefer tokenizer.eos_token_id, fallback to 2)
+                eos_token_id = getattr(tokenizer, 'eos_token_id', None)
+                if eos_token_id is None:
+                    # Try to get EOS by decoding the special token or fallback to 2
+                    try:
+                        eos_token = getattr(tokenizer, 'eos_token', None)
+                        if eos_token is not None:
+                            eos_token_id = tokenizer.encode(eos_token, add_special_tokens=False)[0]
+                        else:
+                            eos_token_id = 2
+                    except Exception:
+                        eos_token_id = 2
+                print(f"[DEBUG] Using end_id for INT4 SamplingParams: {eos_token_id}")
+                # Use max_tokens (not max_new_tokens) and set a high default if not provided
+                max_tokens = getattr(request, 'max_tokens', 2048) or 2048
+                sampling_params = SamplingParams(
+                    temperature=request.temperature,
+                    top_p=request.top_p,
+                    max_tokens=max_tokens,
+                    end_id=eos_token_id,
+                )
+                outputs = model.generate(input_batch, sampling_params)
+                print(f"[DEBUG] Prompt: {prompt}")
+                print(f"[DEBUG] Input IDs: {input_ids}")
+                print(f"[DEBUG] Raw outputs: {outputs}")
+                if outputs and hasattr(outputs[0], 'outputs'):
+                    print(f"[DEBUG] Number of output candidates: {len(outputs[0].outputs)}")
+                    for i, seq in enumerate(outputs[0].outputs):
+                        print(f"[DEBUG] Candidate {i}: {seq.text!r}")
+                # outputs is a list of RequestOutput objects; each has .outputs (list of candidates), each with .text
+                if outputs and hasattr(outputs[0], 'outputs') and outputs[0].outputs:
+                    answer = "".join([seq.text for seq in outputs[0].outputs])
+                else:
+                    answer = ""
+                t1 = _time.time()
+                print(f"[TIMING] INT4 Generation: {t1 - t0:.3f} seconds")
+                response = {
+                    "id": f"cmpl-{int(time.time()*1000)}",
+                    "object": "text_completion",
+                    "created": int(_time.time()),
+                    "model": current_model_id,
+                    "choices": [
+                        {
+                            "text": answer,
+                            "index": 0,
+                            "logprobs": None,
+                            "finish_reason": "stop"
+                        }
+                    ]
+                }
+                return response
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"TRT-LLM INT4 inference failed: {e}")
         else:
             raise HTTPException(status_code=503, detail="No model loaded or model is still loading. Please switch to a model and try again.")
 

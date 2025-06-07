@@ -7,14 +7,13 @@ source ~/trtllm-venv/bin/activate
 cd /mnt/c/Github/baremetalrt
 
 # List of available models
+# Canonical list of available models for backend selection
 MODELS=(
-  "llama3.1_8b_trtllm_4int"
-  "llama2_8b_int8"
-  "deepseek_7b"
-  "mixtral_8x7b_instruct_4bit"
-  "llama3.1_405b_petals"
+  "llama3.1_8b_trtllm_instruct"  # INT8: /mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine
+  "llama3.1_8b_trtllm_instruct_int4"  # INT4: /mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine
   "llama2_7b_chat_8int"
 )
+# NOTE: Ensure backend and engine directory are in sync for instruct model!
 
 echo "Select a model to set as 'online':"
 for i in "${!MODELS[@]}"; do

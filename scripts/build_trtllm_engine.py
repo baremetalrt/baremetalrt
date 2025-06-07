@@ -27,28 +27,46 @@ from tensorrt_llm.builder import build, BuildConfig
 
 # NOTE: As of TensorRT-LLM 0.19.0, there is no official CLI engine build script. The recommended method is to use the Python API as shown here.
 
-checkpoint_dir = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
-output_dir = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine-fp16"
+import argparse
+
+checkpoint_dir_default = "/mnt/c/Github/baremetalrt/external/models/trtllm-Llama-3.1-8B-Instruct"
+output_dir_default = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
+
+parser = argparse.ArgumentParser(description="TensorRT-LLM Engine Build Script (configurable for OOM safety)")
+parser.add_argument("--model_dir", default=checkpoint_dir_default, help="Path to checkpoint directory")
+parser.add_argument("--output_dir", default=output_dir_default, help="Path to output engine directory")
+parser.add_argument("--max_batch_size", type=int, default=1, help="Max batch size (default: 1)")
+parser.add_argument("--max_input_len", type=int, default=2048, help="Max input length (default: 2048)")
+parser.add_argument("--max_seq_len", type=int, default=2048, help="Max sequence length (default: 2048)")
+
+parser.add_argument("--profiling_verbosity", default="layer_names_only", help="Profiling verbosity (default: layer_names_only)")
+parser.add_argument("--use_paged_context_fmha", action="store_true", default=True, help="Enable paged context FMHA (default: True)")
+args = parser.parse_args()
 
 try:
-    # Load model from checkpoint (confirmed method)
-    model = LLaMAForCausalLM.from_checkpoint(checkpoint_dir)
+    print(f"[INFO] Loading checkpoint from: {args.model_dir}")
+    from tensorrt_llm.models.llama.model import LLaMAForCausalLM
+    from tensorrt_llm.builder import build, BuildConfig
+    model = LLaMAForCausalLM.from_checkpoint(args.model_dir)
     model.architecture = "llama3"
 
-    # Create BuildConfig with correct engine build parameters
     build_config = BuildConfig(
-        max_batch_size=4,                # Explicitly set max batch size for 4070 Super
+        max_batch_size=args.max_batch_size,
+        max_input_len=args.max_input_len,
+        max_seq_len=args.max_seq_len,
         strongly_typed=True,
-        profiling_verbosity="layer_names_only",
+        profiling_verbosity=args.profiling_verbosity,
         use_refit=False
-        # Add other BuildConfig fields as needed (max_input_len, max_seq_len, etc.)
     )
+    print("[INFO] BuildConfig:")
+    for k, v in build_config.__dict__.items():
+        print(f"  {k}: {v}")
 
-    # Build engine using BuildConfig (dataclass)
     engine = build(model, build_config)
-    engine.save(output_dir)
-    print(f"Engine built and saved to {output_dir}")
+    engine.save(args.output_dir)
+    print(f"[SUCCESS] Engine built and saved to {args.output_dir}")
 except Exception as e:
     print("Engine build failed:")
+    import traceback
     traceback.print_exc()
 

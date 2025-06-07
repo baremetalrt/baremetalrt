@@ -538,7 +538,21 @@ def create_completion(request: CompletionRequest):
             # TRT-LLM INT4 inference path
             try:
                 t0 = _time.time()
-                prompt = request.prompt
+                # Use OpenAI-style chat history if provided
+                prompt = None
+                if hasattr(request, 'messages') and request.messages:
+                    # Prepend system prompt and format messages
+                    prompt = "System: You are a helpful assistant.\n"
+                    for msg in request.messages:
+                        role = msg.get("role", "user")
+                        content = msg.get("content", "")
+                        if role == "user":
+                            prompt += f"User: {content}\n"
+                        elif role == "assistant":
+                            prompt += f"Assistant: {content}\n"
+                    prompt += "Assistant:"
+                else:
+                    prompt = request.prompt
                 # Explicitly tokenize prompt to list of ints
                 input_ids = tokenizer(prompt)["input_ids"]
                 input_batch = [input_ids]  # Batch of 1

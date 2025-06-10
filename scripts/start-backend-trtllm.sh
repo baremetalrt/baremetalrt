@@ -9,8 +9,8 @@ cd /mnt/c/Github/baremetalrt
 # List of available models
 # Canonical list of available models for backend selection
 MODELS=(
-  "llama3.1_8b_trtllm_instruct"  # INT8: /mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine
   "llama3.1_8b_trtllm_instruct_int4"  # INT4: /mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine
+  "llama3.1_8b_trtllm_instruct_int4_streaming"  # INT4 Streaming: /mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine-streaming
   "llama2_7b_chat_8int"
 )
 # NOTE: Ensure backend and engine directory are in sync for instruct model!

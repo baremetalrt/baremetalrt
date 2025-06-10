@@ -1,6 +1,6 @@
 {
-  "llama3.1_8b_trtllm_instruct": "offline",
   "llama3.1_8b_trtllm_instruct_int4": "online",
+  "llama3.1_8b_trtllm_instruct_int4_streaming": "offline",
   "llama2_7b_chat_8int": "offline",
   "null": "offline"
 }

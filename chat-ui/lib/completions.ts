@@ -1,7 +1,7 @@
 import { API_URL } from "./api";
 
 export async function fetchCompletion(prompt: string) {
-  const response = await fetch(`${API_URL}/v1/completions`, {
+  const response = await fetch(`${API_URL}/v1/completions/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

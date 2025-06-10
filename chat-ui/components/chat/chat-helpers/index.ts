@@ -161,7 +161,8 @@ export const handleLocalChat = async (
 
   // Ollama API: https://github.com/jmorganca/ollama/blob/main/docs/api.md
   const response = await fetchChatResponse(
-    process.env.NEXT_PUBLIC_OLLAMA_URL + "/api/chat",
+    // Switched to streaming endpoint for local inference
+    "http://localhost:8000/v1/completions/stream",
     {
       model: chatSettings.model,
       messages: formattedMessages,
@@ -216,7 +217,8 @@ export const handleHostedChat = async (
     formattedMessages = draftMessages
   }
 
-  const apiEndpoint = `${API_URL}/v1/completions`
+  // Switched to streaming endpoint for hosted inference
+  const apiEndpoint = `${API_URL}/v1/completions/stream`
 
   const requestBody = {
     chatSettings: payload.chatSettings,

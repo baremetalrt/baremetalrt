@@ -6,6 +6,7 @@
 
 import torch
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import os as _os
@@ -81,16 +82,19 @@ def load_model(model_id):
     # petals_model, petals_tokenizer
     unload_model()
     try:
-        if model_id == "llama3.1_8b_trtllm_instruct":
-            print("Loading Llama-3.1 8B Instruct (TensorRT-LLM, INT8) engine (instruction-tuned, GPU required)...")
+        if model_id == "llama3.1_8b_trtllm_instruct_int4_streaming":
+            print("Loading Llama-3.1 8B Instruct (TensorRT-LLM, INT4, STREAMING) engine (instruction-tuned, GPU required)...")
             try:
-                from tensorrt_llm import LLM
+                from tensorrt_llm.engine import AsyncLLMEngine
                 from transformers import PreTrainedTokenizerFast
-                ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
-                model = LLM(model=ENGINE_DIR)
-                model_name = "llama3.1_8b_trtllm_instruct"
-                print("TensorRT-LLM Instruct INT8 engine loaded successfully.")
-                # Try to load tokenizer from tokenizer.json if present
+                ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine-streaming"
+                model = AsyncLLMEngine(ENGINE_DIR, ENGINE_DIR)  # Use engine dir for both engine and HF model for now
+                import tensorrt_llm
+                print(f"[INFO] Loaded model: {model_name}")
+                print(f"[INFO] TRT-LLM version: {tensorrt_llm.__version__}")
+                print(f"[INFO] Model has generate_stream: {hasattr(model, 'generate_stream')}")
+                model_name = "llama3.1_8b_trtllm_instruct_int4_streaming"
+                print("TensorRT-LLM Instruct INT4 STREAMING engine loaded successfully.")
                 tokenizer_path = os.path.join(ENGINE_DIR, "tokenizer.json")
                 if os.path.exists(tokenizer_path):
                     tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
@@ -98,7 +102,6 @@ def load_model(model_id):
                 else:
                     tokenizer = None
                     print("[WARN] No tokenizer found in engine directory.")
-                # Warmup
                 from tensorrt_llm import SamplingParams
                 warmup_prompts = [
                     ("What is the capital of France? Explain in detail.", 256),
@@ -107,7 +110,7 @@ def load_model(model_id):
                     ("Explain the difference between supervised and unsupervised learning.", 128),
                     ("Generate a short story about a robot and a cat.", 150)
                 ]
-                print("Warming up TRT-LLM Instruct engine with multiple prompts...")
+                print("Warming up TRT-LLM Instruct INT4 STREAMING engine with multiple prompts...")
                 for prompt, tokens in warmup_prompts:
                     warmup_params = SamplingParams(
                         temperature=0.7,
@@ -116,9 +119,9 @@ def load_model(model_id):
                         end_id=2
                     )
                     _ = model.generate([prompt], warmup_params)
-                print("[INFO] TRT-LLM Instruct engine full warmup complete.")
+                print("[INFO] TRT-LLM Instruct INT4 STREAMING engine full warmup complete.")
             except Exception as e:
-                print(f"[ERROR] Failed to load TRT-LLM Instruct engine: {e}")
+                print(f"[ERROR] Failed to load TRT-LLM Instruct INT4 STREAMING engine: {e}")
                 model = None
                 tokenizer = None
                 model_ready = False
@@ -126,11 +129,11 @@ def load_model(model_id):
                 if model is not None and tokenizer is not None:
                     model_ready = True
                 else:
-                    print("[ERROR] TRT-LLM Instruct engine or tokenizer failed to load correctly!")
+                    print("[ERROR] TRT-LLM Instruct INT4 STREAMING engine or tokenizer failed to load correctly!")
                     model_ready = False
             petals_model = None
             petals_tokenizer = None
-            print("Model loaded on device: cuda:0 (TensorRT-LLM Instruct)")
+            print("Model loaded on device: cuda:0 (TensorRT-LLM Instruct INT4 STREAMING)")
         elif model_id == "llama3.1_8b_trtllm_instruct_int4":
             print("Loading Llama-3.1 8B Instruct (TensorRT-LLM, INT4) engine (instruction-tuned, GPU required)...")
             try:
@@ -138,6 +141,10 @@ def load_model(model_id):
                 from transformers import PreTrainedTokenizerFast
                 ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
                 model = LLM(model=ENGINE_DIR)
+                import tensorrt_llm
+                print(f"[INFO] Loaded model: {model_name}")
+                print(f"[INFO] TRT-LLM version: {tensorrt_llm.__version__}")
+                print(f"[INFO] Model has generate_stream: {hasattr(model, 'generate_stream')}")
                 model_name = "llama3.1_8b_trtllm_instruct_int4"
                 print("TensorRT-LLM Instruct INT4 engine loaded successfully.")
                 tokenizer_path = os.path.join(ENGINE_DIR, "tokenizer.json")
@@ -397,6 +404,163 @@ class CompletionRequest(BaseModel):
 def create_completion(request: CompletionRequest):
     if not model_ready:
         raise HTTPException(status_code=503, detail="Model is warming up, please try again in a few seconds.")
+    import time as _time
+    import re
+    with model_lock:
+        if current_model_id == "llama3.1_8b_trtllm_instruct_int4" and model is not None:
+            try:
+                t0 = _time.time()
+                prompt = request.prompt
+                input_ids = tokenizer(prompt)["input_ids"]
+                max_seq_len = 2048  # Actual engine/model context window (see error). TODO: Auto-detect from model if possible.
+                prompt_strip = prompt.strip()
+                # Dynamic max_tokens logic for 4k context window
+                user_max = getattr(request, 'max_tokens', None)
+                if len(prompt_strip) <= 40:
+                    # Short prompt: default 256, cap 1024, never exceed context window
+                    if user_max is None:
+                        max_tokens = min(256, 1024, max_seq_len - len(input_ids))
+                    else:
+                        max_tokens = min(user_max, 1024, max_seq_len - len(input_ids))
+                else:
+                    # Long prompt: default 512, cap 8192, never exceed context window
+                    if user_max is None:
+                        max_tokens = min(512, 8192, max_seq_len - len(input_ids))
+                    else:
+                        max_tokens = min(user_max, 8192, max_seq_len - len(input_ids))
+                from tensorrt_llm import SamplingParams
+                eos_token_id = 2
+                stop = getattr(request, 'stop', None)
+                sampling_params = SamplingParams(
+                    temperature=request.temperature,
+                    top_p=request.top_p,
+                    max_tokens=max_tokens,
+                    end_id=eos_token_id,
+                    stop=stop
+                )
+                outputs = model.generate([input_ids], sampling_params)
+                print(f"[DEBUG] Prompt: {prompt}")
+                print(f"[DEBUG] Input IDs: {input_ids}")
+                print(f"[DEBUG] Raw outputs: {outputs}")
+                if outputs and hasattr(outputs[0], 'outputs'):
+                    print(f"[DEBUG] Number of output candidates: {len(outputs[0].outputs)}")
+                    for i, seq in enumerate(outputs[0].outputs):
+                        print(f"[DEBUG] Candidate {i}: {seq.text!r}")
+                def crop_output_for_short_prompt(prompt, output_text):
+                    prompt_strip = prompt.strip()
+                    output_strip = output_text.strip()
+                    # Remove prompt/question if repeated at the start
+                    if output_strip.startswith(prompt_strip):
+                        output_strip = output_strip[len(prompt_strip):].lstrip("\n ")
+                    # For short prompts, crop at next question (avoid Q&A chains)
+                    if len(prompt_strip) <= 40 and output_strip:
+                        qmark_idx = output_strip.find('?\n')
+                        question_word = re.search(r'\n\s*(What|Who|Where|When|Why|How)[^\n]*\?', output_strip, re.IGNORECASE)
+                        if qmark_idx > 0:
+                            crop_idx = qmark_idx + 1
+                            output_strip = output_strip[:crop_idx].strip()
+                        elif question_word:
+                            crop_idx = question_word.start()
+                            output_strip = output_strip[:crop_idx].strip()
+                        else:
+                            newline_idx = output_strip.find('\n')
+                            period_idx = output_strip.find('. ')
+                            crop_points = [i for i in [newline_idx, period_idx+1 if period_idx!=-1 else -1] if i > 0]
+                            if crop_points:
+                                crop_idx = min(crop_points)
+                                output_strip = output_strip[:crop_idx].strip()
+                    return output_strip
+                if outputs and hasattr(outputs[0], 'outputs') and outputs[0].outputs:
+                    full_answer = "".join([seq.text for seq in outputs[0].outputs])
+                    answer = crop_output_for_short_prompt(prompt, full_answer)
+                else:
+                    answer = ""
+                t1 = _time.time()
+                print(f"[TIMING] INT4 Generation: {t1 - t0:.3f} seconds")
+                response = {
+                    "id": f"cmpl-{int(time.time()*1000)}",
+                    "object": "text_completion",
+                    "created": int(_time.time()),
+                    "model": current_model_id,
+                    "choices": [
+                        {
+                            "text": answer,
+                            "index": 0,
+                            "logprobs": None,
+                            "finish_reason": "stop"
+                        }
+                    ]
+                }
+                return response
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"TRT-LLM INT4 inference failed: {e}")
+        else:
+            raise HTTPException(status_code=503, detail="No model loaded or model is still loading. Please switch to a model and try again.")
+
+# Streaming endpoint for TRT-LLM INT4
+@app.post("/v1/completions/stream")
+def stream_completion(request: CompletionRequest):
+    if not model_ready:
+        raise HTTPException(status_code=503, detail="Model is warming up, please try again in a few seconds.")
+    import time as _time
+    import re
+    with model_lock:
+        if current_model_id == "llama3.1_8b_trtllm_instruct_int4_streaming" and model is not None:
+            prompt = request.prompt
+            input_ids = tokenizer(prompt)["input_ids"] if tokenizer is not None else None
+            sampling_params = SamplingParams(
+                temperature=request.temperature,
+                top_p=request.top_p,
+                max_tokens=request.max_tokens,
+                end_id=2
+            )
+            if hasattr(model, "generate_stream") and callable(getattr(model, "generate_stream", None)):
+                def token_stream():
+                    for token in model.generate_stream([input_ids], sampling_params):
+                        token_text = tokenizer.decode([token]) if tokenizer is not None else str(token)
+                        yield token_text
+                return StreamingResponse(token_stream(), media_type="text/plain")
+            else:
+                print("[WARN] Streaming not available for this engine/model. Falling back to non-streaming response.")
+                output = model.generate([input_ids], sampling_params)
+                output_text = tokenizer.decode(output[0]) if tokenizer is not None else str(output)
+                return {"choices": [{"text": output_text}]}
+
+        elif current_model_id == "llama3.1_8b_trtllm_instruct_int4" and model is not None:
+            print("[WARN] Streaming not available for this engine/model. Falling back to non-streaming response.")
+            prompt = request.prompt
+            input_ids = tokenizer(prompt)["input_ids"]
+            max_seq_len = 2048  # Actual engine/model context window (see error). TODO: Auto-detect from model if possible.
+            prompt_strip = prompt.strip()
+            user_max = getattr(request, 'max_tokens', None)
+            if len(prompt_strip) <= 40:
+                if user_max is None:
+                    max_tokens = min(256, 512, max_seq_len - len(input_ids))
+                else:
+                    max_tokens = min(user_max, 512, max_seq_len - len(input_ids))
+            else:
+                if user_max is None:
+                    max_tokens = min(512, 2048, max_seq_len - len(input_ids))
+                else:
+                    max_tokens = min(user_max, 2048, max_seq_len - len(input_ids))
+            from tensorrt_llm import SamplingParams
+            eos_token_id = 2
+            stop = getattr(request, 'stop', None)
+            sampling_params = SamplingParams(
+                temperature=request.temperature,
+                top_p=request.top_p,
+                max_tokens=max_tokens,
+                end_id=eos_token_id,
+                stop=stop
+            )
+            output = model.generate([input_ids], sampling_params)
+            output_text = tokenizer.decode(output[0]) if tokenizer is not None else str(output)
+            return {"choices": [{"text": output_text}]}
+            return StreamingResponse(token_stream(), media_type="text/plain")
+        else:
+            raise HTTPException(status_code=503, detail="No model loaded or model is still loading. Please switch to a model and try again.")
+    if not model_ready:
+        raise HTTPException(status_code=503, detail="Model is warming up, please try again in a few seconds.")
     """OpenAI-compatible completion endpoint."""
     import time as _time
     with model_lock:
@@ -500,8 +664,11 @@ def create_completion(request: CompletionRequest):
                     input_ids = None
                 # Use default sampling params or map from request
                 from tensorrt_llm import SamplingParams
-                # Cap max_tokens to 2048 for safety
-                max_tokens = min(getattr(request, 'max_tokens', 1024), 2048)
+                # Ensure max_tokens does not exceed model context window
+                input_ids = tokenizer(prompt)["input_ids"]
+                prompt_length = len(input_ids)
+                max_seq_len = 2048
+                max_tokens = min(request.max_tokens, max_seq_len - prompt_length)
                 sampling_params = SamplingParams(
                     temperature=request.temperature,
                     top_p=request.top_p,
@@ -572,14 +739,21 @@ def create_completion(request: CompletionRequest):
                 print(f"[DEBUG] Using end_id for INT4 SamplingParams: {eos_token_id}")
                 # Use max_tokens (not max_new_tokens) and set a high default if not provided
                 # Set max_tokens to maximum allowed by context window
-                # Get model's max_seq_len (TRT-LLM INT4 engine is typically 2048)
-                max_seq_len = getattr(model, 'max_seq_len', 2048)
-                print(f"[DEBUG] TRT-LLM max_seq_len: {max_seq_len}")
-                user_max_tokens = getattr(request, 'max_tokens', None)
-                if user_max_tokens is None:
-                    max_tokens = max_seq_len - len(input_ids)
+                max_seq_len = 2048  # Ensure this matches your INT4 engine's context window
+                prompt_strip = prompt.strip()
+                if len(prompt_strip) <= 40:
+                    # For short prompts, cap max_tokens to 128 or less
+                    max_tokens = getattr(request, 'max_tokens', None)
+                    if max_tokens is None:
+                        max_tokens = min(128, max_seq_len - len(input_ids))
+                    else:
+                        max_tokens = min(max_tokens, 128, max_seq_len - len(input_ids))
                 else:
-                    max_tokens = min(user_max_tokens, max_seq_len - len(input_ids))
+                    max_tokens = getattr(request, 'max_tokens', None)
+                    if max_tokens is None:
+                        max_tokens = max_seq_len - len(input_ids)
+                    else:
+                        max_tokens = min(max_tokens, max_seq_len - len(input_ids))
                 # Smart default stop: prevent Q&A chains, allow multi-line answers
                 # Use only EOS token as stop sequence (most robust for TRT-LLM INT4)
                 stop = getattr(request, 'stop', None)
@@ -590,11 +764,9 @@ def create_completion(request: CompletionRequest):
                     temperature=request.temperature,
                     top_p=request.top_p,
                     max_tokens=max_tokens,
-                    max_new_tokens=max_tokens,  # Patch: set both for backend compatibility
                     end_id=eos_token_id,
                     stop=stop
                 )
-                print(f"[DEBUG] SamplingParams: max_tokens={sampling_params.max_tokens}, max_new_tokens={getattr(sampling_params, 'max_new_tokens', None)}, temperature={sampling_params.temperature}, top_p={sampling_params.top_p}, end_id={sampling_params.end_id}, stop={sampling_params.stop}")
                 outputs = model.generate(input_batch, sampling_params)
                 print(f"[DEBUG] Prompt: {prompt}")
                 print(f"[DEBUG] Input IDs: {input_ids}")
@@ -605,15 +777,38 @@ def create_completion(request: CompletionRequest):
                         print(f"[DEBUG] Candidate {i}: {seq.text!r}")
                 # outputs is a list of RequestOutput objects; each has .outputs (list of candidates), each with .text
                 import re
+                def crop_output_for_short_prompt(prompt, output_text):
+                    import re
+                    prompt_strip = prompt.strip()
+                    output_strip = output_text.strip()
+                    # Remove prompt/question if repeated at the start
+                    if output_strip.startswith(prompt_strip):
+                        output_strip = output_strip[len(prompt_strip):].lstrip("\n ")
+                    # For short prompts, crop at next question (avoid Q&A chains)
+                    if len(prompt_strip) <= 40 and output_strip:
+                        # Find next question pattern: either '?\n', or a line starting with question word
+                        qmark_idx = output_strip.find('?\n')
+                        # Regex for lines starting with question words (What, Who, Where, When, Why, How, etc.)
+                        question_word = re.search(r'\n\s*(What|Who|Where|When|Why|How)[^\n]*\?', output_strip, re.IGNORECASE)
+                        if qmark_idx > 0:
+                            crop_idx = qmark_idx + 1  # include the '?'
+                            output_strip = output_strip[:crop_idx].strip()
+                        elif question_word:
+                            crop_idx = question_word.start()
+                            output_strip = output_strip[:crop_idx].strip()
+                        else:
+                            # Fallback: first newline or period
+                            newline_idx = output_strip.find('\n')
+                            period_idx = output_strip.find('. ')
+                            crop_points = [i for i in [newline_idx, period_idx+1 if period_idx!=-1 else -1] if i > 0]
+                            if crop_points:
+                                crop_idx = min(crop_points)
+                                output_strip = output_strip[:crop_idx].strip()
+                    return output_strip
+
                 if outputs and hasattr(outputs[0], 'outputs') and outputs[0].outputs:
                     full_answer = "".join([seq.text for seq in outputs[0].outputs])
-                    # Remove everything from the first question onwards (including the question)
-                    pattern = re.compile(r"(\n.*?\?)", re.IGNORECASE)
-                    match = pattern.search(full_answer)
-                    if match:
-                        answer = full_answer[:match.start()].rstrip()
-                    else:
-                        answer = full_answer
+                    answer = crop_output_for_short_prompt(prompt, full_answer)
                 else:
                     answer = ""
                 t1 = _time.time()

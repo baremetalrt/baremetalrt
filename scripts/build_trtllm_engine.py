@@ -29,7 +29,7 @@ from tensorrt_llm.builder import build, BuildConfig
 
 import argparse
 
-checkpoint_dir_default = "/mnt/c/Github/baremetalrt/external/models/trtllm-Llama-3.1-8B-Instruct"
+checkpoint_dir_default = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-Instruct"
 output_dir_default = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
 
 parser = argparse.ArgumentParser(description="TensorRT-LLM Engine Build Script (configurable for OOM safety)")
@@ -40,7 +40,7 @@ parser.add_argument("--max_input_len", type=int, default=2048, help="Max input l
 parser.add_argument("--max_seq_len", type=int, default=2048, help="Max sequence length (default: 2048)")
 
 parser.add_argument("--profiling_verbosity", default="layer_names_only", help="Profiling verbosity (default: layer_names_only)")
-parser.add_argument("--use_paged_context_fmha", action="store_true", default=True, help="Enable paged context FMHA (default: True)")
+parser.add_argument("--use_paged_context_fmha", action="store_false", default=False, help="Disable paged context FMHA to enable streaming (default: False)")
 args = parser.parse_args()
 
 try:
@@ -58,6 +58,12 @@ try:
         profiling_verbosity=args.profiling_verbosity,
         use_refit=False
     )
+    # Set paged context FMHA in plugin_config after BuildConfig creation
+    if hasattr(build_config, "plugin_config"):
+        build_config.plugin_config.use_paged_context_fmha = args.use_paged_context_fmha
+        print(f"[INFO] build_config.plugin_config.use_paged_context_fmha: {build_config.plugin_config.use_paged_context_fmha}")
+    else:
+        print("[WARN] build_config has no plugin_config attribute!")
     print("[INFO] BuildConfig:")
     for k, v in build_config.__dict__.items():
         print(f"  {k}: {v}")

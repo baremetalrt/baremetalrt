@@ -15,6 +15,7 @@ import time
 import threading
 import gc
 from threading import Lock
+from tensorrt_llm import SamplingParams  # Ensure SamplingParams is always available
 # try:
 #     from petals import AutoDistributedModelForCausalLM
 #     PETALS_AVAILABLE = True
@@ -83,26 +84,22 @@ def load_model(model_id):
     unload_model()
     try:
         if model_id == "llama3.1_8b_trtllm_instruct_int4_streaming":
-            print("Loading Llama-3.1 8B Instruct (TensorRT-LLM, INT4, STREAMING) engine (instruction-tuned, GPU required)...")
+            print("Loading Llama-3.1 8B Instruct (TensorRT-LLM, INT4, STREAMING) engine (instruction-tuned, GPU required, NEW ENGINE DIR)...")
             try:
-                from tensorrt_llm.engine import AsyncLLMEngine
+                from tensorrt_llm import LLM
                 from transformers import PreTrainedTokenizerFast
-                ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine-streaming"
-                model = AsyncLLMEngine(ENGINE_DIR, ENGINE_DIR)  # Use engine dir for both engine and HF model for now
+                # Updated engine directory for new streaming model
+                ENGINE_DIR = "/mnt/c/Github/baremetalrt/models/Llama-3.1-8B-trtllm-engine-streaming"
+                model = LLM(model=ENGINE_DIR)  # Use engine dir for streaming model as with non-streaming
                 import tensorrt_llm
                 print(f"[INFO] Loaded model: {model_name}")
+                print(f"[DEBUG] Model type: {type(model)}")
+                print(f"[DEBUG] Model attributes: {dir(model)}")
                 print(f"[INFO] TRT-LLM version: {tensorrt_llm.__version__}")
                 print(f"[INFO] Model has generate_stream: {hasattr(model, 'generate_stream')}")
                 model_name = "llama3.1_8b_trtllm_instruct_int4_streaming"
                 print("TensorRT-LLM Instruct INT4 STREAMING engine loaded successfully.")
                 tokenizer_path = os.path.join(ENGINE_DIR, "tokenizer.json")
-                if os.path.exists(tokenizer_path):
-                    tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
-                    print("Loaded tokenizer from engine directory.")
-                else:
-                    tokenizer = None
-                    print("[WARN] No tokenizer found in engine directory.")
-                from tensorrt_llm import SamplingParams
                 warmup_prompts = [
                     ("What is the capital of France? Explain in detail.", 256),
                     ("Write a Python function to compute Fibonacci numbers.", 128),
@@ -110,6 +107,12 @@ def load_model(model_id):
                     ("Explain the difference between supervised and unsupervised learning.", 128),
                     ("Generate a short story about a robot and a cat.", 150)
                 ]
+                if os.path.exists(tokenizer_path):
+                    tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
+                    print("Loaded tokenizer from engine directory.")
+                else:
+                    tokenizer = None
+                    print("[WARN] No tokenizer found in engine directory.")
                 print("Warming up TRT-LLM Instruct INT4 STREAMING engine with multiple prompts...")
                 for prompt, tokens in warmup_prompts:
                     warmup_params = SamplingParams(
@@ -133,13 +136,16 @@ def load_model(model_id):
                     model_ready = False
             petals_model = None
             petals_tokenizer = None
-            print("Model loaded on device: cuda:0 (TensorRT-LLM Instruct INT4 STREAMING)")
+            if model_ready:
+                print("Model loaded on device: cuda:0 (TensorRT-LLM Instruct INT4 STREAMING)")
+            else:
+                print("[WARN] Model NOT loaded: TRT-LLM Instruct INT4 STREAMING is unavailable or failed to load.")
         elif model_id == "llama3.1_8b_trtllm_instruct_int4":
             print("Loading Llama-3.1 8B Instruct (TensorRT-LLM, INT4) engine (instruction-tuned, GPU required)...")
             try:
                 from tensorrt_llm import LLM
                 from transformers import PreTrainedTokenizerFast
-                ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
+                ENGINE_DIR = "/mnt/c/Github/baremetalrt/models/Llama-3.1-8B-trtllm-engine"
                 model = LLM(model=ENGINE_DIR)
                 import tensorrt_llm
                 print(f"[INFO] Loaded model: {model_name}")
@@ -148,13 +154,6 @@ def load_model(model_id):
                 model_name = "llama3.1_8b_trtllm_instruct_int4"
                 print("TensorRT-LLM Instruct INT4 engine loaded successfully.")
                 tokenizer_path = os.path.join(ENGINE_DIR, "tokenizer.json")
-                if os.path.exists(tokenizer_path):
-                    tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
-                    print("Loaded tokenizer from engine directory.")
-                else:
-                    tokenizer = None
-                    print("[WARN] No tokenizer found in engine directory.")
-                from tensorrt_llm import SamplingParams
                 warmup_prompts = [
                     ("What is the capital of France? Explain in detail.", 256),
                     ("Write a Python function to compute Fibonacci numbers.", 128),
@@ -162,6 +161,16 @@ def load_model(model_id):
                     ("Explain the difference between supervised and unsupervised learning.", 128),
                     ("Generate a short story about a robot and a cat.", 150)
                 ]
+                if not os.path.exists(tokenizer_path):
+                    raise RuntimeError(f"Tokenizer file not found at {tokenizer_path}. Backend cannot start without tokenizer.")
+                tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
+                print("Loaded tokenizer from engine directory.")
+                # Call setup to enable stop sequence support
+                if hasattr(model, 'setup'):
+                    print("[DEBUG] Calling model.setup(tokenizer=tokenizer) to enable stop sequence support...")
+                    model.setup(tokenizer=tokenizer)
+                else:
+                    print("[WARN] Model object does not have a 'setup' method. Stop sequence support may not work.")
                 print("Warming up TRT-LLM Instruct INT4 engine with multiple prompts...")
                 print(f"[DEBUG] Tokenizer object at warmup: {tokenizer}")
                 print(f"[DEBUG] Model object at warmup: {model}")
@@ -282,7 +291,7 @@ def load_model(model_id):
             try:
                 from tensorrt_llm import LLM
                 from transformers import PreTrainedTokenizerFast
-                ENGINE_DIR = "/mnt/c/Github/baremetalrt/external/models/Llama-3.1-8B-trtllm-engine"
+                ENGINE_DIR = "/mnt/c/Github/baremetalrt/models/Llama-3.1-8B-trtllm-engine"
                 model = LLM(model=ENGINE_DIR)
                 model_name = "llama3.1_8b_trtllm_8int"
                 print("TensorRT-LLM INT8 engine loaded successfully.")
@@ -293,12 +302,9 @@ def load_model(model_id):
                 if _os.path.exists(tokenizer_path):
                     tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
                     print("Loaded tokenizer.json with")
-                else:
-                    tokenizer = None
                     print("Warning: tokenizer.json not found, proceeding without tokenizer.")
                 # Improved warmup: multiple realistic prompts with higher max_tokens
                 try:
-                    from tensorrt_llm import SamplingParams
                     warmup_prompts = [
                         ("Hello!", 8),
                         ("What is the capital of France? Explain in detail.", 256),
@@ -410,7 +416,21 @@ def create_completion(request: CompletionRequest):
         if current_model_id == "llama3.1_8b_trtllm_instruct_int4" and model is not None:
             try:
                 t0 = _time.time()
-                prompt = request.prompt
+                # Llama 3 native chat format with special tokens
+                preprompt = (
+                    "<|begin_of_text|><|start_header_id|>system\n"
+                    "You are a helpful assistant. Answer the user's question as fully and accurately as possible. "
+                    "Do not ask follow-up questions or continue the conversation after your answer. "
+                    "When you have finished answering, stop.\n"
+                    "<|end_header_id|>\n"
+                    "<|start_header_id|>user\n"
+                )
+                prompt = (
+                    preprompt
+                    + request.prompt.strip() + "\n"
+                    + "<|end_header_id|>\n"
+                    + "<|start_header_id|>assistant"
+                )
                 input_ids = tokenizer(prompt)["input_ids"]
                 max_seq_len = 2048  # Actual engine/model context window (see error). TODO: Auto-detect from model if possible.
                 prompt_strip = prompt.strip()
@@ -428,16 +448,24 @@ def create_completion(request: CompletionRequest):
                         max_tokens = min(512, 8192, max_seq_len - len(input_ids))
                     else:
                         max_tokens = min(user_max, 8192, max_seq_len - len(input_ids))
-                from tensorrt_llm import SamplingParams
-                eos_token_id = 2
-                stop = getattr(request, 'stop', None)
+                # Use <|eot_id|> as EOS and pass stop sequences as strings
+                eos_token_id = tokenizer.convert_tokens_to_ids("<|eot_id|>") if hasattr(tokenizer, 'convert_tokens_to_ids') else 2
+                stop_strings = ["<|end_header_id|>", "<|eot_id|>", "<|start_header_id|>assistant"]
+                print("[DEBUG] Stop strings:", stop_strings)
+                # TRT-LLM 0.19.0 does not support stop sequences, only EOS token
                 sampling_params = SamplingParams(
                     temperature=request.temperature,
                     top_p=request.top_p,
                     max_tokens=max_tokens,
-                    end_id=eos_token_id,
-                    stop=stop
+                    end_id=eos_token_id
                 )
+                # stop_strings debug left for future upgrades
+                # Call setup immediately before inference to ensure stop sequence support
+                if hasattr(model, 'setup'):
+                    print(f"[DEBUG] Calling model.setup(tokenizer=tokenizer) just before inference. Model id: {id(model)}, Tokenizer id: {id(tokenizer)}")
+                    model.setup(tokenizer=tokenizer)
+                else:
+                    print("[WARN] Model object does not have a 'setup' method. Stop sequence support may not work.")
                 outputs = model.generate([input_ids], sampling_params)
                 print(f"[DEBUG] Prompt: {prompt}")
                 print(f"[DEBUG] Input IDs: {input_ids}")
@@ -503,10 +531,11 @@ def stream_completion(request: CompletionRequest):
     if not model_ready:
         raise HTTPException(status_code=503, detail="Model is warming up, please try again in a few seconds.")
     import time as _time
-    import re
     with model_lock:
         if current_model_id == "llama3.1_8b_trtllm_instruct_int4_streaming" and model is not None:
-            prompt = request.prompt
+            # Llama 3/2 Instruct-style preprompt
+            preprompt = "[INST] <<SYS>>\nYou are a helpful, concise assistant. Answer only the user's question and stop.\n<</SYS>>\n\n"
+            prompt = preprompt + request.prompt.strip() + " [/INST]"
             input_ids = tokenizer(prompt)["input_ids"] if tokenizer is not None else None
             sampling_params = SamplingParams(
                 temperature=request.temperature,
@@ -523,40 +552,15 @@ def stream_completion(request: CompletionRequest):
             else:
                 print("[WARN] Streaming not available for this engine/model. Falling back to non-streaming response.")
                 output = model.generate([input_ids], sampling_params)
-                output_text = tokenizer.decode(output[0]) if tokenizer is not None else str(output)
+                if output and hasattr(output[0], 'outputs') and output[0].outputs:
+                    output_text = "".join([seq.text for seq in output[0].outputs])
+                else:
+                    output_text = ""
                 return {"choices": [{"text": output_text}]}
 
         elif current_model_id == "llama3.1_8b_trtllm_instruct_int4" and model is not None:
-            print("[WARN] Streaming not available for this engine/model. Falling back to non-streaming response.")
-            prompt = request.prompt
-            input_ids = tokenizer(prompt)["input_ids"]
-            max_seq_len = 2048  # Actual engine/model context window (see error). TODO: Auto-detect from model if possible.
-            prompt_strip = prompt.strip()
-            user_max = getattr(request, 'max_tokens', None)
-            if len(prompt_strip) <= 40:
-                if user_max is None:
-                    max_tokens = min(256, 512, max_seq_len - len(input_ids))
-                else:
-                    max_tokens = min(user_max, 512, max_seq_len - len(input_ids))
-            else:
-                if user_max is None:
-                    max_tokens = min(512, 2048, max_seq_len - len(input_ids))
-                else:
-                    max_tokens = min(user_max, 2048, max_seq_len - len(input_ids))
-            from tensorrt_llm import SamplingParams
-            eos_token_id = 2
-            stop = getattr(request, 'stop', None)
-            sampling_params = SamplingParams(
-                temperature=request.temperature,
-                top_p=request.top_p,
-                max_tokens=max_tokens,
-                end_id=eos_token_id,
-                stop=stop
-            )
-            output = model.generate([input_ids], sampling_params)
-            output_text = tokenizer.decode(output[0]) if tokenizer is not None else str(output)
-            return {"choices": [{"text": output_text}]}
-            return StreamingResponse(token_stream(), media_type="text/plain")
+            # Explicitly reject streaming for non-streaming model
+            raise HTTPException(status_code=501, detail="Streaming not available for this model/engine. Please use the non-streaming /v1/completions endpoint.")
         else:
             raise HTTPException(status_code=503, detail="No model loaded or model is still loading. Please switch to a model and try again.")
     if not model_ready:
@@ -663,8 +667,7 @@ def stream_completion(request: CompletionRequest):
                 else:
                     input_ids = None
                 # Use default sampling params or map from request
-                from tensorrt_llm import SamplingParams
-                # Ensure max_tokens does not exceed model context window
+                                # Ensure max_tokens does not exceed model context window
                 input_ids = tokenizer(prompt)["input_ids"]
                 prompt_length = len(input_ids)
                 max_seq_len = 2048

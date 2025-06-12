@@ -71,14 +71,18 @@ export default function HomePage() {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/v1/completions/stream`, {
+      // Determine endpoint based on selected model id
+      const isStreaming = selectedModelId.endsWith('_streaming');
+      const endpoint = isStreaming ? '/v1/completions/stream' : '/v1/completions';
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: userMessage.content,
           max_tokens: 8192,
           temperature: 0.7,
-          top_p: 0.95
+          top_p: 0.95,
+          ...(isStreaming ? {} : { stop: "</s>" })
         })
       });
       console.log('Response status:', res.status);

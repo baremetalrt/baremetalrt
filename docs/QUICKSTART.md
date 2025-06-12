@@ -42,7 +42,7 @@ source .venv/bin/activate
 If your project is located on your Windows C: drive (e.g., C:\Github\mtg-something), you can access it from WSL2 with:
 
 ```sh
-cd /mnt/c/Github/mtg-something
+cd /mnt/c/Github/baremetalrt
 ```
 
 Replace `mtg-something` with your actual project folder name. Use `ls /mnt/c/Github` to list available folders.

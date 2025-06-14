@@ -20,24 +20,20 @@ async def get_models():
     status_path = os.path.abspath(os.path.join(base_dir, "model_status.json"))
     models = [
         {
-            "id": "llama3.1_8b_trtllm_4int",
-            "name": "Llama 3.1 8B (INT4)"
+            "id": "llama3.1_8b_trtllm_instruct_int4",
+            "name": "Llama 3.1 8B Instruct (INT4)"
+        },
+        {
+            "id": "llama3.1_8b_trtllm_instruct_int4_streaming",
+            "name": "Llama 3.1 8B Instruct (INT4, Streaming)"
+        },
+        {
+            "id": "llama2_7b_chat_8int",
+            "name": "Llama 2 7B Chat (INT8)"
         },
         {
             "id": "deepseek_7b",
             "name": "Deepseek LLM 7B"
-        },
-        {
-            "id": "mixtral_8x7b_instruct_4bit",
-            "name": "Mixtral 8x7B Instruct (4INT)"
-        },
-        {
-            "id": "llama3.1_405b_petals",
-            "name": "Llama 3.1 405B (Petals, API)"
-        },
-        {
-            "id": "llama2_7b_chat_8int",
-            "name": "Llama 2 7B Chat INT8"
         }
     ]
     # Load status from JSON
@@ -46,9 +42,7 @@ async def get_models():
             status_dict = json.load(f)
     else:
         status_dict = {}
-    # If no model is online, set llama3.1_8b_trtllm_4int as online in-memory (do not write to file)
-    if not any(status == "online" for status in status_dict.values()):
-        status_dict["llama3.1_8b_trtllm_4int"] = "online"
+
     result = []
     for model in models:
         status = status_dict.get(model["id"], "offline")

@@ -38,19 +38,10 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Model switch handler
-  const handleModelSelect = async (modelId: string) => {
+  // Model select handler (no backend switch)
+  const handleModelSelect = (modelId: string) => {
     if (models.find(m => m.id === modelId && m.status === 'online')) {
       setSelectedModelId(modelId);
-      try {
-        await fetch(`${API_URL}/api/switch_model`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model_id: modelId })
-        });
-      } catch (e) {
-        // Optionally show error
-      }
     }
   };
 
@@ -80,31 +71,54 @@ export default function HomePage() {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/v1/completions`, {
+      // Determine endpoint based on selected model id
+      const isStreaming = selectedModelId.endsWith('_streaming');
+      const endpoint = isStreaming ? '/v1/completions/stream' : '/v1/completions';
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: userMessage.content,
-          max_tokens: 128,
+          max_tokens: 8192,
           temperature: 0.7,
-          top_p: 0.95
+          top_p: 0.95,
+          ...(isStreaming ? {} : { stop: "</s>" })
         })
       });
       console.log('Response status:', res.status);
-      const text = await res.text();
-      console.log('Raw response text:', text);
+      const contentType = res.headers.get("content-type") || "";
       if (!res.ok) {
+        const text = await res.text();
         setMessages(prev => [...prev, { role: "assistant", content: `[Backend error: ${res.status}] ${text}` }]);
-      } else {
-        let data;
-        try {
-          data = JSON.parse(text);
-          const reply = data.choices?.[0]?.text || "(No reply)";
-          setMessages(prev => [...prev, { role: "assistant", content: reply }]);
-        } catch (parseErr) {
-          console.error('Error parsing JSON:', parseErr);
-          setMessages(prev => [...prev, { role: "assistant", content: `[Error parsing backend response]` }]);
+      } else if (contentType.includes("application/json")) {
+        // Non-streaming fallback
+        const data = await res.json();
+        const reply = data.choices?.[0]?.text || "(No reply)";
+        setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      } else if (res.body) {
+        // Streamed response
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let reply = "";
+        let done = false;
+        let first = true;
+        while (!done) {
+          const { value, done: streamDone } = await reader.read();
+          done = streamDone;
+          if (value) {
+            reply += decoder.decode(value, { stream: true });
+            setMessages(prev => {
+              if (first || prev[prev.length - 1]?.role !== "assistant") {
+                first = false;
+                return [...prev, { role: "assistant", content: reply }];
+              } else {
+                return [...prev.slice(0, -1), { role: "assistant", content: reply }];
+              }
+            });
+          }
         }
+      } else {
+        setMessages(prev => [...prev, { role: "assistant", content: "[No response body]" }]);
       }
     } catch (e) {
       console.error('Fetch error:', e);

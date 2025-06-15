@@ -10,7 +10,7 @@
     "clean": "npm run lint:fix && npm run format:write",
     "dev": "next dev",
     "prebuild": "ls -l node_modules/@tailwindcss/typography || echo 'NOT INSTALLED'",
-  "build": "ls -l node_modules/@tailwindcss/typography || echo 'NOT INSTALLED'; next build",
+    "build": "ls -l node_modules/@tailwindcss/typography || echo 'NOT INSTALLED'; next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
@@ -63,6 +63,7 @@
     "@supabase/ssr": "^0.0.10",
     "@supabase/supabase-js": "^2.49.8",
     "@tabler/icons-react": "^2.40.0",
+    "@tailwindcss/typography": "^0.5.13",
     "@vercel/analytics": "^1.1.1",
     "@vercel/edge-config": "^0.4.1",
     "@xenova/transformers": "^2.13.4",
@@ -101,8 +102,7 @@
     "tailwindcss": "^3.3.5",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^9.0.1",
-    "zod": "^3.22.4",
-    "@tailwindcss/typography": "^0.5.13"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^14.2.29",
@@ -115,7 +115,7 @@
     "@types/react-dom": "^18",
     "@types/react-syntax-highlighter": "^15.5.11",
     "@types/uuid": "^9.0.7",
-    "eslint": "^8",
+    "eslint": "^8.57.1",
     "eslint-config-next": "^14.0.2",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-tailwindcss": "^3.13.0",

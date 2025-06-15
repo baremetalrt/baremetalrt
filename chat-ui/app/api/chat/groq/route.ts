@@ -32,10 +32,11 @@ export async function POST(request: Request) {
     })
 
     // Convert the response into a friendly text-stream.
-    const stream = OpenAIStream(response)
+    // Cast to 'any' to satisfy type checker for Netlify/Next.js build (see Azure route)
+    const stream = OpenAIStream(response as any) as any
 
     // Respond with the stream
-    return new StreamingTextResponse(stream)
+    return new StreamingTextResponse(stream as any)
   } catch (error: any) {
     let errorMessage = error.message || "An unexpected error occurred"
     const errorCode = error.status || 500

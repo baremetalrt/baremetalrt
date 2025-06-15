@@ -6,7 +6,7 @@
     "chat": "supabase start && npm run db-types && npm run dev",
     "restart": "supabase stop && npm run chat",
     "update": "git pull origin main && npm run db-migrate && npm run db-types",
-    "prepare": "husky install || true",
+    "prepare": "node -e \"try{require('husky').install()}catch(e){}\"",
     "clean": "npm run lint:fix && npm run format:write",
     "dev": "next dev",
     "prebuild": "ls -l node_modules/@tailwindcss/typography || echo 'NOT INSTALLED'",

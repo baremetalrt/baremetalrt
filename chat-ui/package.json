@@ -10,7 +10,7 @@
     "clean": "npm run lint:fix && npm run format:write",
     "dev": "next dev",
     "prebuild": "ls -l node_modules/@tailwindcss/typography || echo 'NOT INSTALLED'",
-  "build": "next build",
+  "build": "ls -l node_modules/@tailwindcss/typography || echo 'NOT INSTALLED'; next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",

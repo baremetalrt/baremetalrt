@@ -15,6 +15,12 @@ export const CHAT_SETTING_LIMITS: Record<LLMID, ChatSettingLimits> = {
     MAX_TOKEN_OUTPUT_LENGTH: 4096,
     MAX_CONTEXT_LENGTH: 8192
   },
+  "llama3.1_8b_trtllm_4int_streaming": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 2.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 8192
+  },
   "llama2_8b_int8": {
     MIN_TEMPERATURE: 0.0,
     MAX_TEMPERATURE: 2.0,

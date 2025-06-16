@@ -26,14 +26,6 @@ async def get_models():
         {
             "id": "llama3.1_8b_trtllm_instruct_int4_streaming",
             "name": "Llama 3.1 8B Instruct (INT4, Streaming)"
-        },
-        {
-            "id": "llama2_7b_chat_8int",
-            "name": "Llama 2 7B Chat (INT8)"
-        },
-        {
-            "id": "deepseek_7b",
-            "name": "Deepseek LLM 7B"
         }
     ]
     # Load status from JSON

@@ -8,22 +8,22 @@ import { PERPLEXITY_LLM_LIST } from "./perplexity-llm-list"
 
 export const LLM_LIST: LLM[] = [
   {
+    modelId: "llama3.1_8b_trtllm_4int_streaming",
+    modelName: "Llama 3.1 8B Streaming (TensorRT-LLM, 4INT)",
+    provider: "custom",
+    hostedId: "llama3.1_8b_trtllm_4int_streaming",
+    platformLink: "https://github.com/NVIDIA/TensorRT-LLM",
+    imageInput: false,
+    description: "Llama 3.1 8B streaming mode (TensorRT-LLM, INT4+INT8KV)",
+  },
+  {
     modelId: "llama3.1_8b_trtllm_4int",
-    modelName: "Llama 3.1 8B (TensorRT-LLM, 4INT)",
+    modelName: "Llama 3.1 8B Non-Streaming (TensorRT-LLM, 4INT)",
     provider: "custom",
     hostedId: "llama3.1_8b_trtllm_4int",
     platformLink: "https://github.com/NVIDIA/TensorRT-LLM",
     imageInput: false,
-    description: "Ultra-fast local inference (TensorRT-LLM, INT4+INT8KV)",
-  },
-  {
-    modelId: "deepseek_7b",
-    modelName: "Deepseek LLM 7B",
-    provider: "custom",
-    hostedId: "deepseek_7b",
-    platformLink: "https://huggingface.co/deepseek-ai/deepseek-llm-7b-base",
-    imageInput: false,
-    description: "Offline: Local Deepseek 7B model",
+    description: "Llama 3.1 8B non-streaming mode (TensorRT-LLM, INT4+INT8KV)",
   }
 ]
 

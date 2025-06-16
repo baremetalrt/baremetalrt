@@ -8,6 +8,7 @@ export type LLMID =
   | GroqLLMID
   | PerplexityLLMID
   // --- Custom/Local Models (baremetalrt) ---
+  | "llama3.1_8b_trtllm_4int_streaming"
   | "llama3.1_8b_trtllm_4int"
   | "llama2_8b_int8"
   | "deepseek_7b"

@@ -9,7 +9,7 @@
     "prepare": "node -e \"try{require('husky').install()}catch(e){}\"",
     "clean": "npm run lint:fix && npm run format:write",
     "dev": "next dev",
-    "prebuild": "echo 'prebuild step skipped on Windows'", 
+    "prebuild": "echo 'prebuild step skipped on Windows'",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -105,6 +105,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.11.2",
     "@next/bundle-analyzer": "^14.2.29",
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^14.1.2",

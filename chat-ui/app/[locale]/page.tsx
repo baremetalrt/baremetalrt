@@ -8,6 +8,7 @@ import Link from "next/link"
 import { AnimatedEllipsis } from "./AnimatedEllipsis";
 
 import React, { useState, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 
 const METALLIC_GRADIENT = "bg-gradient-to-r from-gray-100 via-gray-400 to-gray-200 bg-clip-text text-transparent";
 
@@ -139,13 +140,21 @@ export default function HomePage() {
   return (
     <div className="flex h-screen w-screen flex-col">
       <header className="flex items-center h-16 px-6">
-        <div
-          className={`text-2xl font-extrabold tracking-tight ${METALLIC_GRADIENT} drop-shadow-lg flex items-center select-none px-2`}
-          style={{ fontFamily: 'Orbitron, monospace', letterSpacing: '0.08em' }}
-        >
-          BareMetalRT
-          {process.env.NODE_ENV === 'development' && <span style={{color:'#c0c0c0'}}><DevModeBanner /></span>}
-        </div>
+        <Link href="/" legacyBehavior>
+          <a
+            className={`text-2xl font-extrabold tracking-tight ${METALLIC_GRADIENT} drop-shadow-lg flex items-center select-none px-2`}
+            style={{ fontFamily: 'Orbitron, monospace', letterSpacing: '0.08em' }}
+            onClick={e => {
+              if (window.location.pathname === "/") {
+                e.preventDefault();
+                window.location.reload();
+              }
+            }}
+          >
+            BareMetalRT
+            {process.env.NODE_ENV === 'development' && <span style={{color:'#c0c0c0'}}><DevModeBanner /></span>}
+          </a>
+        </Link>
       </header>
       {/* Model selector UI */}
       <div className="w-full max-w-3xl px-4 mx-auto mt-4 mb-2">
@@ -395,7 +404,7 @@ export default function HomePage() {
                   wordBreak: 'break-word',
                 }}
               >
-                {msg.content}
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
               </div>
             ))}
           </div>

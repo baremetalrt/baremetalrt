@@ -372,6 +372,7 @@ export default function HomePage() {
             maxHeight: '45vh', // or 340px if you prefer a fixed px value
             minHeight: '120px',
             overflowY: 'auto',
+            overflowX: 'hidden',
             display: 'flex',
             flexDirection: 'column',
             gap: '1rem',
@@ -388,7 +389,7 @@ export default function HomePage() {
             {(showAllMessages || messages.length <= 3 ? messages : messages.slice(-3)).map((msg, idx) => (
               <div
                 key={showAllMessages ? idx : messages.length - (showAllMessages ? messages.length : 3) + idx}
-                className={`px-5 py-3 whitespace-pre-line self-${msg.role === "user" ? "end" : "start"} animate-fade-in-up`}
+                className={`px-5 py-3 self-${msg.role === "user" ? "end" : "start"} animate-fade-in-up`}
                 style={{
                   fontSize: '1rem',
                   lineHeight: 1.6,
@@ -399,9 +400,11 @@ export default function HomePage() {
                   maxWidth: '80%',
                   maxHeight: 300,
                   overflowY: 'auto',
+                  overflowX: 'hidden',
                   animationDelay: `${idx * 60}ms`,
                   animationFillMode: 'backwards',
                   wordBreak: 'break-word',
+                  whiteSpace: 'pre-wrap',
                 }}
               >
                 <ReactMarkdown>{msg.content}</ReactMarkdown>

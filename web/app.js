@@ -147,7 +147,7 @@ async function autoDemo() {
     const r = await fetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: window.DEMO_EMAIL || '', password: window.DEMO_PASS || '' }),
+      body: JSON.stringify({ email: 'demo@baremetalrt.ai', password: 'demo2026!' }),
     });
     if (r.ok) { window.location.reload(); return; }
   } catch(e) { console.error('autoDemo:', e); }
@@ -246,7 +246,7 @@ async function tryDemo() {
     const r = await fetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: window.DEMO_EMAIL || '', password: window.DEMO_PASS || '' }),
+      body: JSON.stringify({ email: 'demo@baremetalrt.ai', password: 'demo2026!' }),
     });
     if (r.ok) { window.location.reload(); }
     else { document.getElementById('auth-error').textContent = 'Demo temporarily unavailable'; document.getElementById('auth-error').style.display = 'block'; }

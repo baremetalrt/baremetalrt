@@ -1,8 +1,8 @@
 # BareMetalRT
 
-**Distributed LLM inference across consumer GPUs on Windows.**
+**The world's first global GPU-native edge compute mesh.**
 
-BareMetalRT runs large language models across your existing NVIDIA GPUs — no data center, no cloud, no Linux. Install the daemon on any Windows machine with an RTX GPU, connect to the mesh, and run models that don't fit on a single card.
+Intelligence shouldn't be owned by the hyperscalers alone. BareMetalRT turns the 200+ million NVIDIA GPUs running Windows into a distributed compute mesh — using NVIDIA's own TensorRT-LLM CUDA kernels, the same engine that powers cloud inference APIs. Built for the edge, not the cloud.
 
 **[Download Installer](https://github.com/baremetalrt/baremetalrt/releases/latest)** | **[Live Demo](https://baremetalrt.ai/demo)** | **[Documentation](https://baremetalrt.ai/docs)**
 

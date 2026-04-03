@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Bare Metal AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #08080a; --surface: #0e0e12; --border: #22222a; --silver: #d8d8e0; --silver-dim: #9898a4; --purple: #8b5cf6; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Space Grotesk', system-ui, sans-serif; background: var(--bg); color: var(--silver); }
+.header { display: flex; align-items: center; padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.logo { font-size: 16px; font-weight: 800; letter-spacing: 3px; text-decoration: none;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.content { max-width: 720px; margin: 0 auto; padding: 48px 24px; line-height: 1.8; }
+h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+h2 { font-size: 18px; font-weight: 600; margin-top: 32px; margin-bottom: 12px; color: #fff; }
+p { margin-bottom: 16px; color: var(--silver-dim); font-size: 15px; }
+.updated { font-size: 13px; color: #55555e; margin-bottom: 32px; }
+a { color: var(--purple); }
+ul { padding-left: 20px; margin-bottom: 16px; }
+li { margin-bottom: 8px; color: var(--silver-dim); font-size: 15px; }
+.footer { text-align: center; padding: 32px; font-size: 11px; color: #55555e; }
+</style>
+</head>
+<body>
+<div class="header"><a class="logo" href="/">BareMetalRT</a></div>
+<div class="content">
+<h1>Privacy Policy</h1>
+<div class="updated">Last updated: April 1, 2026</div>
+
+<p>Bare Metal AI, Inc. ("we", "us", "our") operates the BareMetalRT platform at baremetalrt.ai. This policy describes how we collect, use, and protect your information.</p>
+
+<h2>Information We Collect</h2>
+<ul>
+<li><strong>Account information:</strong> Email address and name when you register.</li>
+<li><strong>GPU node data:</strong> GPU model, VRAM, hostname, and IP address when your daemon connects to our service.</li>
+<li><strong>Usage metadata:</strong> Token counts, model used, and response latency for service improvement.</li>
+</ul>
+
+<h2>Information We Do NOT Collect</h2>
+<ul>
+<li><strong>Chat messages:</strong> Your conversations are processed on your own GPU and AES-256 encrypted on your device. We never store, read, or transmit your chat content. Chat history never touches Bare Metal AI servers.</li>
+<li><strong>Model weights:</strong> Models are downloaded directly from HuggingFace to your machine.</li>
+<li><strong>Browsing history:</strong> We do not track your activity outside our platform.</li>
+</ul>
+
+<h2>How We Use Your Information</h2>
+<p>We use account and node data solely to operate the service: authenticate your daemon, route inference requests to your GPU, and monitor service health. We do not sell your data to third parties.</p>
+
+<h2>Data Security</h2>
+<p>All connections between your daemon and our servers use TLS encryption (HTTPS/WSS). Chat history is AES-256-GCM encrypted on your device using PBKDF2-derived keys. Passwords are hashed and never stored in plaintext. API keys are stored as SHA-256 hashes.</p>
+
+<h2>Data Retention</h2>
+<p>Account data is retained while your account is active. You may delete your account and all associated data at any time. Usage metadata is retained for up to 90 days.</p>
+
+<h2>Your Rights</h2>
+<p>You may request access to, correction of, or deletion of your personal data by contacting us at privacy@baremetalrt.ai.</p>
+
+<h2>Changes</h2>
+<p>We may update this policy. We will notify registered users of material changes via email.</p>
+
+<h2>Contact</h2>
+<p>Bare Metal AI, Inc.<br>privacy@baremetalrt.ai</p>
+</div>
+<div class="footer">&copy; 2026 Bare Metal AI, Inc. All rights reserved.</div>
+</body>
+</html>

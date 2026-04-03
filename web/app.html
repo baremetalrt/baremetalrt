@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BareMetalRT — Bare Metal AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app/static/app.css?v=__VERSION__">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+</head>
+<body>
+<script>
+// If user has session cookie, pre-show header elements to prevent pop-in on page switch
+if (document.cookie.includes('token=')) {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('mode-switcher').style.display = 'flex';
+    document.getElementById('header-status').style.display = '';
+    document.getElementById('hamburger-wrap').style.display = '';
+    document.getElementById('user-menu').style.display = 'flex';
+    document.getElementById('auth-buttons').style.display = 'none';
+  });
+}
+</script>
+
+<div class="header">
+  <a class="logo" href="/app">BareMetalRT</a>
+  <div class="hamburger-wrap" id="hamburger-wrap" style="display:none;">
+    <button class="hamburger-btn" onclick="toggleHamburger()" title="Menu">&#9776;</button>
+  </div>
+  <span class="spacer"></span>
+  <div class="mode-switcher" id="mode-switcher" style="display:none;">
+    <button class="mode-btn active" data-mode="1gpu" title="Single GPU inference mode">1 GPU</button>
+    <button class="mode-btn" onclick="window.location='/demo'" title="Two GPUs over TCP" data-mode="tp2">2 GPU</button>
+    <button class="mode-btn disabled" onclick="showModeToast('TP \u00b7 Home Mesh coming soon', event)" title="Coming soon" data-mode="tp">TP &middot; Home</button>
+    <button class="mode-btn disabled" onclick="showModeToast('MoE \u00b7 Internet Mesh coming soon', event)" title="Coming soon" data-mode="moe">MoE &middot; Mesh</button>
+  </div>
+  <span class="status-badge" id="header-status" style="display:none;" title="GPU daemon connection status">OFFLINE</span>
+
+  <!-- Unauthenticated -->
+  <div class="auth-buttons" id="auth-buttons">
+    <button class="btn-auth" onclick="showAuth('login')">Sign In</button>
+    <button class="btn-auth primary" onclick="showAuth('register')">Sign Up</button>
+  </div>
+
+  <!-- Authenticated (hidden by default) -->
+  <div class="user-menu" id="user-menu" style="display:none;">
+    <div class="user-initials" id="user-initials" onclick="toggleUserDropdown()" title="Account menu"></div>
+    <div class="user-dropdown" id="user-dropdown">
+      <div class="dropdown-item" onclick="window.location='/account'">Account Settings</div>
+      <div class="dropdown-item" onclick="window.location='/models'">Model Storage</div>
+      <div class="dropdown-item" onclick="window.location='/downloads'">Downloads</div>
+      <div class="dropdown-item" onclick="window.location='/account'">API Keys</div>
+      <div class="dropdown-item" onclick="window.location='/docs'">API Docs</div>
+      <div class="dropdown-item admin-only" id="admin-link" style="display:none;" onclick="toggleAdminPanel()">Admin</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item" onclick="logout()">Sign Out</div>
+    </div>
+  </div>
+</div>
+
+<!-- Mode toast -->
+<div class="toast" id="mode-toast"></div>
+
+<!-- Maintenance banner (dynamic — controlled via admin panel) -->
+<div id="maintenance-banner" style="
+  display:none;
+  background:linear-gradient(90deg, #2a1a50 0%, #1a1040 50%, #2a1a50 100%);
+  border-bottom:1px solid #8b5cf6;
+  padding:10px 24px;
+  text-align:center;
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  font-size:13px;
+  color:#d8d8e0;
+  letter-spacing:0.5px;
+"></div>
+
+<!-- Update banner (same style as maintenance) -->
+<div id="update-banner" style="
+  display:none;
+  background:linear-gradient(90deg, #2a1a50 0%, #1a1040 50%, #2a1a50 100%);
+  border-bottom:1px solid #8b5cf6;
+  padding:10px 24px;
+  text-align:center;
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  font-size:13px;
+  color:#d8d8e0;
+  letter-spacing:0.5px;
+"></div>
+
+<!-- Auth modal -->
+<div class="auth-modal" id="auth-modal" onclick="if(event.target===this && user)closeAuth()">
+  <div class="auth-box" id="auth-box">
+    <a onclick="if(history.length>1)history.back();else location.href='/'" style="position:absolute; top:12px; right:16px; color:var(--silver-dark); text-decoration:none; font-size:18px; line-height:1; cursor:pointer;">&times;</a>
+    <h2 id="auth-title">Sign In</h2>
+    <div class="error" id="auth-error"></div>
+    <input type="text" id="auth-name" placeholder="Name" style="display:none">
+    <input type="email" id="auth-email" placeholder="Email">
+    <input type="password" id="auth-password" placeholder="Password"
+      onkeydown="if(event.key==='Enter')submitAuth()">
+    <button class="btn-submit" id="auth-submit" onclick="submitAuth()">Sign In</button>
+    <div class="switch" id="auth-switch">
+      No account? <a onclick="showAuth('register')">Sign up</a>
+    </div>
+    <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border); text-align:center;">
+      <button onclick="tryDemo()" style="background:none; border:1px solid var(--silver-dark); color:var(--silver); padding:8px 20px; border-radius:6px; cursor:pointer; font-family:inherit; font-size:14px;">Try Demo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin panel (hidden by default, toggled via dropdown) -->
+<div id="admin-panel" style="display:none; position:fixed; top:60px; right:16px; z-index:1000;
+  background:#1a1a24; border:1px solid #8b5cf6; border-radius:8px; padding:20px;
+  font-family:'Space Grotesk',system-ui,sans-serif; min-width:320px; box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <span style="font-size:14px; font-weight:600; color:#d8d8e0; letter-spacing:1px; text-transform:uppercase;">Admin</span>
+    <a onclick="toggleAdminPanel()" style="color:#9898a4; cursor:pointer; font-size:16px;">&times;</a>
+  </div>
+  <div style="font-size:12px; color:#9898a4; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Maintenance Banners</div>
+  <div style="display:flex; flex-direction:column; gap:10px;" id="admin-banners"></div>
+</div>
+
+<!-- App layout: sidebar + main (hidden until auth) -->
+<div class="app-layout" id="app-layout" style="display:none;">
+
+<!-- Sidebar: conversation history -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span class="title">History</span>
+    <button class="sidebar-new-btn" onclick="newChat()" title="New chat">+</button>
+  </div>
+  <div class="sidebar-list" id="sidebar-list">
+    <div class="sidebar-empty">No conversations yet</div>
+  </div>
+  <div style="padding:12px 16px; font-size:11px; color:#9898a4; border-top:1px solid var(--border); line-height:1.6;">
+    <div style="display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; min-width:0;">Your chat history is AES-256 encrypted on your device. It is never stored on Bare Metal AI servers.</div>
+    <div style="margin-top:4px;"><a href="/privacy" style="color:#8b5cf6; text-decoration:none;">Privacy</a> &middot; <a href="/terms" style="color:#8b5cf6; text-decoration:none;">Terms</a> &middot; <span style="color:var(--silver-dark);" id="daemon-version">v__VERSION__</span></div>
+    <div style="margin-top:4px; font-size:10px; color:var(--silver-dark);">&copy; 2026 Bare Metal AI, Inc.</div>
+  </div>
+</div>
+
+<!-- Resize handle -->
+<div class="sidebar-resize" id="sidebar-resize"></div>
+
+<!-- Main content -->
+<div class="app-main">
+
+<div class="model-bar" id="model-bar" style="display:none">
+  <div style="width:40px; text-align:left;">
+    <button id="header-back" class="family-arrow" onclick="showModels()" style="display:none;" title="Back to models">&larr;</button>
+  </div>
+  <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+    <span class="dot" id="status-dot"></span>
+    <span id="model-info">Connecting...</span>
+  </div>
+  <div style="width:40px;"></div>
+</div>
+
+<div class="main">
+  <!-- Models view — default -->
+  <div class="models-panel" id="models-panel">
+    <!-- GPU status card with SVG -->
+    <div class="gpu-card" id="gpu-card">
+      <button class="model-btn" onclick="showModeToast('Share your GPU on the mesh and earn when others use it. Coming soon.', event)" title="Earn by sharing your idle GPU — coming soon" style="position:absolute; top:8px; left:50%; transform:translateX(-50%); opacity:0.4; font-size:9px; padding:4px 14px; z-index:1;">Mesh Mode</button>
+      <div class="gpu-card-info">
+        <div class="gpu-status" id="gpu-status-text" style="font-size:10px; font-weight:800; letter-spacing:2px; text-transform:uppercase; margin-bottom:2px; margin-top:-4px; background:linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;"></div>
+        <div class="gpu-model-name" id="gpu-display-name">Detecting GPU...</div>
+        <div class="gpu-engine" id="gpu-engine-display"></div>
+        <div class="vram-bar"><div class="fill" id="vram-fill" style="width:0%"></div></div>
+        <div class="gpu-vram" id="gpu-vram-display"></div>
+        <button id="unload-btn" onclick="unloadModel()" title="Unload model from GPU VRAM" style="display:none; margin-top:8px; font-size:9px; padding:3px 10px; border:1px solid #9898a4; background:transparent; color:#9898a4; cursor:pointer; font-family:inherit; letter-spacing:1px; text-transform:uppercase;">Unload</button>
+      </div>
+      <div class="gpu-layers-wrap" id="gpu-layers-wrap" style="display:none; text-align:center; padding-top:20px;">
+        <div class="shard-label" id="gpu-layers-label"></div>
+        <div class="shard-layers" id="gpu-layers"></div>
+        <button class="model-btn primary" id="gpu-chat-btn" onclick="showChat()" style="display:none; margin-top:8px; width:100%;">Chat</button>
+      </div>
+      <div class="gpu-svg-wrap">
+        <svg viewBox="0 0 520 260" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="gb" x1="0" y1="0" x2="520" y2="260" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1a1a20"/><stop offset="35%" stop-color="#28282e"/><stop offset="50%" stop-color="#1e1e24"/><stop offset="70%" stop-color="#2a2a30"/><stop offset="100%" stop-color="#141418"/></linearGradient>
+            <linearGradient id="gs" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3a44"/><stop offset="50%" stop-color="#22222a"/><stop offset="100%" stop-color="#3a3a44"/></linearGradient>
+            <radialGradient id="gg" cx="0.5" cy="0.5" r="0.5"><stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.3"/><stop offset="60%" stop-color="#8b5cf6" stop-opacity="0.06"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+            <linearGradient id="gp" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0a3a0a"/><stop offset="100%" stop-color="#062806"/></linearGradient>
+            <linearGradient id="gm" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#55555e" stop-opacity="0"/><stop offset="50%" stop-color="#9898a4" stop-opacity="0.6"/><stop offset="100%" stop-color="#55555e" stop-opacity="0"/></linearGradient>
+          </defs>
+          <ellipse cx="260" cy="130" rx="240" ry="110" fill="url(#gg)" opacity="0.5"/>
+          <g transform="translate(30,10)">
+            <rect x="20" y="2" width="430" height="8" rx="1" fill="#2a2a30" opacity="0.7"/>
+            <rect x="10" y="8" width="450" height="200" rx="4" fill="url(#gb)" stroke="#3a3a44" stroke-width="0.8"/>
+            <g opacity="0.05" stroke="#d8d8e0" stroke-width="0.3"><line x1="10" y1="30" x2="460" y2="30"/><line x1="10" y1="50" x2="460" y2="50"/><line x1="10" y1="70" x2="460" y2="70"/><line x1="10" y1="90" x2="460" y2="90"/><line x1="10" y1="110" x2="460" y2="110"/><line x1="10" y1="130" x2="460" y2="130"/><line x1="10" y1="150" x2="460" y2="150"/><line x1="10" y1="170" x2="460" y2="170"/><line x1="10" y1="190" x2="460" y2="190"/></g>
+            <path d="M230 8L180 108L230 208" stroke="#3a3a44" stroke-width="1.2" fill="none" opacity="0.5"/>
+            <path d="M232 8L282 108L232 208" stroke="#3a3a44" stroke-width="1.2" fill="none" opacity="0.5"/>
+            <rect x="10" y="8" width="170" height="200" rx="4" fill="url(#gs)" opacity="0.15"/>
+            <!-- Left fan -->
+            <g transform="translate(120,108)"><circle r="78" fill="none" stroke="#2a2a32" stroke-width="3"/><circle r="76" fill="#0e0e12" opacity="0.8"/><circle r="74" fill="none" stroke="#22222a" stroke-width="1"/></g>
+            <g class="fan-l" opacity="0.7"><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(51.4,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(102.8,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(154.3,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(205.7,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(257.1,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(308.6,120,108)"/></g>
+            <g transform="translate(120,108)"><circle r="12" fill="#1a1a20" stroke="#3a3a44" stroke-width="1"/><circle r="5" fill="#22222a"/><path d="M-3.5,0C-3.5,-2.5-1.5,-4 0.5,-4C2,-4 3.5,-2 3.5,0C3.5,2 2,4 0.5,4C-1.5,4-3.5,2.5-3.5,0Z" fill="none" stroke="#76e651" stroke-width="0.8" opacity="0.8"/></g>
+            <!-- Right fan -->
+            <g transform="translate(350,108)"><circle r="78" fill="none" stroke="#2a2a32" stroke-width="3"/><circle r="76" fill="#0e0e12" opacity="0.8"/><circle r="74" fill="none" stroke="#22222a" stroke-width="1"/></g>
+            <g class="fan-r" opacity="0.7"><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(51.4,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(102.8,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(154.3,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(205.7,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(257.1,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(308.6,350,108)"/></g>
+            <g transform="translate(350,108)"><circle r="12" fill="#1a1a20" stroke="#3a3a44" stroke-width="1"/><circle r="5" fill="#22222a"/></g>
+            <!-- Details -->
+            <rect x="10" y="104" width="450" height="1.5" fill="url(#gm)" opacity="0.3"/>
+            <rect x="20" y="208" width="430" height="12" fill="url(#gp)" rx="1"/>
+            <g fill="#b8962e" opacity="0.6"><rect x="140" y="212" width="16" height="5" rx="0.5"/><rect x="160" y="212" width="16" height="5" rx="0.5"/><rect x="180" y="212" width="16" height="5" rx="0.5"/><rect x="200" y="212" width="16" height="5" rx="0.5"/><rect x="220" y="212" width="16" height="5" rx="0.5"/><rect x="240" y="212" width="16" height="5" rx="0.5"/><rect x="260" y="212" width="16" height="5" rx="0.5"/><rect x="280" y="212" width="16" height="5" rx="0.5"/><rect x="300" y="212" width="16" height="5" rx="0.5"/><rect x="320" y="212" width="16" height="5" rx="0.5"/></g>
+            <text x="235" y="56" font-family="'Space Grotesk',system-ui" font-size="9" font-weight="600" letter-spacing="3" fill="#55555e" text-anchor="middle" opacity="0.6">GEFORCE RTX</text>
+          </g>
+        </svg>
+        <div class="gpu-metrics" id="gpu-metrics" style="margin-top:4px;"><div class="vram-text" style="animation:statusPulse 1.5s ease-in-out infinite;">Loading stats...</div></div>
+      </div>
+    </div>
+
+    <div class="section-title">Available Models</div>
+    <div class="family-nav">
+      <button class="family-arrow" onclick="prevFamily()">&larr;</button>
+      <span class="family-name" id="family-name">All</span>
+      <button class="family-arrow" onclick="nextFamily()">&rarr;</button>
+    </div>
+    <div id="model-list">Loading...</div>
+  </div>
+
+  <!-- Chat messages — full page when active -->
+  <div class="messages" id="messages"></div>
+
+</div>
+
+<!-- Floating button to return to models from chat -->
+
+<!-- Input area -->
+<div class="input-area" id="input-area" style="display:none">
+  <div id="chat-model-indicator" style="text-align:center; font-size:10px; color:var(--silver-dark); letter-spacing:1px; margin-bottom:4px; text-transform:uppercase;">
+    <svg id="mini-gpu" viewBox="0 0 20 20" width="12" height="12" style="vertical-align:middle; margin-right:4px; opacity:0.4;"><circle cx="10" cy="10" r="8" fill="none" stroke="#55555e" stroke-width="1.5"/><path class="mini-fan" d="M10,6Q13,2 11.5,1.8Q9.5,3 10,6" fill="#55555e" stroke="none"/><path class="mini-fan" d="M10,6Q13,2 11.5,1.8Q9.5,3 10,6" fill="#55555e" stroke="none" transform="rotate(120,10,10)"/><path class="mini-fan" d="M10,6Q13,2 11.5,1.8Q9.5,3 10,6" fill="#55555e" stroke="none" transform="rotate(240,10,10)"/></svg>
+    <span id="chat-model-text"></span>
+  </div>
+  <div class="input-row">
+    <textarea id="prompt" rows="1" placeholder="Sign in to start chatting..." disabled
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chat()}"
+      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+    <button class="send-btn" id="send-btn" onclick="chat()" disabled>&#8593;</button>
+  </div>
+</div>
+
+</div><!-- /app-main -->
+</div><!-- /app-layout -->
+
+<!-- Hamburger slide panel -->
+<div class="hamburger-overlay" id="hamburger-overlay" onclick="toggleHamburger()"></div>
+<div class="hamburger-panel" id="hamburger-panel">
+  <div class="menu-header">BareMetalRT</div>
+  <div class="menu-item" onclick="toggleHamburger(); showModels();">Dashboard</div>
+  <div class="menu-item" onclick="window.location='/models'">Model Storage</div>
+  <div class="menu-item" onclick="window.location='/downloads'">Downloads</div>
+  <div class="menu-item" onclick="window.location='/system'">GPU Advanced</div>
+  <div class="menu-header">Develop</div>
+  <div class="menu-item" onclick="window.location='/docs'">API Docs</div>
+  <div class="menu-item" onclick="window.location='/account'">API Keys</div>
+  <div class="menu-header">Daemon</div>
+  <div class="menu-item" onclick="restartDaemon()">Restart GPU Node</div>
+  <div class="menu-item" onclick="shutdownDaemon()">Shutdown GPU Node</div>
+  <div class="menu-header admin-only" id="hamburger-admin-header" style="display:none;">Admin</div>
+  <div class="menu-item admin-only" id="hamburger-admin-link" style="display:none;" onclick="toggleHamburger(); toggleAdminPanel();">Admin Panel</div>
+  <div class="menu-header">Settings</div>
+  <div class="menu-item" onclick="window.location='/account'">Account</div>
+  <div class="menu-item" onclick="window.location='/privacy'">Privacy</div>
+  <div class="menu-item" onclick="window.location='/terms'">Terms</div>
+</div>
+
+<!-- Confirm toast -->
+<div class="confirm-toast" id="confirm-toast" onclick="if(event.target===this)hideToast()">
+  <div class="confirm-toast-inner">
+    <span>Clear all conversations? This cannot be undone.</span>
+    <button class="toast-btn danger" onclick="clearAllHistory()">Clear All</button>
+    <button class="toast-btn" onclick="hideToast()">Cancel</button>
+  </div>
+</div>
+
+<script src="/app/static/app.js?v=__JSHASH__"></script>
+</body>
+</html>

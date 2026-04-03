@@ -1,0 +1,114 @@
+name: Build & Release Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version override (e.g. 0.4.0-beta)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-installer:
+    name: Build Windows Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller Pillow
+          python -m pip install fastapi uvicorn pystray pynvml httpx websockets
+
+      - name: Generate installer assets
+        working-directory: installer
+        run: python generate-assets.py
+
+      - name: Download runtime DLLs
+        run: |
+          gh release download runtime-v1 -p "baremetalrt-runtime-win-x64.zip" -D .
+          New-Item -ItemType Directory -Force -Path runtime | Out-Null
+          cd runtime
+          python -c "import zipfile; zipfile.ZipFile('../baremetalrt-runtime-win-x64.zip').extractall('.')"
+          dir
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build executable with PyInstaller
+        run: python -m PyInstaller baremetalrt.spec --noconfirm
+
+      - name: Verify build output
+        run: |
+          if (!(Test-Path "dist\baremetalrt.exe")) {
+            Write-Error "PyInstaller output not found"
+            exit 1
+          }
+          $size = [math]::Round((Get-Item "dist\baremetalrt.exe").Length / 1MB, 1)
+          Write-Host "baremetalrt.exe: $size MB"
+        shell: pwsh
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Read version
+        id: version
+        run: |
+          $ver = if ("${{ github.event.inputs.version }}") {
+            "${{ github.event.inputs.version }}"
+          } else {
+            (Get-Content VERSION -Raw).Trim()
+          }
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+          echo "Version: $ver"
+        shell: pwsh
+
+      - name: Build installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\baremetalrt.iss
+        shell: pwsh
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BareMetalRT-${{ steps.version.outputs.VERSION }}-Setup
+          path: dist/BareMetalRT-*-Setup.exe
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: BareMetalRT ${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'alpha') }}
+          generate_release_notes: true
+          files: |
+            dist/BareMetalRT-*-Setup.exe
+          body: |
+            ## BareMetalRT ${{ steps.version.outputs.VERSION }}
+
+            ### Installation
+            1. Download and run **BareMetalRT-${{ steps.version.outputs.VERSION }}-Setup.exe**
+            2. The installer will check for NVIDIA CUDA Toolkit and TensorRT
+            3. Follow the prompts to complete installation
+            4. Sign in at [baremetalrt.ai](https://baremetalrt.ai) to get your API key
+
+            ### System Requirements
+            - Windows 10/11 (64-bit)
+            - NVIDIA GPU (RTX 2000+ recommended)
+            - [CUDA Toolkit 12.4+](https://developer.nvidia.com/cuda-downloads)
+            - [TensorRT 10.15+](https://developer.nvidia.com/tensorrt/download)

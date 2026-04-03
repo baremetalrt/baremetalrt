@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Management — Bare Metal AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08080a; --surface: #0e0e12; --surface2: #141418;
+  --border: #22222a; --border-hi: #3a3a44;
+  --silver: #d8d8e0; --silver-dim: #9898a4; --silver-dark: #55555e;
+  --purple: #8b5cf6; --purple-dim: rgba(139,92,246,0.12);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Space Grotesk', system-ui, sans-serif; background: var(--bg); color: var(--silver); }
+.header { display: flex; align-items: center; padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.logo { font-size: 16px; font-weight: 800; letter-spacing: 3px; text-decoration: none;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.back { margin-left: 16px; color: var(--silver-dim); text-decoration: none; font-size: 18px; }
+.back:hover { color: var(--purple); }
+.spacer { flex: 1; }
+
+.content { max-width: 700px; margin: 0 auto; padding: 40px 24px; }
+.section { margin-bottom: 32px; }
+.section-title { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--silver-dim); margin-bottom: 16px; }
+
+/* Storage overview */
+.storage-bar { height: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 2px; display: flex; overflow: hidden; margin-bottom: 8px; }
+.storage-bar .segment { height: 100%; transition: width 0.5s ease; }
+.storage-bar .segment.models { background: var(--purple); }
+.storage-bar .segment.engines { background: #6d28d9; }
+.storage-bar .segment.free { background: transparent; }
+.storage-legend { display: flex; gap: 16px; font-size: 12px; color: var(--silver-dim); margin-bottom: 4px; }
+.storage-legend .dot { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: middle; }
+.storage-total { font-size: 13px; color: var(--silver-dark); margin-top: 4px; }
+
+/* Model rows */
+.model-row {
+  display: flex; align-items: center; gap: 16px; padding: 14px 16px;
+  background: var(--surface); border: 1px solid var(--border); margin-bottom: 6px;
+  transition: border-color 0.2s;
+}
+.model-row:hover { border-color: var(--border-hi); }
+.model-row .info { flex: 1; }
+.model-row .name { font-size: 14px; font-weight: 600; color: var(--silver); }
+.model-row .meta { font-size: 11px; color: var(--silver-dim); margin-top: 2px; }
+.model-row .size-bar { width: 120px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.model-row .size-bar .fill { height: 100%; background: var(--purple); border-radius: 3px; }
+.model-row .size-text { font-size: 11px; color: var(--silver-dim); width: 60px; text-align: right; }
+.model-row .actions { display: flex; gap: 8px; }
+
+.btn { font-size: 11px; padding: 5px 12px; border: 1px solid var(--border-hi); background: transparent;
+  color: var(--silver-dim); cursor: pointer; font-family: inherit; letter-spacing: 0.5px; text-transform: uppercase;
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); transition: all 0.2s; }
+.btn:hover { color: var(--silver); border-color: var(--silver-dim); }
+.btn.danger { border-color: #f43f5e; color: #f43f5e; }
+.btn.danger:hover { background: rgba(244,63,94,0.1); }
+.btn.primary { background: var(--purple); border-color: var(--purple); color: white; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="logo" href="/app">BareMetalRT</a>
+  <a class="back" href="/app">&larr;</a>
+  <a class="back" href="/downloads" style="margin-left:auto;font-size:12px;letter-spacing:0.5px;text-transform:uppercase;">Downloads</a>
+</div>
+
+<div class="content">
+  <div class="section">
+    <div class="section-title">Storage</div>
+    <div class="storage-bar" id="storage-bar"></div>
+    <div class="storage-legend">
+      <span><span class="dot" style="background:var(--purple);"></span>Model Weights</span>
+      <span><span class="dot" style="background:#6d28d9;"></span>Engines</span>
+      <span><span class="dot" style="background:var(--border);"></span>Free</span>
+    </div>
+    <div class="storage-total" id="storage-total"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Installed Models</div>
+    <div id="model-rows"></div>
+  </div>
+</div>
+
+<script>
+let isDemo = false;
+
+async function init() {
+  const r = await fetch('/auth/me');
+  if (!r.ok) { window.location = '/app'; return; }
+  const me = await r.json();
+  isDemo = me.email === 'demo@baremetalrt.ai';
+
+  const mr = await fetch('/api/models');
+  if (!mr.ok) return;
+  const d = await mr.json();
+
+  const rows = document.getElementById('model-rows');
+  const bar = document.getElementById('storage-bar');
+  let totalWeights = 0, totalEngines = 0;
+
+  // Estimate sizes from params (rough: 2 bytes/param for FP16)
+  const models = d.models || [];
+  const modelSizes = models.map(m => {
+    const weightsMb = m.downloaded ? Math.round(m.params_b * 2000) : 0; // ~2GB per 1B params FP16
+    const engineMb = m.engine_built ? Math.round(m.params_b * 1800) : 0; // engine slightly smaller
+    totalWeights += weightsMb;
+    totalEngines += engineMb;
+    return { ...m, weightsMb, engineMb, totalMb: weightsMb + engineMb };
+  });
+
+  const maxSize = Math.max(...modelSizes.map(m => m.totalMb), 1);
+  const totalUsed = totalWeights + totalEngines;
+  const diskTotalGb = d.disk_total_gb || 100;
+  const diskFreeGb = d.disk_free_gb || 50;
+  const diskTotalMb = diskTotalGb * 1024;
+
+  // Storage bar
+  const wPct = Math.round((totalWeights / diskTotalMb) * 100);
+  const ePct = Math.round((totalEngines / diskTotalMb) * 100);
+  bar.innerHTML = `<div class="segment models" style="width:${wPct}%"></div><div class="segment engines" style="width:${ePct}%"></div><div class="segment free" style="flex:1"></div>`;
+  document.getElementById('storage-total').textContent =
+    `${(totalUsed / 1024).toFixed(1)}GB models · ${diskFreeGb}GB free · ${diskTotalGb}GB total drive`;
+
+  // Model rows
+  rows.innerHTML = '';
+  for (const m of modelSizes) {
+    if (!m.downloaded && !m.engine_built) continue; // skip uninstalled
+    const pct = Math.round((m.totalMb / maxSize) * 100);
+    const row = document.createElement('div');
+    row.className = 'model-row';
+
+    let actions = '';
+    if (isDemo) {
+      actions = '<span style="font-size:11px;color:var(--silver-dark);opacity:0.5;">Demo mode</span>';
+    } else if (m.engine_built && !m.downloaded) {
+      actions = `<button class="btn danger" onclick="deleteModel('${m.id}')">Delete Engine</button>`;
+    } else if (m.downloaded) {
+      actions = `<button class="btn danger" onclick="deleteModel('${m.id}')">Delete All</button>`;
+    }
+
+    const active = d.active_model && d.active_model.replace(/-/g,'').includes(m.id.replace(/-/g,''));
+    const badge = active ? ' <span style="color:var(--purple);font-size:10px;">LOADED</span>' : '';
+
+    row.innerHTML = `
+      <div class="info">
+        <div class="name">${m.name}${badge}</div>
+        <div class="meta">${m.downloaded ? 'Weights' : ''} ${m.engine_built ? '+ Engine' : ''}</div>
+      </div>
+      <div class="size-bar"><div class="fill" style="width:${pct}%"></div></div>
+      <div class="size-text">${(m.totalMb / 1024).toFixed(1)}GB</div>
+      <div class="actions">${actions}</div>
+    `;
+    rows.appendChild(row);
+  }
+
+  if (rows.children.length === 0) {
+    rows.innerHTML = '<div style="color:var(--silver-dark); font-size:13px;">No models installed.</div>';
+  }
+}
+
+async function deleteModel(id) {
+  if (isDemo) return;
+  if (!confirm('Delete this model? This removes weights and engine files.')) return;
+  await fetch(`/api/models/${id}/delete`, { method: 'POST' });
+  init(); // refresh
+}
+
+init();
+</script>
+</body>
+</html>

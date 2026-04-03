@@ -1,0 +1,2531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BareMetalRT — Edge GPU Compute Mesh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08080a; --surface: #0e0e12; --surface2: #141418;
+  --border: #22222a; --border-hi: #3a3a44;
+  --silver: #d8d8e0; --silver-dim: #9898a4; --silver-dark: #55555e;
+  --accent: #c0c0d0; --accent-dim: rgba(192,192,208,0.12);
+  --purple: #8b5cf6; --purple-dim: rgba(139,92,246,0.12);
+  --purple-mid: #7c3aed; --purple-light: #a78bfa;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg); color: var(--silver);
+  margin: 0; overflow: hidden; height: 100vh;
+}
+
+/* Fixed header */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--bg);
+}
+
+/* Sections */
+.section {
+  position: absolute; top: 60px; left: 0; right: 0; bottom: 0;
+  transition: opacity 0.8s ease;
+}
+.section-1 {
+  opacity: 1; z-index: 3; overflow-y: auto; overflow-x: hidden;
+  background: radial-gradient(ellipse at 50% 40%, rgba(139,92,246,0.06) 0%, transparent 60%), var(--bg);
+}
+.section-2 { overflow-y: auto; opacity: 0; z-index: 1; pointer-events: none; visibility: hidden; }
+.section-3 { overflow-y: auto; opacity: 0; z-index: 1; pointer-events: none; visibility: hidden; }
+.section-1.faded { opacity: 0; pointer-events: none; z-index: 1; }
+.section-2.visible { opacity: 1; pointer-events: auto; z-index: 3; visibility: visible; }
+.section-2.faded { opacity: 0; pointer-events: none; z-index: 1; }
+.section-3.visible { opacity: 1; pointer-events: auto; z-index: 3; visibility: visible; }
+
+/* Scroll hint */
+.scroll-hint {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--silver); cursor: pointer;
+  animation: bounce 2s ease-in-out infinite;
+  transition: opacity 0.3s; z-index: 50;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.scroll-hint.hidden { opacity: 0 !important; pointer-events: none; }
+.scroll-hint:hover { color: #fff; }
+.scroll-hint .arrow { font-size: 20px; }
+.whitepaper-hint {
+  text-align: center; padding: 16px 0 24px;
+  font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--silver); cursor: pointer;
+  animation: bounceCentered 2s ease-in-out infinite;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.whitepaper-hint:hover { color: #fff; }
+.whitepaper-hint .arrow { font-size: 20px; }
+@keyframes bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(6px); }
+}
+@keyframes bounceCentered {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+/* Keyframes */
+@keyframes glowReveal {
+  from { opacity: 0; text-shadow: 0 0 60px rgba(192,192,208,0.8), 0 0 120px rgba(192,192,208,0.3); }
+  50% { opacity: 1; text-shadow: 0 0 40px rgba(192,192,208,0.6), 0 0 80px rgba(192,192,208,0.2); }
+  to { opacity: 1; text-shadow: 0 0 20px rgba(200,200,220,0.1); }
+}
+@keyframes dramaticFadeUp {
+  from { opacity: 0; transform: translateY(30px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes lineReveal {
+  from { opacity: 0; transform: translateX(-30px); background: transparent; }
+  to { opacity: 1; transform: translateX(0); background: var(--surface); }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 40px; border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-size: 18px; font-weight: 800; letter-spacing: 3px;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.nav { display: flex; gap: 24px; align-items: center; }
+.nav a {
+  color: var(--silver-dim); text-decoration: none; font-size: 14px;
+  font-weight: 500; transition: color 0.2s;
+}
+.nav a:hover { color: var(--accent); }
+.nav-live {
+  color: var(--purple) !important;
+  animation: livePulse 2s ease-in-out infinite;
+}
+.nav-live:hover { color: #fff !important; }
+@keyframes livePulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; text-shadow: 0 0 8px rgba(139,92,246,0.6); }
+}
+
+/* Hero */
+.hero {
+  max-width: 900px; margin: 0 auto; padding: 24px 40px 16px;
+  text-align: center;
+}
+.hero h1 {
+  font-size: 48px; font-weight: 700;
+  letter-spacing: 1px; line-height: 1.15;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  animation: glowReveal 2s ease-out 0.3s both;
+}
+.hero .sub {
+  font-size: 15px; font-weight: 500;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  background: linear-gradient(135deg, #f0f0f4 0%, #7a7a88 35%, #d8d8e4 55%, #686870 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-top: 24px;
+  animation: dramaticFadeUp 1s ease-out 1.2s both;
+}
+.hero .desc {
+  font-size: 17px; color: var(--silver); line-height: 1.8;
+  margin-top: 28px; max-width: 780px; margin-left: auto; margin-right: auto;
+  animation: dramaticFadeUp 1.2s ease-out 2s both;
+}
+.hero .desc strong { color: #fff; }
+.hero .manifesto-line {
+  font-size: 20px; color: #fff; font-weight: 600;
+  margin-top: 20px; letter-spacing: 0.5px;
+  animation: dramaticFadeUp 1s ease-out 2.6s both;
+}
+
+/* CTA */
+.cta-row {
+  display: flex; gap: 32px; justify-content: center; margin-top: 28px;
+  animation: dramaticFadeUp 1s ease-out 2.4s both;
+}
+.cta {
+  display: inline-block; padding: 12px 44px; font-size: 16px; font-weight: 600;
+  text-decoration: none; letter-spacing: 1px;
+  transition: all 0.2s ease; font-family: inherit;
+  position: relative; z-index: 1; background: transparent; border: none;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+.cta::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+.cta-primary {
+  background: linear-gradient(135deg, var(--purple) 0%, var(--purple-mid) 50%, var(--purple-light) 100%);
+  color: #fff;
+}
+.cta-primary:hover { filter: brightness(1.2); transform: scale(1.03); }
+.cta-secondary { color: var(--silver); }
+.cta-secondary::before {
+  background: var(--surface2);
+}
+.cta-secondary:hover { color: #fff; }
+
+/* Rotating border glow */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.cta-glow {
+  display: inline-block; position: relative;
+}
+.cta-glow--secondary {
+  filter: drop-shadow(0 0 6px rgba(139,92,246,0.4)) drop-shadow(0 0 14px rgba(139,92,246,0.2));
+}
+.cta-glow--secondary::before {
+  content: ''; position: absolute; inset: -2px;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  background: conic-gradient(from var(--border-angle), transparent 40%, rgba(139,92,246,0.9) 50%, rgba(167,139,250,1) 55%, transparent 60%);
+  animation: rotateBorder 3s linear infinite;
+  z-index: 0;
+}
+.cta-glow--secondary .cta { z-index: 1; }
+.cta-glow--secondary .cta::before { z-index: -1; }
+@keyframes rotateBorder {
+  to { --border-angle: 360deg; }
+}
+
+/* Tiers */
+.tiers {
+  max-width: 1100px; margin: 0 auto; padding: 24px 40px 80px;
+  display: none;
+}
+.tiers.show {
+  display: block;
+  animation: fadeIn 1s ease-out both;
+}
+.tiers h2 {
+  font-size: 28px; font-weight: 700; color: #fff; text-align: center;
+  margin-bottom: 24px;
+  opacity: 0;
+}
+.tiers.show h2 { animation: dramaticFadeUp 1s ease-out both; }
+.tier-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+}
+.tier {
+  padding: 36px 32px;
+  display: flex; flex-direction: column; overflow: hidden;
+  min-width: 0; opacity: 0;
+}
+.tiers.show .tier:nth-child(1) { animation: lineReveal 0.8s ease-out 0.4s both; }
+.tiers.show .tier:nth-child(2) { animation: lineReveal 0.8s ease-out 0.7s both; }
+.tiers.show .tier:nth-child(3) { animation: lineReveal 0.8s ease-out 1.0s both; }
+.tier-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.tier:nth-child(1) .tier-label {
+  background: linear-gradient(90deg, #ffffff 0%, #7a7a88 50%, #e0e0e8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.tier:nth-child(2) .tier-label {
+  background: linear-gradient(90deg, #ffffff 0%, #7a7a88 50%, #e0e0e8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.tier:nth-child(3) .tier-label {
+  background: linear-gradient(90deg, #ffffff 0%, #7a7a88 50%, #e0e0e8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.tier-name {
+  font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px;
+}
+.tier-price {
+  font-size: 13px; color: var(--accent); font-weight: 600;
+  margin-bottom: 16px;
+}
+.tier:nth-child(2) .tier-price,
+.tier:nth-child(3) .tier-price { color: var(--accent); }
+.tier-desc {
+  font-size: 13px; color: var(--silver); line-height: 1.7; flex: 1;
+  word-wrap: break-word; overflow-wrap: break-word;
+}
+
+/* Edge section */
+.edge {
+  max-width: 1200px; margin: 0 auto; padding: 48px 40px 0;
+  border-top: 1px solid var(--border);
+}
+.edge h2 {
+  font-size: 52px; font-weight: 700; text-align: center;
+  margin-bottom: 14px;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  opacity: 0;
+}
+.section-2.visible .edge h2 { animation: glowReveal 2s ease-out 0.3s both; }
+.edge .edge-sub {
+  font-size: 16px; color: var(--silver); text-align: center;
+  max-width: 700px; margin: 0 auto 32px; line-height: 1.7;
+  opacity: 0;
+}
+.section-2.visible .edge .edge-sub { animation: dramaticFadeUp 1s ease-out 1.2s both; }
+.edge-grid { opacity: 0; }
+.section-2.visible .edge-grid { animation: dramaticFadeUp 1.2s ease-out 2s both; }
+.edge-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--border);
+}
+.edge-item {
+  background: var(--surface); padding: 24px 28px;
+}
+.edge-item .label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 2px; margin-bottom: 8px;
+  background: linear-gradient(90deg, #ffffff 0%, #7a7a88 50%, #e0e0e8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.edge-item .value {
+  font-size: 13.5px; color: var(--silver); line-height: 1.65;
+}
+
+/* Whitepaper */
+.whitepaper {
+  max-width: 1000px; margin: 0 auto; padding: 60px 60px 120px;
+}
+.whitepaper h2 {
+  font-size: 48px; font-weight: 700; text-align: center; margin-bottom: 16px;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  opacity: 0;
+}
+.section-3.visible .whitepaper h2 { animation: glowReveal 2s ease-out 0.3s both; }
+.whitepaper .wp-sub {
+  font-size: 17px; color: var(--silver); text-align: center;
+  margin-bottom: 48px; line-height: 1.8;
+  opacity: 0;
+}
+.section-3.visible .whitepaper .wp-sub { animation: dramaticFadeUp 1s ease-out 1.2s both; }
+.whitepaper-body { opacity: 0; }
+.section-3.visible .whitepaper-body { animation: dramaticFadeUp 1.2s ease-out 2s both; }
+.whitepaper h3 {
+  font-size: 20px; font-weight: 700; color: #fff; margin: 40px 0 12px;
+  padding-top: 24px; border-top: 1px solid var(--border);
+}
+.whitepaper h3:first-of-type { border-top: none; padding-top: 0; }
+.whitepaper p {
+  font-size: 15px; color: var(--silver); line-height: 1.9; margin-bottom: 16px;
+}
+.whitepaper strong { color: #fff; }
+.whitepaper sup a {
+  color: var(--silver-dim); text-decoration: none; font-size: 11px;
+  font-weight: 600; transition: color 0.2s;
+}
+.whitepaper sup a:hover { color: #fff; }
+.whitepaper .back-hint, .back-hint-s2 {
+  position: fixed; top: 80px; left: 40px; font-size: 13px; font-weight: 600;
+  color: var(--silver-dark); cursor: pointer; letter-spacing: 1px;
+  text-transform: uppercase; z-index: 50; transition: color 0.2s, opacity 0.3s, transform 0.3s;
+}
+.whitepaper .back-hint.scrolled-away, .back-hint-s2.scrolled-away {
+  opacity: 0; pointer-events: none; transform: translateY(-10px);
+}
+.whitepaper .back-hint:hover, .back-hint-s2:hover { color: #fff; }
+
+/* Manifesto */
+.manifesto {
+  text-align: center; padding: 80px 40px;
+  border-top: 1px solid var(--border);
+}
+.manifesto p {
+  font-size: 20px; font-weight: 600; color: #fff;
+  max-width: 600px; margin: 0 auto; line-height: 1.6;
+}
+.manifesto .sub {
+  font-size: 14px; color: var(--silver-dim); margin-top: 12px;
+}
+
+/* Site copyright */
+.site-copyright {
+  position: absolute; bottom: 12px; right: 24px;
+  font-size: 11px; color: #55555e; letter-spacing: 0.5px;
+  pointer-events: none;
+}
+
+/* Footer */
+.footer {
+  text-align: center; padding: 24px 40px;
+  border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--silver-dark);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  background: rgba(14,14,18,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #2a2a34;
+  padding: 8px 16px; font-size: 12px; font-weight: 600; color: var(--silver);
+  letter-spacing: 1px; z-index: 9999; opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* Responsive — tablet */
+@media (max-width: 1024px) {
+  .header { padding: 16px 24px; }
+  .hero { padding: 20px 24px 12px; }
+  .edge { padding: 36px 24px 0; }
+  .whitepaper { padding: 40px 32px 80px; }
+  .tiers { padding: 20px 24px 60px; }
+  .manifesto { padding: 60px 24px; }
+  .footer { padding: 20px 24px; }
+}
+
+/* Responsive — mobile */
+@media (max-width: 768px) {
+  /* Header */
+  .header { padding: 12px 16px; }
+  .logo { font-size: 15px; letter-spacing: 2px; }
+  .nav { gap: 14px; }
+  .nav a { font-size: 13px; }
+
+  /* Sections — adjust top offset for shorter header */
+  .section { top: 50px; }
+
+  /* Hero */
+  .hero { max-width: 100%; padding: 16px 20px 12px; }
+  .hero h1 { font-size: 28px; line-height: 1.25; }
+  .hero .sub { font-size: 12px; letter-spacing: 1.5px; margin-top: 16px; }
+  .hero .desc { font-size: 14px; line-height: 1.7; margin-top: 20px; }
+  .hero .manifesto-line { font-size: 16px; margin-top: 14px; }
+
+  /* CTA */
+  .cta-row { flex-direction: column; align-items: center; gap: 12px; }
+  .cta { padding: 11px 36px; font-size: 14px; }
+
+  /* Tiers */
+  .tiers { padding: 16px 16px 48px; }
+  .tiers h2 { font-size: 22px; margin-bottom: 16px; }
+  .tier-grid { grid-template-columns: 1fr; }
+  .tier { padding: 24px 20px; }
+  .tier-name { font-size: 16px; }
+  .tier-desc { font-size: 12px; }
+
+  /* Scroll hint */
+  .scroll-hint { bottom: 20px; font-size: 12px; letter-spacing: 1.5px; }
+
+  /* Edge / Breakthrough */
+  .edge { padding: 32px 16px 0; }
+  .edge h2 { font-size: 32px; }
+  .edge .edge-sub { font-size: 14px; margin-bottom: 20px; }
+  .edge-grid { grid-template-columns: 1fr; }
+  .edge-item { padding: 18px 16px; }
+  .edge-item .value { font-size: 13px; }
+
+  /* Whitepaper hint */
+  .whitepaper-hint { font-size: 12px; letter-spacing: 1.5px; padding: 12px 0 20px; }
+
+  /* Whitepaper */
+  .whitepaper { padding: 32px 16px 80px; }
+  .whitepaper h2 { font-size: 30px; }
+  .whitepaper .wp-sub { font-size: 14px; margin-bottom: 32px; }
+  .whitepaper h3 { font-size: 17px; margin: 28px 0 10px; }
+  .whitepaper p { font-size: 14px; line-height: 1.8; }
+  .whitepaper .back-hint, .back-hint-s2 {
+    left: 12px; top: 56px; font-size: 11px;
+    background: var(--bg); padding: 6px 12px; border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  /* SVG diagrams — scale to fit */
+  .whitepaper svg, .edge svg, .whitepaper div[style*="display:flex"] svg {
+    max-width: 100%; height: auto;
+  }
+  /* Diagram wrapper containers */
+  .whitepaper div[style*="display:flex"],
+  .edge div[style*="display:flex"] {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+
+  /* Tables — horizontal scroll */
+  .whitepaper div[style*="background:var(--surface)"] {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .whitepaper table { min-width: 420px; }
+
+  /* Manifesto */
+  .manifesto { padding: 48px 20px; }
+  .manifesto p { font-size: 17px; }
+  .manifesto .sub { font-size: 13px; }
+
+  /* Footer */
+  .footer { padding: 16px 16px; }
+
+  /* Toast — keep visible */
+  .toast { font-size: 11px; padding: 6px 12px; }
+}
+
+/* Responsive — small phone */
+@media (max-width: 400px) {
+  .header { padding: 10px 12px; }
+  .logo { font-size: 13px; letter-spacing: 1.5px; }
+  .nav { gap: 10px; }
+  .nav a { font-size: 12px; }
+  .hero h1 { font-size: 24px; }
+  .hero .desc { font-size: 13px; }
+  .edge h2 { font-size: 26px; }
+  .whitepaper h2 { font-size: 24px; }
+  .cta { padding: 10px 28px; font-size: 13px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="logo" onclick="goHome()" style="cursor:pointer;">BareMetalRT</span>
+  <div class="nav">
+    <a href="/demo" class="nav-live">Live Demo</a>
+    <a href="#" onclick="goToPaper(); return false;">WhitePaper</a>
+    <a href="https://github.com/baremetalrt/baremetalrt/releases" target="_blank">GitHub</a>
+    <a href="/app" class="nav-live" style="margin-left: 8px;">Sign In</a>
+  </div>
+</div>
+
+<div class="section section-1">
+<div class="hero-inner">
+<div class="hero">
+  <h1>Data center intelligence.<br>Powered by your gaming PC.</h1>
+  <div class="desc">
+    Intelligence shouldn't be owned by the hyperscalers alone.
+    BareMetalRT is the world's first global GPU-native edge compute mesh.
+    BareMetalRT uses NVIDIA's own TensorRT-LLM (Apache 2.0) CUDA kernels &mdash;
+    1,500+ hand-optimized .cu files for attention, GEMM, and quantization &mdash;
+    the same engine that powers cloud inference APIs. <strong>Built for the edge, not the cloud.</strong>
+  </div>
+  <div class="cta-row">
+    <a class="cta cta-primary" href="/demo">Demo</a>
+    <span class="cta-glow cta-glow--secondary"><a class="cta cta-secondary" href="/download" download>Download</a></span>
+  </div>
+</div>
+
+<div id="tiers-slot"></div>
+<div class="scroll-hint hidden" id="scroll-hint" onclick="goToSection2()">The Breakthrough<span class="arrow">&#8964;</span></div>
+<div class="site-copyright">&copy; 2026 Bare Metal AI, Inc.</div>
+</div>
+</div>
+
+<div class="section section-2">
+<div class="back-hint-s2" onclick="goToSection1()">&#8592; Back</div>
+<div class="edge">
+  <h2>The Breakthrough</h2>
+  <div class="edge-sub">
+    The first heterogeneous tensor parallelism implementation on consumer hardware over commodity networks.
+    No NVLink. No matched hardware. No Linux. This isn't a roadmap &mdash; it's working today.
+  </div>
+  <div class="edge-grid">
+    <div class="edge-item">
+      <div class="label">FP32 GPU-native reduction &mdash; the theoretical precision floor</div>
+      <div class="value">
+        Prior attempts reduced in FP16 on the CPU &mdash; producing NaN at layer 23.
+        Our CUDA kernel reduces in FP32 directly on GPU: 2.62&times;10<sup>&minus;7</sup> mean absolute error
+        at the final layer &mdash; the irreducible noise of IEEE 754 arithmetic.
+        2,500&times; more accurate than FP16. No implementation at FP32 precision, on any hardware, can do better.
+      </div>
+    </div>
+    <div class="edge-item">
+      <div class="label">Asymmetric-tolerant TCP transport</div>
+      <div class="value">
+        NCCL requires Linux, NVLink, and identical GPUs. We replaced it entirely &mdash;
+        custom TensorRT plugins intercept every collective call and route through
+        dual-socket TCP with overlapped recv hiding network transfer behind GPU sync wait.
+        Each rank computes at its own speed. No barrier, no matched hardware.
+      </div>
+    </div>
+    <div class="edge-item">
+      <div class="label">TensorRT-LLM on Windows</div>
+      <div class="value">
+        NVIDIA discontinued Windows support for TensorRT-LLM. We maintain the only working
+        Windows build of v0.12 &mdash; 1,500+ hand-optimized CUDA kernels for attention,
+        GEMM, and quantization running natively. No WSL, no Docker, no Linux compatibility layer.
+      </div>
+    </div>
+    <div class="edge-item">
+      <div class="label">Synchronization, not the network</div>
+      <div class="value">
+        WiFi (316ms ping) and gigabit ethernet (1ms ping) produced identical throughput &mdash;
+        276ms vs 277ms per token. A 300&times; improvement in network latency yielded
+        zero improvement in token speed. GPU synchronization overhead dominates, not the wire.
+      </div>
+    </div>
+    <div class="edge-item">
+      <div class="label">293ms &rarr; 185ms &rarr; 80ms &mdash; Mistral 7B over ethernet</div>
+      <div class="value">
+        14GB model split across a 4070 Super (12GB) and a 4060 Laptop (8GB) &mdash;
+        too large for either GPU alone. Three optimization stages: overlapped AllReduce
+        cut latency 37%, then KV caching shrank payloads from 49KB to 8KB for a further 57% reduction.
+        12.5 tok/s &mdash; faster than reading speed.
+      </div>
+    </div>
+    <div class="edge-item">
+      <div class="label">MoE: where the mesh wins</div>
+      <div class="value">
+        Dense TP pays 64 AllReduces per token. Mixture-of-Experts pays 2 point-to-point hops.
+        Experts placed geographically, routed like a CDN. 75% of the mesh is idle per token &mdash;
+        available for concurrent serving. Data centers scale via pipeline parallelism (degraded).
+        The mesh scales via expert parallelism (it doesn't degrade).
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="whitepaper-hint" onclick="goToSection3()">Read the whitepaper<span class="arrow">&#8964;</span></div>
+<div class="site-copyright">&copy; 2026 Bare Metal AI, Inc.</div>
+</div>
+
+<div class="section section-3">
+<div class="whitepaper">
+  <div class="back-hint" onclick="goToSection2FromWP(true)">&#8592; Back</div>
+  <h2>Whitepaper</h2>
+  <div class="wp-sub">Heterogeneous Tensor Parallelism over Commodity TCP Networks via FP32 GPU-Native Reduction</div>
+
+  <div class="whitepaper-body">
+  <h3>Abstract</h3>
+  <p>
+    We present the first system that achieves <strong>heterogeneous tensor parallelism on
+    ad-hoc consumer GPUs over commodity TCP networks</strong>, running Mistral 7B &mdash; a 14GB model
+    too large for either GPU alone &mdash; across an RTX 4070 Super (12GB) and an RTX 4060 Laptop
+    (8GB) at <strong>80ms/token (12.5 tok/s)</strong>. Every prior distributed inference project on
+    consumer hardware chose pipeline parallelism, accepting idle GPUs and architectural limitations
+    as unavoidable. Data-center systems (HexGen, Helix) support heterogeneous tensor parallelism but
+    require managed clusters, Linux, and offline profiling.
+  </p>
+  <p>
+    The central contribution is a precision result: FP32 end-to-end computation achieves the
+    <strong>theoretical floor</strong> of IEEE 754 arithmetic &mdash; identical to NCCL on NVLink and
+    2,500&times; more accurate than FP16. No implementation of tensor parallelism at FP32 precision,
+    on any hardware, can do better. An asymmetric-tolerant TCP transport replaces NCCL, enabling GPUs with different
+    VRAM and compute capabilities to participate in the same AllReduce without barrier stalls or
+    protocol-level assumptions of symmetric hardware. The system is built on NVIDIA TensorRT-LLM
+    ported natively to Windows.
+  </p>
+  <p>
+    Our benchmarks reveal a counterintuitive finding: in synchronous tensor parallelism,
+    <strong>GPU synchronization overhead &mdash; not network latency &mdash; is the dominant
+    bottleneck</strong>. A 300&times; improvement in network speed (WiFi to ethernet) yielded zero
+    throughput improvement. We argue that Mixture-of-Experts architectures structurally favor
+    distributed meshes over centralized data centers, replacing dense AllReduce with sparse expert
+    routing over commodity networks.
+  </p>
+
+  <h3>1. Introduction</h3>
+  <p>
+    A 7-billion-parameter model doesn't fit on most consumer GPUs. A 70-billion-parameter model doesn't
+    fit on <em>any</em> of them. But most households with a gaming PC have more than enough aggregate
+    VRAM across machines to run these models — if those GPUs could work together. They can't. Over 100
+    million RTX-class NVIDIA GPUs sit in PCs and workstations<sup><a href="#ref17">[17]</a></sup>, and almost
+    none of them can combine their memory and compute with the GPU in the next room, let alone across a
+    network.
+  </p>
+  <p>
+    This isn't a missing feature — it's a missing <em>category</em>. Every existing path forces a
+    choice between quality and accessibility. Cloud inference (OpenAI, Anthropic, Google) uses
+    data-center-grade hardware with optimized kernels — but is expensive, rate-limited, and
+    geographically constrained. Local inference tools (Ollama, LM Studio, Jan, GPT4All) run on
+    consumer hardware — but are limited to a single machine, use a general-purpose CUDA
+    backend that leaves significant performance on the table, and
+    can only run models that fit in one GPU's memory. Distributed inference projects (Petals<sup><a href="#ref1">[1]</a></sup>,
+    Exo<sup><a href="#ref2">[2]</a></sup>)
+    can span multiple machines — but only via pipeline parallelism, which wastes half the available
+    compute to pipeline bubbles and limits model architectures. The fastest inference
+    kernels — NVIDIA's TensorRT-LLM<sup><a href="#ref18">[18]</a></sup>, with 1,500+ hand-optimized CUDA
+    routines — exist, but require homogeneous data-center GPUs communicating over NVLink or
+    InfiniBand via NCCL<sup><a href="#ref16">[16]</a></sup>.
+  </p>
+  <p>
+    No system combines the three things needed at once: <strong>optimized kernels</strong> that extract
+    full performance from the hardware, <strong>tensor parallelism</strong> that keeps every GPU
+    busy on every layer, and <strong>heterogeneous support</strong> that lets different GPUs with
+    different VRAM and different compute capabilities — on different machines, over a commodity
+    network — contribute to a single inference pass. That is the problem this paper solves.
+    Moreover, the industry's shift toward Mixture-of-Experts (MoE) architectures — which activate
+    only a fraction of parameters per token — creates a structural advantage for distributed meshes
+    over centralized data centers, a direction we explore in Section 9.
+  </p>
+
+  <h3>2. Related Work</h3>
+  <p>
+    <strong>Parallelism strategies and the TP-requires-NVLink axiom.</strong> Model parallelism for large
+    neural networks has been explored along two axes. Pipeline parallelism (PP), introduced by
+    GPipe<sup><a href="#ref5">[5]</a></sup>, partitions a model into sequential stages assigned to different
+    devices. Megatron-LM<sup><a href="#ref22">[22]</a></sup> introduced intra-layer tensor parallelism (TP)
+    for transformer models, splitting attention and MLP layers horizontally across GPUs connected by
+    NVLink within a single DGX node — and explicitly prescribed that "tensor-parallel size should
+    ideally be confined to the high-bandwidth intra-node network (NVLink domain)."
+    DeepSpeed<sup><a href="#ref20">[20]</a></sup> combines PP with ZeRO-style memory optimization for training
+    at scale. Alpa<sup><a href="#ref26">[26]</a></sup> automates the selection of inter- and intra-operator
+    parallelism strategies via ILP, programmatically encoding the assumption that TP belongs on
+    high-bandwidth links and PP on low-bandwidth links.
+    Domino<sup><a href="#ref25">[25]</a></sup> — described as "the first work that provides a uniform Tensor
+    Parallelism solution for both single-node and multi-node cases" — confirms that as of late 2024,
+    no prior system had a working cross-node TP solution; even Domino addresses the problem by hiding
+    communication behind computation rather than proving the communication itself is fast enough.
+    All of these systems assume homogeneous hardware within each parallelism group and rely on
+    NCCL<sup><a href="#ref16">[16]</a></sup> for collective communication — requiring Linux, NVLink or
+    InfiniBand, and identical GPUs.
+  </p>
+  <p>
+    <strong>Distributed inference on consumer hardware.</strong> Petals<sup><a href="#ref1">[1]</a></sup>
+    enables collaborative inference by distributing transformer blocks across volunteers over the
+    internet, using pipeline parallelism exclusively. The authors explicitly state that tensor parallelism
+    is infeasible in their setting due to per-layer activation transfers. Exo<sup><a href="#ref2">[2]</a></sup>
+    similarly builds on pipeline parallelism for home clusters, acknowledging that inter-device latency
+    makes per-layer synchronization impractical. Prima.cpp<sup><a href="#ref11">[11]</a></sup> achieves
+    30–70B inference on heterogeneous home clusters using pipelined-ring parallelism, reaching 674 ms/token
+    for 70B over WiFi — but still avoids tensor parallelism entirely.
+    Parallax<sup><a href="#ref24">[24]</a></sup> (under review at ICLR 2026) explicitly states that
+    "tensor parallelism requires frequent, high-bandwidth communication, making it suitable only for
+    tightly-coupled GPUs in a datacenter" and defaults to pipeline parallelism for decentralized settings.
+    All of these systems accept pipeline bubbles and sequential stage execution as necessary tradeoffs.
+    None supports heterogeneous GPUs within a parallelism group, and none addresses the precision loss
+    that occurs when AllReduce is performed over a network rather than NVLink.
+  </p>
+  <p>
+    <strong>Offloading and single-GPU approaches.</strong> FlexGen<sup><a href="#ref21">[21]</a></sup>
+    enables large model inference on a single GPU by offloading weights to CPU and disk, trading
+    latency for accessibility. llama.cpp provides CPU and CUDA inference via a general-purpose backend
+    but does not use TensorRT-LLM's optimized kernels and does not support multi-machine parallelism.
+    These approaches are complementary: they maximize single-device utilization, while our work enables
+    models too large for any single device.
+  </p>
+  <p>
+    <strong>Heterogeneous parallelism.</strong> AMP<sup><a href="#ref10">[10]</a></sup> explores
+    asymmetric partitioning for training on heterogeneous GPU clusters, assigning different numbers of
+    layers to devices based on compute capability — a form of asymmetric pipeline parallelism, not
+    tensor parallelism. HexGen<sup><a href="#ref8">[8]</a></sup> supports asymmetric tensor and pipeline
+    parallelism over heterogeneous GPUs and networks, using constrained optimization to assign workloads
+    proportionally to device capability; its successor HexGen-2<sup><a href="#ref9">[9]</a></sup>
+    extends this to disaggregated prefill/decode at ICLR 2025.
+    Helix<sup><a href="#ref13">[13]</a></sup> formulates heterogeneous LLM serving as a max-flow problem
+    over weighted GPU graphs. Hetis<sup><a href="#ref14">[14]</a></sup> introduces fine-grained dynamic
+    parallelism at attention-head granularity for heterogeneous clusters at SC '25. All achieve
+    significant throughput improvements over homogeneous baselines — but all assume managed datacenter
+    clusters with known topology, require offline profiling and optimization passes, and build on
+    existing Linux-only frameworks (vLLM, Megatron). None targets ad-hoc consumer hardware, WiFi or
+    commodity TCP networks, or Windows.
+  </p>
+  <p>
+    <strong>Custom AllReduce and the NCCL bottleneck.</strong> Recent work validates that bypassing NCCL
+    yields substantial gains: MSCCL++<sup><a href="#ref6">[6]</a></sup> achieves a 1.7× geomean speedup
+    over NCCL (up to 5.4×) and is in production at Microsoft Azure.
+    NVRAR<sup><a href="#ref23">[23]</a></sup> achieves 1.9–3.6× lower latency than NCCL for multi-node TP
+    decode on 128KB–2MB messages. However, both target HPC interconnects (InfiniBand, Slingshot), not
+    commodity TCP. Flash Communication<sup><a href="#ref4">[4]</a></sup> finds that on PCIe-connected L40
+    GPUs without NVLink, AllReduce accounts for 65% of TP inference latency, and proposes INT4
+    quantization of payloads as a workaround — further evidence that the field treats TP's communication
+    cost as the barrier rather than questioning the underlying transport. Our work takes a different
+    approach: rather than compressing payloads or hiding communication, we replace the transport entirely
+    with a custom FP32 AllReduce over TCP that achieves IEEE 754 single-precision accuracy — identical to
+    NCCL on NVLink — and demonstrate that for autoregressive decode, where AllReduce payloads are
+    O(hidden_dim) per layer, even commodity Ethernet is sufficient.
+  </p>
+
+  <h3>3. Approach: FP32 Reduction and Asymmetric Tensor Parallelism</h3>
+  <p>
+    Every prior attempt at distributed LLM inference over consumer hardware chose pipeline parallelism —
+    and accepted the bubbles, idle GPUs, and architectural limitations that come with it. Tensor parallelism
+    was considered infeasible outside of homogeneous data center hardware. Our system solves the two problems
+    that blocked it: <strong>precision loss during networked AllReduce</strong>, and <strong>synchronization
+    failure across mismatched GPUs</strong>. Together, they enable heterogeneous tensor parallelism
+    on consumer hardware over commodity networks — a setting no prior system has addressed.
+  </p>
+  <p>
+    As described in Section 2, pipeline parallelism (PP)<sup><a href="#ref5">[5]</a></sup> splits
+    models vertically across stages, while tensor parallelism (TP)<sup><a href="#ref22">[22]</a></sup>
+    splits each layer horizontally, keeping every GPU active on every layer. TP requires AllReduce
+    synchronization at every layer boundary — and every existing implementation assumes identical GPUs.
+  </p>
+
+  <!-- PP vs TP diagram -->
+  <div style="display:flex; gap:48px; justify-content:center; margin:32px 0; flex-wrap:wrap;">
+    <!-- Pipeline Parallelism -->
+    <div style="text-align:center;">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; color:var(--silver-dim);">Pipeline Parallelism</div>
+      <svg width="200" height="280" viewBox="0 0 200 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- GPU A -->
+        <rect x="50" y="10" width="100" height="44" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="100" y="28" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="600">GPU A</text>
+        <text x="100" y="43" text-anchor="middle" fill="#55555e" font-size="8" font-family="Space Grotesk">Layers 1–11</text>
+        <!-- Arrow 1 -->
+        <line x1="100" y1="54" x2="100" y2="84" stroke="#3a3a44" stroke-width="1.5"/>
+        <polygon points="94,78 100,88 106,78" fill="#3a3a44"/>
+        <text x="130" y="73" fill="#55555e" font-size="7" font-family="Space Grotesk">1 transfer</text>
+        <!-- GPU B -->
+        <rect x="50" y="88" width="100" height="44" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="100" y="106" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="600">GPU B</text>
+        <text x="100" y="121" text-anchor="middle" fill="#55555e" font-size="8" font-family="Space Grotesk">Layers 12–22</text>
+        <!-- Arrow 2 -->
+        <line x1="100" y1="132" x2="100" y2="162" stroke="#3a3a44" stroke-width="1.5"/>
+        <polygon points="94,156 100,166 106,156" fill="#3a3a44"/>
+        <text x="130" y="151" fill="#55555e" font-size="7" font-family="Space Grotesk">1 transfer</text>
+        <!-- Output -->
+        <rect x="50" y="166" width="100" height="30" rx="4" stroke="#55555e" stroke-dasharray="4 2" fill="none"/>
+        <text x="100" y="185" text-anchor="middle" fill="#55555e" font-size="9" font-family="Space Grotesk">Output</text>
+        <!-- Summary -->
+        <text x="100" y="220" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="600">2 network transfers</text>
+        <text x="100" y="235" text-anchor="middle" fill="#55555e" font-size="8" font-family="Space Grotesk">per forward pass</text>
+        <text x="100" y="260" text-anchor="middle" fill="#55555e" font-size="8" font-family="Space Grotesk">Sequential. Bubbles.</text>
+        <text x="100" y="273" text-anchor="middle" fill="#55555e" font-size="8" font-family="Space Grotesk">Each GPU idle 50% of the time.</text>
+      </svg>
+    </div>
+    <!-- Tensor Parallelism -->
+    <div style="text-align:center;">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; color:var(--silver-dim);">Tensor Parallelism</div>
+      <svg width="280" height="280" viewBox="0 0 280 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Layer 1 -->
+        <rect x="10" y="10" width="100" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="60" y="26" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">4070 Super · L1</text>
+        <text x="60" y="37" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">12GB · 56 SMs</text>
+        <rect x="170" y="10" width="100" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="220" y="26" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">4060 Laptop · L1</text>
+        <text x="220" y="37" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">8GB · 24 SMs</text>
+        <!-- AllReduce 1 -->
+        <line x1="110" y1="26" x2="170" y2="26" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="140" y="50" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">AllReduce</text>
+        <!-- Layer 2 -->
+        <rect x="10" y="58" width="100" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="60" y="78" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">4070 Super · L2</text>
+        <rect x="170" y="58" width="100" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="220" y="78" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">4060 Laptop · L2</text>
+        <line x1="110" y1="74" x2="170" y2="74" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="140" y="98" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">AllReduce</text>
+        <!-- Dots -->
+        <text x="60" y="118" text-anchor="middle" fill="#55555e" font-size="14" font-family="Space Grotesk">···</text>
+        <text x="220" y="118" text-anchor="middle" fill="#55555e" font-size="14" font-family="Space Grotesk">···</text>
+        <line x1="110" y1="114" x2="170" y2="114" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2" opacity="0.4"/>
+        <!-- Layer 22 -->
+        <rect x="10" y="130" width="100" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="60" y="150" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">4070 Super · L22</text>
+        <rect x="170" y="130" width="100" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="220" y="150" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">4060 Laptop · L22</text>
+        <line x1="110" y1="146" x2="170" y2="146" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="140" y="170" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">AllReduce</text>
+        <!-- Output -->
+        <rect x="85" y="178" width="110" height="30" rx="4" stroke="#55555e" stroke-dasharray="4 2" fill="none"/>
+        <text x="140" y="197" text-anchor="middle" fill="#55555e" font-size="9" font-family="Space Grotesk">Output</text>
+        <!-- Summary -->
+        <text x="140" y="232" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="600">22 network round trips</text>
+        <text x="140" y="247" text-anchor="middle" fill="#55555e" font-size="8" font-family="Space Grotesk">per forward pass</text>
+        <text x="140" y="268" text-anchor="middle" fill="#8b5cf6" font-size="8" font-family="Space Grotesk" font-weight="600">Different GPUs. Different machines.</text>
+        <text x="140" y="280" text-anchor="middle" fill="#8b5cf6" font-size="8" font-family="Space Grotesk" font-weight="600">Identical output.</text>
+      </svg>
+    </div>
+  </div>
+
+  <p>
+    The consensus in prior work is that per-layer synchronization makes TP infeasible over commodity
+    networks (Section 2). Over WiFi (1-5ms per hop), a 32-layer model pays 32 round trips per token;
+    over NVLink (600 ns), that cost is invisible. This assumption drove every previous project to
+    choose PP. As our benchmarks reveal (Section 7d), <strong>GPU synchronization overhead, not
+    network latency, dominates the per-layer cost</strong> &mdash; but latency was only part of the problem. Behind it was a second, harder wall:
+    <strong>precision loss during AllReduce</strong>. We address precision in its own section (Section 4)
+    because it is the central technical contribution of this work.
+  </p>
+  <p>
+    The second innovation is what makes heterogeneous TP possible: a <strong>transport layer that
+    tolerates asymmetric compute</strong>. NCCL&rsquo;s AllReduce algorithms &mdash; ring, tree, recursive
+    halving &mdash; assume all ranks complete each layer at roughly the same time. When a 4070 Super
+    finishes a layer in 2ms and a 4060 Laptop takes 4ms, NCCL&rsquo;s synchronization model breaks down.
+    Our TCP transport doesn&rsquo;t assume symmetric timing. Each rank computes at its own speed, signals
+    readiness, and the exchange happens when both sides are done. The slower GPU sets the compute
+    pace, and network latency adds overhead at every synchronization point &mdash; but the faster GPU
+    doesn&rsquo;t stall the protocol, it simply waits on a non-blocking receive. This is what enables two
+    GPUs with different SM counts, different VRAM, and different clock speeds to produce identical
+    results.
+  </p>
+  <p>
+    Heterogeneous GPUs differ in SM count, clock speed, memory bandwidth, and tensor core count &mdash;
+    all of which affect per-layer compute time. In a standard ring
+    AllReduce<sup><a href="#ref3">[3]</a></sup>, if one rank finishes its chunk while another is
+    still computing, the ring stalls. NCCL&rsquo;s collective algorithms were not designed for asymmetric
+    participants. The cost of our approach is real: the slowest GPU sets the pace. But a 4070 Super
+    (12GB) paired with a 4060 Laptop (8GB) can run a model too large for either card alone &mdash; the
+    tradeoff is <strong>reduced throughput versus inability to run the model at all</strong>.
+  </p>
+  <p>
+    The technique is also transport-agnostic. We demonstrate it over TCP, but the same
+    asymmetric-tolerant protocol could enable heterogeneous TP over NVLink or PCIe &mdash; a configuration
+    NCCL does not support today, even within a data center.
+  </p>
+
+  <h3>4. Precision Correctness: The Theoretical Floor</h3>
+  <p>
+    Precision correctness is the central technical challenge of tensor parallelism over commodity
+    hardware &mdash; and the reason every prior consumer-GPU project chose pipeline parallelism instead.
+    This section presents the problem, the IEEE 754 arithmetic that governs it, our measurements
+    across two models, and the design that achieves the theoretical floor.
+  </p>
+
+  <h4>4a. Why Tensor Parallelism Requires Precision That Pipeline Parallelism Does Not</h4>
+  <p>
+    In pipeline parallelism, each GPU runs a contiguous block of layers end-to-end and passes the
+    final hidden state to the next GPU. The hand-off is a simple copy &mdash; no arithmetic is performed
+    on the activation during transfer. The only precision requirement is that the tensor is
+    faithfully serialized and deserialized, which any data type satisfies trivially.
+  </p>
+  <p>
+    Tensor parallelism is fundamentally different. Each layer&rsquo;s computation is split across GPUs,
+    and an AllReduce operation &mdash; a summation of partial results from every rank &mdash; must
+    execute at every layer boundary. A typical LLM has 22&ndash;80 transformer layers, each containing
+    two AllReduce points: one after the attention projection and one after the MLP. A 32-layer model
+    performs <strong>64 AllReduce operations per token</strong>. Every one of these operations is an
+    arithmetic reduction &mdash; and every reduction is subject to floating-point rounding. If the
+    rounding error is large enough, it compounds through subsequent layers until the model produces
+    wrong output.
+  </p>
+
+  <h4>4b. IEEE 754: 10 Bits vs 23 Bits</h4>
+  <p>
+    The difference between FP16 and FP32 is not a matter of degree. It is structural.
+  </p>
+  <p>
+    IEEE 754 half-precision (FP16) stores 10 bits of mantissa, giving ~3.3 decimal digits of precision.
+    IEEE 754 single-precision (FP32) stores 23 bits of mantissa, giving ~7.2 decimal digits.
+    When two floating-point numbers are added, the smaller value is right-shifted to align exponents,
+    and the trailing bits that fall off the mantissa are lost. In FP16, any addition where the operands
+    differ by more than a factor of ~1,024 (2<sup>10</sup>) discards the smaller value entirely.
+    In FP32, this threshold is ~8.4 million (2<sup>23</sup>).
+  </p>
+  <p>
+    In a row-parallel linear layer, each rank computes a partial matrix product and AllReduce sums
+    the partials. These partial sums can differ by orders of magnitude &mdash; some ranks hold weight
+    slices with large values, others with small values. FP16 summation silently drops the
+    contribution of the smaller partial. FP32 preserves it.
+  </p>
+  <p>
+    This is not a theoretical concern. It is measurable at every layer of a real model.
+  </p>
+
+  <h4>4c. Measurements: Activation Drift Across Layers</h4>
+  <p>
+    We simulate TP=2 on a single GPU by splitting each row-parallel linear layer (attention output
+    projection and MLP down projection) into two halves along the input dimension, computing each
+    half independently, and summing via AllReduce. We compare the resulting hidden states at every
+    layer against a single-GPU baseline. The experiment isolates the effect of the TP split and
+    reduction &mdash; all other computation is identical.
+  </p>
+
+  <!-- TinyLlama table -->
+  <div style="margin:32px 0; padding:24px; background:var(--surface); border:1px solid var(--border); border-radius:8px;">
+    <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; color:var(--silver-dim);">Table 1: TinyLlama 1.1B &mdash; FP32 vs FP16 Model (22 layers, TP=2 simulated)</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr style="border-bottom:1px solid var(--border);">
+        <th style="text-align:left; padding:8px 12px; color:var(--silver-dim); font-weight:600;">Layer</th>
+        <th style="text-align:right; padding:8px 12px; color:var(--silver-dim); font-weight:600;">FP32 Model Error</th>
+        <th style="text-align:right; padding:8px 12px; color:var(--silver-dim); font-weight:600;">FP16 Model Error</th>
+        <th style="text-align:right; padding:8px 12px; color:var(--silver-dim); font-weight:600;">Ratio</th>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">Layer 1</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">1.64e-9</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">4.91e-6</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--silver-dim);">2,996&times;</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">Layer 5</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">2.64e-8</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">6.08e-5</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--silver-dim);">2,301&times;</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">Layer 10</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">4.60e-8</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">1.22e-4</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--silver-dim);">2,661&times;</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">Layer 15</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">7.02e-8</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">1.72e-4</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--silver-dim);">2,447&times;</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px; font-weight:600;">Layer 22</td>
+        <td style="text-align:right; padding:8px 12px; color:#8b5cf6; font-weight:600;">2.62e-7</td>
+        <td style="text-align:right; padding:8px 12px; color:#8b5cf6; font-weight:600;">6.73e-4</td>
+        <td style="text-align:right; padding:8px 12px; color:#8b5cf6; font-weight:600;">2,572&times;</td>
+      </tr>
+    </table>
+    <div style="margin-top:12px; font-size:11px; color:var(--silver-dim);">
+      Prompt: &ldquo;The capital of France is&rdquo;. Error = mean absolute difference of activation tensors vs
+      FP32 single-GPU baseline. Both produce &ldquo;Paris&rdquo; for this short prompt.
+    </div>
+  </div>
+
+  <!-- Mistral table -->
+  <div style="margin:24px 0; padding:24px; background:var(--surface); border:1px solid var(--border); border-radius:8px;">
+    <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; color:var(--silver-dim);">Table 2: Mistral 7B &mdash; FP16 Model (32 layers, TP=2 simulated)</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr style="border-bottom:1px solid var(--border);">
+        <th style="text-align:left; padding:8px 12px; color:var(--silver-dim); font-weight:600;">Layer</th>
+        <th style="text-align:right; padding:8px 12px; color:var(--silver-dim); font-weight:600;">TP=2 Error vs Baseline</th>
+        <th style="text-align:right; padding:8px 12px; color:var(--silver-dim); font-weight:600;">Max |activation|</th>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">Layer 1</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">1.66e-6</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--silver-dim);">0.2</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">Layer 10</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">3.86e-5</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--silver-dim);">247.4</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">Layer 20</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">1.32e-4</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--silver-dim);">251.9</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px; font-weight:600;">Layer 32</td>
+        <td style="text-align:right; padding:8px 12px; color:#8b5cf6; font-weight:600;">5.23e-4</td>
+        <td style="text-align:right; padding:8px 12px; color:#8b5cf6; font-weight:600;">181.0</td>
+      </tr>
+    </table>
+    <div style="margin-top:12px; font-size:11px; color:var(--silver-dim);">
+      FP16 model, same prompt. Error grows from 1.66e-6 at layer 1 to 5.23e-4 at layer 32 &mdash;
+      a 315&times; increase across the network. Activation magnitudes reach 252.
+    </div>
+  </div>
+
+  <p>
+    Table 1 is the key result. The FP32 column represents the <strong>irreducible error</strong>
+    introduced by splitting a matrix multiply across two ranks. At layer 22, the mean absolute
+    error is 2.62e-7 &mdash; seven orders of magnitude smaller than the activation values themselves.
+    This is not a quality gap that could be improved with engineering. It is the
+    <strong>theoretical floor</strong> of IEEE 754 single-precision arithmetic.
+  </p>
+  <p>
+    The floor exists because floating-point addition is not associative. A matrix multiply
+    <code>Y = X &middot; W</code> computed as a single operation produces
+    <code>Y = &sum; x<sub>i</sub>w<sub>i</sub></code> with one specific summation order. When the
+    same multiply is split across two ranks &mdash; rank 0 computing <code>&sum;<sub>i&lt;N/2</sub></code>
+    and rank 1 computing <code>&sum;<sub>i&ge;N/2</sub></code> &mdash; the partial sums are added in a
+    different order. The difference is the rounding noise inherent in FP32&rsquo;s 23-bit mantissa.
+    <strong>Every distributed system has this floor, including NCCL on NVLink.</strong> There is no
+    implementation of tensor parallelism, on any hardware, that avoids it.
+  </p>
+  <p>
+    FP64 (double-precision) would reduce the floor to ~1e-16 at twice the memory cost and roughly
+    half the compute throughput. The improvement is real but irrelevant: 1e-7 error cannot flip a
+    logit. The gap between the top-1 and top-2 token in a confident prediction is typically 1&ndash;10
+    in logit space. An error of 1e-7 is ten million times smaller than the decision boundary.
+    <strong>FP32 is effectively lossless for tensor-parallel AllReduce.</strong>
+  </p>
+
+  <h4>4d. The FP16 Failure Mode: Drift and Overflow</h4>
+  <p>
+    FP16 is not close to the floor. It is 2,500&times; above it.
+  </p>
+  <p>
+    At every layer, FP16 computation introduces ~2,500&times; more activation error than FP32
+    (Table 1, ratio column). The error is not in the AllReduce alone &mdash; on GPU, CUDA promotes
+    FP16 additions to FP32 internally, so two-operand FP16 reduction is lossless. The error
+    accumulates in the <em>model computation</em> between AllReduce calls: the matrix multiplies,
+    the residual additions, the layer normalizations. Each of these operations loses bits when
+    performed in FP16, and the losses compound through every subsequent layer.
+  </p>
+  <p>
+    On TinyLlama (22 layers), the accumulated FP16 error reaches 6.73e-4 at the final layer.
+    For the prompt &ldquo;The capital of France is&rdquo;, this is not enough to flip the output &mdash;
+    &ldquo;Paris&rdquo; dominates the logit distribution by a wide margin. But on harder prompts where
+    the top-2 tokens are separated by a smaller gap &mdash; reasoning chains, code generation,
+    ambiguous completions &mdash; an error of this magnitude can and will flip the winner. And once
+    one wrong token enters the autoregressive loop, every subsequent token is conditioned on a mistake.
+    The error doesn&rsquo;t correct itself. It cascades.
+  </p>
+  <p>
+    On Mistral 7B (32 layers, Table 2), the error grows to 5.23e-4 with activation magnitudes
+    reaching 252. This is still within FP16&rsquo;s representable range (max 65,504) &mdash; but under
+    adversarial conditions, the partial sums at AllReduce boundaries can be much larger. In our early
+    TP experiments, CPU-side FP16 reduction &mdash; summing two partial activation tensors in
+    half-precision on the host &mdash; produced <strong>outright NaN at layer 23</strong>. IEEE 754
+    half-precision overflows at 65,504; two large partial sums exceeded this range, producing Inf,
+    which propagated as NaN through every remaining layer. The failure was silent: no error message,
+    no warning, just garbage output. This is the class of failure that would face any system
+    attempting FP16 tensor parallelism over a network &mdash; and the reason no prior project
+    attempted it. Petals<sup><a href="#ref1">[1]</a></sup> and Exo<sup><a href="#ref2">[2]</a></sup>
+    chose pipeline parallelism precisely to avoid per-layer reduction, sidestepping the problem
+    rather than solving it.
+  </p>
+
+  <h4>4e. Design: FP32 End-to-End</h4>
+  <p>
+    We solve this with two design choices that work together. First, <strong>the entire computation
+    path runs in FP32</strong>. Weights are stored in FP16 for memory efficiency, but every matmul,
+    every residual connection, and every normalization executes in FP32 precision. This is the key
+    insight: FP32 AllReduce alone is not sufficient. If the model computes in FP16 and only the
+    reduction is FP32, the drift accumulates in the model layers between reductions. The entire
+    computation path must be FP32 to reach the theoretical floor.
+  </p>
+  <p>
+    A custom CUDA kernel performs the AllReduce reduction on the GPU in FP32; the math never touches
+    the CPU, eliminating the overflow path entirely. Even when the AllReduce operands arrive in FP16
+    (from a future mixed-precision mode), the kernel promotes to FP32 before accumulating and converts
+    back after &mdash; matching NCCL&rsquo;s internal behavior.
+  </p>
+  <p>
+    Second, explicit <code>.cast(residual.dtype)</code> operations at each residual connection ensure
+    that AllReduce outputs are type-compatible with the residual stream. Without these casts,
+    TRT-LLM&rsquo;s graph optimizer silently inserts FP16 conversions that reintroduce precision loss
+    at the exact points where it matters most. Three lines of code in the model definition &mdash;
+    but without them, the output is wrong.
+  </p>
+
+  <h4>4f. Live Validation</h4>
+  <p>
+    We validate the precision design on a real cross-machine TP=2 deployment: an RTX 4070 Super
+    (desktop, 12GB, 56 SMs) and an RTX 4060 Laptop (8GB, 24 SMs) running Mistral 7B Instruct
+    (14GB total &mdash; too large for either GPU alone) over ethernet. Three test prompts:
+  </p>
+  <div style="margin:16px 0; padding:16px 24px; background:var(--surface); border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:'Space Mono', monospace;">
+    <div style="margin-bottom:8px;"><span style="color:var(--silver-dim);">Prompt:</span> &ldquo;1+1=&rdquo; &rarr; <strong style="color:var(--accent);">&ldquo;2&rdquo;</strong></div>
+    <div style="margin-bottom:8px;"><span style="color:var(--silver-dim);">Prompt:</span> &ldquo;The capital of France is&rdquo; &rarr; <strong style="color:var(--accent);">&ldquo;Paris.&rdquo;</strong></div>
+    <div><span style="color:var(--silver-dim);">Prompt:</span> &ldquo;A cat is a&rdquo; &rarr; <strong style="color:var(--accent);">&ldquo;small domesticated mammal known for its playful, curious and independent nature. They belong to the Felidae family...&rdquo;</strong> <span style="color:var(--silver-dim);">(120 tokens, coherent)</span></div>
+  </div>
+  <p>
+    All three produce correct, coherent output at ~80ms/token. The third prompt is particularly
+    meaningful: 120 tokens of autoregressive generation, each conditioned on every previous token,
+    across 32 layers with 64 AllReduce operations per token &mdash; a total of 7,680 cross-machine
+    reductions with zero accumulated error visible in the output. This is the theoretical floor
+    in practice: NCCL-equivalent precision over TCP, across heterogeneous consumer GPUs,
+    on Windows.
+  </p>
+
+  <h3>5. System Design</h3>
+  <p>
+    The system is a GPU-native compute mesh built on three components: an <strong>orchestrator</strong>
+    for node discovery and session management, a <strong>custom TCP transport</strong> replacing
+    NCCL, and a <strong>TensorRT plugin layer</strong> that intercepts collective operations and
+    routes them through the transport. Each is described below.
+  </p>
+
+  <!-- System Architecture Diagram -->
+  <div style="display:flex; justify-content:center; margin:32px 0;">
+    <div style="text-align:center;">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; color:var(--silver-dim);">System Architecture</div>
+      <svg width="560" height="350" viewBox="0 0 560 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Orchestrator (top center) -->
+        <rect x="205" y="10" width="150" height="40" rx="6" stroke="#8b5cf6" stroke-width="1.5" fill="#0e0e12"/>
+        <text x="280" y="28" text-anchor="middle" fill="#8b5cf6" font-size="10" font-family="Space Grotesk" font-weight="700">Orchestrator</text>
+        <text x="280" y="42" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">discovery · sessions · rank assignment</text>
+
+        <!-- Registration arrows -->
+        <line x1="230" y1="50" x2="125" y2="85" stroke="#3a3a44" stroke-width="1" stroke-dasharray="4 2"/>
+        <line x1="330" y1="50" x2="435" y2="85" stroke="#3a3a44" stroke-width="1" stroke-dasharray="4 2"/>
+        <text x="162" y="63" fill="#55555e" font-size="6" font-family="Space Grotesk">register</text>
+        <text x="388" y="63" fill="#55555e" font-size="6" font-family="Space Grotesk">register</text>
+
+        <!-- Machine A (left) -->
+        <rect x="10" y="85" width="240" height="240" rx="8" stroke="#3a3a44" stroke-width="1" fill="#0a0a0e"/>
+        <text x="130" y="103" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="600">Machine A — Desktop</text>
+
+        <!-- Daemon A -->
+        <rect x="25" y="112" width="210" height="28" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="130" y="130" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">Daemon (rank 0)</text>
+
+        <!-- TRT-LLM Engine A — taller to contain plugins -->
+        <rect x="25" y="148" width="210" height="72" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="130" y="165" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">TensorRT-LLM Engine</text>
+        <text x="130" y="178" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">FP16 weights · FP32 compute</text>
+        <!-- Plugin boxes inside engine with spacing -->
+        <rect x="35" y="188" width="90" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="80" y="203" text-anchor="middle" fill="#8b5cf6" font-size="6" font-family="Space Grotesk" font-weight="600">AllReduce Plugin</text>
+        <rect x="135" y="188" width="90" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="180" y="203" text-anchor="middle" fill="#8b5cf6" font-size="6" font-family="Space Grotesk" font-weight="600">AllGather Plugin</text>
+
+        <!-- GPU A -->
+        <rect x="30" y="240" width="95" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="78" y="256" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">4070 Super</text>
+        <text x="78" y="268" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">12GB · 56 SMs</text>
+
+        <!-- Pinned memory A -->
+        <rect x="140" y="240" width="85" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="183" y="256" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk" font-weight="600">Pinned Memory</text>
+        <text x="183" y="268" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">D2H / H2D staging</text>
+
+        <!-- GPU ↔ Pinned arrow -->
+        <line x1="125" y1="256" x2="140" y2="256" stroke="#55555e" stroke-width="1"/>
+        <polygon points="136,253 143,256 136,259" fill="#55555e"/>
+
+        <!-- Machine B (right) -->
+        <rect x="310" y="85" width="240" height="240" rx="8" stroke="#3a3a44" stroke-width="1" fill="#0a0a0e"/>
+        <text x="430" y="103" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="600">Machine B — Laptop</text>
+
+        <!-- Daemon B -->
+        <rect x="325" y="112" width="210" height="28" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="430" y="130" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">Daemon (rank 1)</text>
+
+        <!-- TRT-LLM Engine B — taller to contain plugins -->
+        <rect x="325" y="148" width="210" height="72" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="430" y="165" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">TensorRT-LLM Engine</text>
+        <text x="430" y="178" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">FP16 weights · FP32 compute</text>
+        <!-- Plugin boxes inside engine with spacing -->
+        <rect x="335" y="188" width="90" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="380" y="203" text-anchor="middle" fill="#8b5cf6" font-size="6" font-family="Space Grotesk" font-weight="600">AllReduce Plugin</text>
+        <rect x="435" y="188" width="90" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="480" y="203" text-anchor="middle" fill="#8b5cf6" font-size="6" font-family="Space Grotesk" font-weight="600">AllGather Plugin</text>
+
+        <!-- GPU B -->
+        <rect x="335" y="240" width="95" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="383" y="256" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">4060 Laptop</text>
+        <text x="383" y="268" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">8GB · 24 SMs</text>
+
+        <!-- Pinned memory B -->
+        <rect x="440" y="240" width="85" height="32" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="483" y="256" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk" font-weight="600">Pinned Memory</text>
+        <text x="483" y="268" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">D2H / H2D staging</text>
+
+        <!-- GPU ↔ Pinned arrow B -->
+        <line x1="430" y1="256" x2="440" y2="256" stroke="#55555e" stroke-width="1"/>
+        <polygon points="436,253 443,256 436,259" fill="#55555e"/>
+
+        <!-- TCP transport — horizontal arrows between pinned memories -->
+        <line x1="225" y1="250" x2="310" y2="250" stroke="#8b5cf6" stroke-width="1.5"/>
+        <polygon points="306,247 314,250 306,253" fill="#8b5cf6"/>
+        <line x1="310" y1="262" x2="225" y2="262" stroke="#8b5cf6" stroke-width="1.5"/>
+        <polygon points="229,259 221,262 229,265" fill="#8b5cf6"/>
+        <text x="267" y="244" text-anchor="middle" fill="#8b5cf6" font-size="8" font-family="Space Grotesk" font-weight="700">TCP</text>
+        <text x="267" y="275" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">WiFi or Ethernet</text>
+
+        <!-- Bottom label -->
+        <text x="280" y="340" text-anchor="middle" fill="#55555e" font-size="8" font-family="Space Grotesk">Plugins intercept AllReduce/AllGather → route through TCP transport instead of NCCL</text>
+      </svg>
+    </div>
+  </div>
+
+  <h4>Orchestrator</h4>
+  <p>
+    A central orchestrator handles node registration, session matching, and rank assignment. Daemon nodes
+    on each machine register with the orchestrator, advertising their GPU capabilities (model, VRAM,
+    SM count, compute capability). When compatible nodes come online, the orchestrator creates a
+    session and connects them. The orchestrator does not participate in data transfer — it only
+    manages topology.
+  </p>
+
+  <h4>TCP Transport and AllReduce</h4>
+  <p>
+    The custom transport replaces NCCL entirely. Built on WinSock2 with a POSIX
+    socket fallback for Linux portability (untested). Each rank bootstraps by exchanging capability information, then establishing a
+    full-mesh of TCP connections. Tensor data flows through a staged pipeline: the GPU writes output
+    to a pinned (page-locked) host buffer via asynchronous D2H copy, the CPU sends that buffer over
+    TCP to the peer, the peer receives into its own pinned buffer, and a CUDA kernel reduces the
+    incoming tensor with the local partial result directly on GPU in FP32. Each rank operates
+    independently — no barrier, no assumption of symmetric compute speed — which is what enables
+    heterogeneous GPUs to participate in the same AllReduce without protocol-level stalls.
+  </p>
+
+  <!-- AllReduce Data Flow Diagram — high-level overview first -->
+  <div style="display:flex; justify-content:center; margin:32px 0;">
+    <div style="text-align:center;">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; color:var(--silver-dim);">AllReduce Data Flow (TP=2, Direct Exchange)</div>
+      <svg width="560" height="260" viewBox="0 0 560 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Rank 0 side -->
+        <text x="120" y="15" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="700">Rank 0 (4070 Super)</text>
+        <!-- Rank 1 side -->
+        <text x="440" y="15" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="700">Rank 1 (4060 Laptop)</text>
+
+        <!-- Step 1: GPU partial results -->
+        <rect x="40" y="28" width="160" height="28" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="120" y="40" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk" font-weight="600">① GPU Partial Result</text>
+        <text x="120" y="51" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">layer N output</text>
+
+        <rect x="360" y="28" width="160" height="28" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="440" y="40" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk" font-weight="600">① GPU Partial Result</text>
+        <text x="440" y="51" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">layer N output</text>
+
+        <!-- Step 2: D2H arrows -->
+        <line x1="120" y1="56" x2="120" y2="72" stroke="#55555e" stroke-width="1"/>
+        <polygon points="116,69 120,76 124,69" fill="#55555e"/>
+        <line x1="440" y1="56" x2="440" y2="72" stroke="#55555e" stroke-width="1"/>
+        <polygon points="436,69 440,76 444,69" fill="#55555e"/>
+
+        <!-- Pinned send buffers -->
+        <rect x="50" y="76" width="140" height="22" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="120" y="91" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">② D2H → pinned_send (0.1ms)</text>
+
+        <rect x="370" y="76" width="140" height="22" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="440" y="91" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">② D2H → pinned_send (0.1ms)</text>
+
+        <!-- Step 3: TCP exchange — symmetric connectors on both sides -->
+        <!-- Send socket: rank 0 send_buf → rank 1 recv -->
+        <line x1="120" y1="98" x2="120" y2="110" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="2 2"/>
+        <line x1="120" y1="110" x2="440" y2="110" stroke="#8b5cf6" stroke-width="1.5"/>
+        <polygon points="436,107 444,110 436,113" fill="#8b5cf6"/>
+        <line x1="440" y1="110" x2="440" y2="98" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="2 2"/>
+
+        <!-- Recv socket: rank 1 send_buf → rank 0 recv -->
+        <line x1="440" y1="98" x2="440" y2="126" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="2 2"/>
+        <line x1="440" y1="126" x2="120" y2="126" stroke="#8b5cf6" stroke-width="1.5"/>
+        <polygon points="124,123 116,126 124,129" fill="#8b5cf6"/>
+        <line x1="120" y1="126" x2="120" y2="142" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="2 2"/>
+
+        <text x="280" y="107" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="700">③ TCP send socket →</text>
+        <text x="280" y="124" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="700">← TCP recv socket</text>
+        <text x="280" y="138" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">simultaneous on dual sockets</text>
+
+        <!-- Pinned recv buffers -->
+        <rect x="50" y="146" width="140" height="22" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="120" y="161" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">pinned_recv (peer data)</text>
+
+        <rect x="370" y="146" width="140" height="22" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="440" y="161" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">pinned_recv (peer data)</text>
+
+        <!-- Step 4: H2D arrows -->
+        <line x1="120" y1="168" x2="120" y2="186" stroke="#55555e" stroke-width="1"/>
+        <polygon points="116,183 120,190 124,183" fill="#55555e"/>
+        <line x1="440" y1="168" x2="440" y2="186" stroke="#55555e" stroke-width="1"/>
+        <polygon points="436,183 440,190 444,183" fill="#55555e"/>
+        <text x="280" y="182" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">④ H2D (0.1ms)</text>
+
+        <!-- GPU reduce -->
+        <rect x="30" y="194" width="180" height="26" rx="4" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="120" y="211" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">⑤ GPU reduce (FP32): local + peer</text>
+
+        <rect x="350" y="194" width="180" height="26" rx="4" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="440" y="211" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">⑤ GPU reduce (FP32): local + peer</text>
+
+        <!-- Bottom annotations -->
+        <text x="280" y="236" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">No barrier — slower rank sets the pace. Both ranks execute the same pipeline simultaneously.</text>
+        <text x="280" y="250" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">* Shown: TP=2 direct exchange (one round trip). For N&gt;2, step ③ becomes a ring AllReduce (implemented, untested).</text>
+      </svg>
+    </div>
+  </div>
+
+  <p>
+    <strong>Pinned memory architecture.</strong> The transport pre-allocates all host buffers at
+    initialization using <code>cudaHostAlloc</code> with <code>cudaHostAllocDefault</code>,
+    page-locking them in physical RAM. Page-locked (pinned) memory bypasses the OS virtual memory
+    system, enabling DMA transfers between GPU and host at the highest achievable PCIe
+    bandwidth<sup><a href="#ref15">[15]</a></sup> — without pinning, <code>cudaMemcpy</code> must
+    first copy to an internal pinned staging area, adding latency.
+    The transport maintains <strong>four pinned buffers</strong> in a double-buffered
+    configuration: two send/recv pairs that alternate between consecutive AllReduce calls, preventing
+    a situation where the current call's recv overwrites the previous call's send data still in
+    flight. A separate <strong>GPU scratch buffer</strong> handles the in-place reduction case
+    (where <code>send_buf == recv_buf</code>): peer data is copied to scratch via H2D, local data
+    remains in recv_buf, and a custom CUDA kernel sums them element-wise in FP32 precision.
+    No host-side arithmetic ever touches the tensor data — all reduction is GPU-native.
+  </p>
+  <p>
+    <strong>Dual-socket connections.</strong> Each peer connection establishes two independent TCP
+    sockets — one dedicated for send, one for recv. This enables truly simultaneous bidirectional
+    transfer: while rank 0 sends its tensor to rank 1, rank 1 simultaneously sends its tensor to
+    rank 0, on separate sockets. A single TCP socket would serialize these operations
+    (half-duplex at the application layer even though TCP is full-duplex), doubling the exchange
+    time. With dual sockets, the TCP exchange step completes in the time of one transfer, not two.
+    Each socket is protected by its own mutex to prevent concurrent access from the overlapped
+    recv thread and the main send path.
+  </p>
+
+  <!-- Pinned Memory + Dual Socket Diagram -->
+  <div style="display:flex; justify-content:center; margin:32px 0;">
+    <div style="text-align:center;">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; color:var(--silver-dim);">Transport Memory Architecture (Single AllReduce Call)</div>
+      <svg width="580" height="310" viewBox="0 0 580 310" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Rank 0 -->
+        <text x="130" y="15" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="700">Rank 0</text>
+        <!-- Rank 1 -->
+        <text x="450" y="15" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="700">Rank 1</text>
+
+        <!-- GPU 0 -->
+        <rect x="20" y="28" width="220" height="40" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="130" y="46" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">GPU VRAM</text>
+        <text x="130" y="60" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">send_buf (partial) · scratch_buf · recv_buf</text>
+
+        <!-- GPU 1 -->
+        <rect x="340" y="28" width="220" height="40" rx="4" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="450" y="46" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">GPU VRAM</text>
+        <text x="450" y="60" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">send_buf (partial) · scratch_buf · recv_buf</text>
+
+        <!-- D2H arrows -->
+        <line x1="90" y1="68" x2="90" y2="92" stroke="#55555e" stroke-width="1"/>
+        <polygon points="86,89 90,96 94,89" fill="#55555e"/>
+        <text x="110" y="85" fill="#55555e" font-size="6" font-family="Space Grotesk">D2H</text>
+        <line x1="410" y1="68" x2="410" y2="92" stroke="#55555e" stroke-width="1"/>
+        <polygon points="406,89 410,96 414,89" fill="#55555e"/>
+        <text x="430" y="85" fill="#55555e" font-size="6" font-family="Space Grotesk">D2H</text>
+
+        <!-- Pinned memory region 0 -->
+        <rect x="20" y="100" width="240" height="90" rx="6" stroke="#3a3a44" stroke-dasharray="4 2" fill="#0a0a0e"/>
+        <text x="140" y="115" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">Pinned Host Memory (page-locked)</text>
+
+        <!-- Buffer pair A (active) -->
+        <rect x="30" y="122" width="85" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="73" y="137" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">send[0]</text>
+        <rect x="123" y="122" width="85" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="166" y="137" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">recv[0]</text>
+        <text x="220" y="136" fill="#8b5cf6" font-size="6" font-family="Space Grotesk" font-weight="600">● active</text>
+
+        <!-- Buffer pair B (standby) -->
+        <rect x="30" y="152" width="85" height="22" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="73" y="167" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">send[1]</text>
+        <rect x="123" y="152" width="85" height="22" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="166" y="167" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">recv[1]</text>
+        <text x="220" y="166" fill="#55555e" font-size="6" font-family="Space Grotesk">○ next</text>
+
+        <!-- Pinned memory region 1 -->
+        <rect x="320" y="100" width="240" height="90" rx="6" stroke="#3a3a44" stroke-dasharray="4 2" fill="#0a0a0e"/>
+        <text x="440" y="115" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">Pinned Host Memory (page-locked)</text>
+
+        <!-- Buffer pair A (active) -->
+        <rect x="330" y="122" width="85" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="373" y="137" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">send[0]</text>
+        <rect x="423" y="122" width="85" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="466" y="137" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">recv[0]</text>
+        <text x="520" y="136" fill="#8b5cf6" font-size="6" font-family="Space Grotesk" font-weight="600">● active</text>
+
+        <!-- Buffer pair B (standby) -->
+        <rect x="330" y="152" width="85" height="22" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="373" y="167" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">send[1]</text>
+        <rect x="423" y="152" width="85" height="22" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="466" y="167" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">recv[1]</text>
+        <text x="520" y="166" fill="#55555e" font-size="6" font-family="Space Grotesk">○ next</text>
+
+        <!-- Dual socket arrows — routed through center gap below memory regions -->
+        <!-- Send socket: rank 0 send → rank 1 recv -->
+        <line x1="73" y1="144" x2="73" y2="200" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="73" y1="200" x2="466" y2="200" stroke="#8b5cf6" stroke-width="1.5"/>
+        <polygon points="462,197 470,200 462,203" fill="#8b5cf6"/>
+        <line x1="466" y1="200" x2="466" y2="144" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="270" y="197" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">send socket — rank 0 send[0] → rank 1 recv[0]</text>
+
+        <!-- Recv socket: rank 1 send → rank 0 recv -->
+        <line x1="373" y1="144" x2="373" y2="216" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="373" y1="216" x2="166" y2="216" stroke="#8b5cf6" stroke-width="1.5"/>
+        <polygon points="170,213 162,216 170,219" fill="#8b5cf6"/>
+        <line x1="166" y1="216" x2="166" y2="144" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2"/>
+        <text x="270" y="213" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">recv socket — rank 1 send[0] → rank 0 recv[0]</text>
+
+        <!-- Simultaneous label -->
+        <text x="270" y="232" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">↕ simultaneous — one transfer time, not two</text>
+
+        <!-- H2D arrows back to GPU -->
+        <line x1="166" y1="100" x2="166" y2="68" stroke="#55555e" stroke-width="1"/>
+        <polygon points="162,72 166,65 170,72" fill="#55555e"/>
+        <text x="186" y="85" fill="#55555e" font-size="6" font-family="Space Grotesk">H2D</text>
+        <line x1="466" y1="100" x2="466" y2="68" stroke="#55555e" stroke-width="1"/>
+        <polygon points="462,72 466,65 470,72" fill="#55555e"/>
+        <text x="486" y="85" fill="#55555e" font-size="6" font-family="Space Grotesk">H2D</text>
+
+        <!-- GPU reduce annotation -->
+        <rect x="30" y="248" width="200" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="130" y="263" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">CUDA kernel: scratch + recv → FP32</text>
+        <rect x="330" y="248" width="200" height="22" rx="3" stroke="#8b5cf6" stroke-width="0.5" fill="#1a1a2e"/>
+        <text x="430" y="263" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">CUDA kernel: scratch + recv → FP32</text>
+
+        <!-- Bottom annotations -->
+        <text x="290" y="290" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">Double-buffered: pairs alternate each call to prevent send/recv conflicts</text>
+        <text x="290" y="306" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">All buffers pre-allocated at transport init — zero allocation during inference</text>
+      </svg>
+    </div>
+  </div>
+
+  <p>
+    For <strong>TP=2</strong> (the common case), AllReduce is optimized as a direct exchange: both
+    ranks simultaneously send their full tensor over dual TCP sockets, receive the peer's tensor
+    into a pinned recv buffer, and sum on GPU via the custom FP32 kernel. No ring topology — just
+    one round trip.
+    For <strong>larger topologies</strong> (N > 2 GPUs), the system implements a ring
+    AllReduce<sup><a href="#ref3">[3]</a></sup> in two phases: reduce-scatter followed by
+    all-gather, where N is the number of GPUs in the TP group. Total data transferred scales
+    optimally at 2 × (N-1)/N × tensor_size<sup><a href="#ref19">[19]</a></sup>. Send and receive
+    are overlapped to pipeline TCP I/O with GPU computation. The ring path is implemented but
+    untested beyond TP=2; all benchmarks in this paper use the direct exchange.
+  </p>
+
+  <h4>TensorRT Plugin Integration</h4>
+  <p>
+    TensorRT-LLM's multi-GPU support is hardcoded to NCCL — every AllReduce, AllGather, and
+    ReduceScatter operation in the engine graph calls into NCCL's collective communication library.
+    There is no plugin interface or abstraction layer for swapping the communication backend.
+    To replace NCCL with our TCP transport, we implemented custom TensorRT
+    <code>IPluginV2DynamicExt</code> plugins from scratch in C++ — one for each collective operation.
+    These plugins register under the same operation names that TRT-LLM emits during engine
+    compilation, so they intercept every collective call at execution time without modifying
+    TRT-LLM's model definitions, graph construction, or weight loading. The engine graph is
+    unchanged; only the communication backend is swapped.
+  </p>
+  <p>
+    This required solving several integration challenges. TensorRT's plugin initialization order
+    does not guarantee that the TCP transport is connected when the engine loads — the plugins
+    use lazy initialization, acquiring the transport singleton on first <code>enqueue()</code>
+    rather than at <code>initialize()</code> time. During engine compilation, TensorRT profiles
+    each plugin with test data to select optimal execution tactics — a no-transport fallback
+    (shifted-add) prevents TRT from dead-code-eliminating the AllReduce operations, which would
+    silently strip them from the execution graph. The plugins handle FP16, FP32, BF16, INT8,
+    INT32, INT64, and FP8 data types, matching TRT-LLM's full dtype coverage for collective
+    operations.
+  </p>
+
+  <h3>6. TensorRT-LLM on Windows</h3>
+  <p>
+    NVIDIA discontinued Windows support for TensorRT-LLM. We restored it on v0.12.0,
+    the last release with partial Windows compatibility, and the latest at time of development. This is a prerequisite for consumer deployment:
+    the vast majority of the 100M+ RTX GPUs cited in Section 1 run Windows, and requiring Linux
+    would exclude most of the target hardware.
+  </p>
+  <p>
+    The port required patches at four layers of the build system:
+    <strong>Package management</strong> — Conan dependency profiles assumed Linux toolchains;
+    we wrote Windows-native profiles for all C++ dependencies.
+    <strong>FMHA kernel compilation</strong> — fused multi-head attention kernels used
+    GCC-specific intrinsics and POSIX paths; we ported these to MSVC with equivalent
+    CUDA intrinsics.
+    <strong>Python bindings</strong> — nanobind's build configuration assumed Unix shared
+    library conventions; we patched the CMake targets for Windows DLL generation.
+    <strong>MSVC/CUDA interop</strong> — the CUDA toolkit and MSVC have different C++ ABI
+    expectations for exception handling and name mangling; we resolved linking failures
+    across the toolchain boundary.
+  </p>
+  <p>
+    The result is a native Windows build that compiles and executes TensorRT-LLM inference
+    engines — the full set of NVIDIA's 1,500+ hand-tuned CUDA kernels for attention, GEMM,
+    and quantization — without WSL, Docker, or any Linux compatibility layer.
+  </p>
+
+  <h3>7. Experimental Evaluation</h3>
+  <p>
+    We demonstrated tensor parallelism across two heterogeneous GPUs on separate machines:
+  </p>
+  <p>
+    <strong>Rank 0:</strong> NVIDIA RTX 4070 Super — 12GB VRAM, 56 Streaming Multiprocessors<br>
+    <strong>Rank 1:</strong> NVIDIA RTX 4060 Laptop — 8GB VRAM, 24 Streaming Multiprocessors
+  </p>
+  <p>
+    These GPUs differ in VRAM, SM count, and clock speed — a configuration NCCL cannot support.
+    Both GPUs share the same SM architecture (Ada Lovelace, sm_89) — heterogeneous TP has only been
+    confirmed across GPUs with identical SM architectures. Cross-architecture TP (e.g., Ampere + Ada)
+    within the same TP group remains untested and may introduce divergence from differing instruction-level
+    behavior. In MoE configurations, different experts can run on different architectures freely since
+    experts never AllReduce with each other — the constraint applies only within each expert's TP group.
+  </p>
+
+  <h4>Experimental Setup</h4>
+  <p>
+    <strong>Software:</strong> NVIDIA TensorRT-LLM v0.12.0 (custom Windows build), CUDA Toolkit 12.6,
+    cuDNN 9.3, TensorRT 10.4, Python 3.12, Windows 11 Pro on both machines. Engines built with
+    <code>trtllm-build</code> using TP=2, FP16 weights with FP32 AllReduce accumulation.<br>
+    <strong>Network:</strong> WiFi tests used 802.11ac (5GHz), measured ping 316ms round-trip under load.
+    Ethernet tests used gigabit (1000BASE-T) via consumer router, measured ping 0.5-1ms.<br>
+    <strong>Methodology:</strong> All latency measurements are per-token generation time during autoregressive
+    decoding, measured after a 5-token warm-up period to ensure CUDA kernels are JIT-compiled and GPU
+    clocks are boosted. Each reported number is the median of 20 consecutive tokens. Throughput is
+    computed as 1/latency. AllReduce timing breakdowns use CUDA event-based instrumentation inserted
+    at each stage of the D2H → TCP → H2D → reduce pipeline.
+  </p>
+
+  <h4>7a. Correctness — TinyLlama 1.1B</h4>
+  <p>
+    TinyLlama 1.1B (22 layers, FP32) was split horizontally, with each rank holding half the weights.
+    Every transformer layer synchronizes via our custom TCP AllReduce with FP32 accumulation.
+    Verified outputs across both ranks:
+  </p>
+  <p>
+    <strong>"1+1="</strong> → "2" — both ranks agree ✓<br>
+    <strong>"The capital of France is"</strong> → "Paris" — both ranks agree ✓<br>
+    <strong>"A cat is a"</strong> → "domestic" — both ranks agree ✓
+  </p>
+  <p>
+    Identical outputs from two different GPUs, on two different machines.
+    FP32 GPU-native reduction is what makes this possible — without it, accumulated precision
+    loss corrupts the output by layer 15.
+  </p>
+
+  <h4>7b. Scale — Mistral 7B</h4>
+  <p>
+    To prove the architecture scales beyond toy models, we built and deployed
+    <strong>Mistral 7B Instruct</strong> — a 7 billion parameter model with 32 transformer layers,
+    grouped-query attention (8 KV heads), and 14GB of FP16 weights. This model
+    <strong>cannot fit on either GPU alone</strong>: the 4070 Super has 12GB, the 4060 Laptop has 8GB.
+    Without tensor parallelism, this model simply doesn't run on consumer hardware with less than 16GB VRAM.
+  </p>
+  <p>
+    With TP=2 across both machines, Mistral 7B produces coherent output:
+  </p>
+  <p>
+    <strong>"What is the capital of France?"</strong> → "The capital of France is Paris."<br>
+    Generation latency: <strong>80ms/token (12.5 tok/s)</strong> over gigabit ethernet with KV cache + overlapped AllReduce
+  </p>
+
+  <h4>7c. Benchmark Data</h4>
+
+  <!-- Benchmark comparison chart -->
+  <div style="margin:32px 0; padding:24px; background:var(--surface); border:1px solid var(--border); border-radius:8px;">
+    <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; color:var(--silver-dim);">Performance Comparison</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr style="border-bottom:1px solid var(--border);">
+        <th style="text-align:left; padding:8px 12px; color:var(--silver-dim); font-weight:600;">Configuration</th>
+        <th style="text-align:right; padding:8px 12px; color:var(--silver-dim); font-weight:600;">Latency</th>
+        <th style="text-align:right; padding:8px 12px; color:var(--silver-dim); font-weight:600;">Throughput</th>
+        <th style="text-align:left; padding:8px 12px; color:var(--silver-dim); font-weight:600;">Notes</th>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">llama.cpp — 4070 Super single GPU</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">3.4 ms/tok</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">295 tok/s</td>
+        <td style="padding:8px 12px; color:var(--silver-dim);">Q8, single GPU baseline</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">BareMetalRT TP=2 — localhost</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">8.1 ms/tok</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">123 tok/s</td>
+        <td style="padding:8px 12px; color:var(--silver-dim);">TinyLlama, same machine, no network</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">BareMetalRT TP=2 — WiFi</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">277 ms/tok</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">3.6 tok/s</td>
+        <td style="padding:8px 12px; color:var(--silver-dim);">TinyLlama, 316ms ping, pre-overlap</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">BareMetalRT TP=2 — Ethernet</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">276 ms/tok</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">3.6 tok/s</td>
+        <td style="padding:8px 12px; color:var(--silver-dim);">TinyLlama, 1ms ping, pre-overlap</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">BareMetalRT TP=2 — Mistral 7B (early)</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">185 ms/tok</td>
+        <td style="text-align:right; padding:8px 12px; color:var(--accent);">5.4 tok/s</td>
+        <td style="padding:8px 12px; color:var(--silver-dim);">Overlapped AllReduce, 3-4ms/call, 49KB payload</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px; font-weight:600; color:var(--silver);">BareMetalRT TP=2 — Mistral 7B (current)</td>
+        <td style="text-align:right; padding:8px 12px; color:#8b5cf6; font-weight:600;">80 ms/tok</td>
+        <td style="text-align:right; padding:8px 12px; color:#8b5cf6; font-weight:600;">12.5 tok/s</td>
+        <td style="padding:8px 12px; color:#8b5cf6; font-weight:600;">KV cache + overlap, 1.2ms/call, 8KB payload</td>
+      </tr>
+    </table>
+  </div>
+
+  <h4>7d. Analysis: Network Latency vs. Synchronization Overhead</h4>
+  <p>
+    <strong>Before overlap optimization:</strong> gigabit ethernet (1ms ping) and WiFi (316ms ping)
+    produced identical throughput — 276ms vs 277ms per token. A 300× improvement in raw network
+    latency yielded zero improvement in token generation speed. This initially appeared to
+    contradict the assumption that network latency makes per-layer synchronization infeasible.
+  </p>
+  <p>
+    Instrumentation revealed why. In the synchronous (pre-overlap) implementation, each AllReduce
+    call spent 1.5-5ms waiting for GPU compute to finish before any network transfer began. This
+    synchronization wait dominated the per-call cost, masking the actual network transfer time.
+    WiFi and ethernet produced identical results because neither was the bottleneck — the GPU
+    sync wait was.
+  </p>
+  <p>
+    <strong>After overlap optimization:</strong> we start the TCP recv in a background thread
+    <em>before</em> waiting for GPU compute, so recv runs in parallel with the sync wait. With
+    double-buffered pinned memory to prevent send/recv conflicts, the overlapped AllReduce
+    hides recv time behind the sync wait on the critical path.
+  </p>
+
+  <!-- AllReduce timeline diagrams -->
+  <div style="display:flex; gap:32px; justify-content:center; margin:32px 0; flex-wrap:wrap;">
+    <!-- Pre-overlap (synchronous) -->
+    <div style="text-align:center;">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; color:var(--silver-dim);">Pre-Overlap (Synchronous)</div>
+      <svg width="480" height="100" viewBox="0 0 480 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Timeline axis -->
+        <line x1="10" y1="45" x2="470" y2="45" stroke="#3a3a44" stroke-width="1"/>
+        <!-- Sync wait -->
+        <rect x="10" y="30" width="140" height="30" rx="3" fill="#1a1a2e" stroke="#3a3a44"/>
+        <text x="80" y="49" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk" font-weight="600">GPU sync wait</text>
+        <text x="80" y="22" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">1.5–5ms</text>
+        <!-- D2H -->
+        <rect x="152" y="30" width="30" height="30" rx="3" fill="#1a1a2e" stroke="#3a3a44"/>
+        <text x="167" y="49" text-anchor="middle" fill="#9898a4" font-size="6" font-family="Space Grotesk">D2H</text>
+        <text x="167" y="22" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">0.1ms</text>
+        <!-- TCP send -->
+        <rect x="184" y="30" width="30" height="30" rx="3" fill="#1a1a2e" stroke="#3a3a44"/>
+        <text x="199" y="49" text-anchor="middle" fill="#9898a4" font-size="6" font-family="Space Grotesk">send</text>
+        <text x="199" y="22" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">0.1ms</text>
+        <!-- TCP recv -->
+        <rect x="216" y="30" width="110" height="30" rx="3" fill="#2a1a3e" stroke="#8b5cf6" stroke-width="0.5"/>
+        <text x="271" y="49" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">TCP recv</text>
+        <text x="271" y="22" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk">~2ms</text>
+        <!-- H2D + reduce -->
+        <rect x="328" y="30" width="50" height="30" rx="3" fill="#1a1a2e" stroke="#3a3a44"/>
+        <text x="353" y="44" text-anchor="middle" fill="#9898a4" font-size="6" font-family="Space Grotesk">H2D+</text>
+        <text x="353" y="54" text-anchor="middle" fill="#9898a4" font-size="6" font-family="Space Grotesk">reduce</text>
+        <text x="353" y="22" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">0.3ms</text>
+        <!-- Total -->
+        <line x1="10" y1="75" x2="378" y2="75" stroke="#55555e" stroke-width="1"/>
+        <line x1="10" y1="71" x2="10" y2="79" stroke="#55555e" stroke-width="1"/>
+        <line x1="378" y1="71" x2="378" y2="79" stroke="#55555e" stroke-width="1"/>
+        <text x="194" y="90" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">7–10ms total (all sequential)</text>
+      </svg>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:32px; justify-content:center; margin:0 0 32px 0; flex-wrap:wrap;">
+    <!-- Post-overlap -->
+    <div style="text-align:center;">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; color:var(--silver-dim);">Post-Overlap (Current)</div>
+      <svg width="480" height="130" viewBox="0 0 480 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background thread (recv) — top row -->
+        <text x="10" y="15" fill="#55555e" font-size="7" font-family="Space Grotesk">bg thread:</text>
+        <rect x="80" y="5" width="180" height="22" rx="3" fill="#2a1a3e" stroke="#8b5cf6" stroke-width="0.5" stroke-dasharray="3 2"/>
+        <text x="170" y="20" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk" font-weight="600">TCP recv (~2ms) — runs during sync wait</text>
+
+        <!-- Main thread — bottom row -->
+        <text x="10" y="50" fill="#55555e" font-size="7" font-family="Space Grotesk">main:</text>
+        <line x1="80" y1="60" x2="470" y2="60" stroke="#3a3a44" stroke-width="1"/>
+        <!-- Sync wait -->
+        <rect x="80" y="45" width="140" height="30" rx="3" fill="#1a1a2e" stroke="#3a3a44"/>
+        <text x="150" y="64" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk" font-weight="600">GPU sync wait</text>
+        <text x="150" y="38" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">0.3–15ms</text>
+        <!-- D2H -->
+        <rect x="222" y="45" width="30" height="30" rx="3" fill="#1a1a2e" stroke="#3a3a44"/>
+        <text x="237" y="64" text-anchor="middle" fill="#9898a4" font-size="6" font-family="Space Grotesk">D2H</text>
+        <text x="237" y="38" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">0.1ms</text>
+        <!-- TCP send -->
+        <rect x="254" y="45" width="30" height="30" rx="3" fill="#1a1a2e" stroke="#3a3a44"/>
+        <text x="269" y="64" text-anchor="middle" fill="#9898a4" font-size="6" font-family="Space Grotesk">send</text>
+        <text x="269" y="38" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">0.1ms</text>
+        <!-- Join (recv already done) -->
+        <rect x="286" y="45" width="28" height="30" rx="3" fill="#0e0e12" stroke="#8b5cf6" stroke-width="0.5"/>
+        <text x="300" y="64" text-anchor="middle" fill="#8b5cf6" font-size="6" font-family="Space Grotesk">join</text>
+        <!-- H2D + reduce -->
+        <rect x="316" y="45" width="50" height="30" rx="3" fill="#1a1a2e" stroke="#3a3a44"/>
+        <text x="341" y="59" text-anchor="middle" fill="#9898a4" font-size="6" font-family="Space Grotesk">H2D+</text>
+        <text x="341" y="69" text-anchor="middle" fill="#9898a4" font-size="6" font-family="Space Grotesk">reduce</text>
+        <text x="341" y="38" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">0.3ms</text>
+
+        <!-- Overlap annotation -->
+        <line x1="80" y1="27" x2="80" y2="42" stroke="#8b5cf6" stroke-width="0.5" stroke-dasharray="2 2"/>
+        <line x1="260" y1="27" x2="260" y2="42" stroke="#8b5cf6" stroke-width="0.5" stroke-dasharray="2 2"/>
+        <text x="170" y="105" text-anchor="middle" fill="#8b5cf6" font-size="7" font-family="Space Grotesk">recv fully hidden when sync_wait > recv_time</text>
+
+        <!-- Total -->
+        <line x1="80" y1="88" x2="366" y2="88" stroke="#55555e" stroke-width="1"/>
+        <line x1="80" y1="84" x2="80" y2="92" stroke="#55555e" stroke-width="1"/>
+        <line x1="366" y1="84" x2="366" y2="92" stroke="#55555e" stroke-width="1"/>
+        <text x="223" y="120" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">3–4ms total (recv hidden behind sync wait)</text>
+      </svg>
+    </div>
+  </div>
+
+  <p>
+    When the GPU sync wait (0.3-15ms) exceeds the recv time (~2ms), the recv completes before
+    the main thread needs it — the join is instant and recv adds zero time to the critical path.
+    The effective per-call cost becomes: <strong>sync_wait + D2H (0.1ms) + send (0.1ms) + join (0ms)
+    + H2D+reduce (0.3ms) ≈ sync_wait + 0.5ms</strong>. At 3-4ms per call × 64 calls per token
+    (Mistral 7B, 32 layers with AllReduce + AllGather), this yields ~185ms/tok.
+  </p>
+  <p>
+    This reduced per-call AllReduce from 7-10ms to 3-4ms and improved Mistral 7B generation from
+    293ms to <strong>185ms/tok (5.4 tok/s)</strong> — a 37% latency reduction. Full layer-level pipelining
+    (deferring recv+reduce to the next AllReduce call) was attempted but breaks TRT-LLM's buffer
+    contract — the engine expects the reduced result in recv_buf before allReduce() returns. The
+    current approach is the maximum overlap achievable without modifying the engine's execution model.
+  </p>
+  <p>
+    With recv hidden, the remaining AllReduce cost is dominated by the GPU sync wait — which is
+    the irreducible time for each layer's compute to finish. This is near the theoretical floor
+    for synchronous tensor parallelism. However, when sync_wait is short (fast layers or small
+    tensors), recv time is <em>not</em> fully hidden, and network latency would become exposed.
+    WiFi and ethernet would likely <strong>diverge</strong> under these conditions — a result not
+    yet re-measured with the overlapped implementation. The pre-overlap finding that "the network
+    is not the bottleneck" applied to the synchronous implementation; with overlap, network
+    bandwidth becomes an increasingly significant factor for layers where compute is fast relative
+    to transfer.
+  </p>
+  <p>
+    The Mistral 7B result (185ms/tok with overlap) is particularly significant. Despite having
+    32 layers (vs TinyLlama's 22) and 10× the parameters, per-token latency is lower than
+    pre-overlap TinyLlama (276ms) — because Mistral's larger per-layer compute provides more sync
+    wait time for recv to hide behind, and the KV cache reduces redundant recomputation.
+    <strong>Larger models have a better compute-to-communication ratio</strong>, suggesting TP
+    scales favorably with model size.
+  </p>
+  <p>
+    <strong>KV cache effect on AllReduce payload.</strong> The 185ms/tok measurement was taken before
+    the KV cache fix (Section 4f). With correct KV caching, the generation phase processes a single
+    token per step instead of re-computing the full context. This shrinks the AllReduce payload from
+    ~49KB (full activation tensor) to <strong>8KB</strong> (single-token hidden state). At 8KB, each
+    AllReduce call completes in ~1.2ms &mdash; down from 3&ndash;4ms at 49KB. Over 64 calls per token,
+    this reduces AllReduce overhead from ~224ms to ~77ms. Combined with faster single-token GPU
+    compute, generation latency drops to <strong>80ms/tok (12.5 tok/s)</strong> &mdash; a 2.3&times;
+    improvement over the pre-KV-cache measurement. The AllReduce overlap optimization (hiding recv
+    behind sync wait) compounds with the smaller payload: at 8KB, recv completes in &lt;1ms, well
+    within even the shortest sync waits.
+  </p>
+  <p>
+    <strong>Optimization trajectory.</strong> The three benchmark stages tell a story about where
+    the remaining headroom lies:
+  </p>
+  <div style="margin:16px 0; padding:16px 24px; background:var(--surface); border:1px solid var(--border); border-radius:8px; font-size:13px;">
+    <div style="margin-bottom:6px;"><strong style="color:var(--accent);">293ms/tok</strong> <span style="color:var(--silver-dim);">&rarr; Synchronous AllReduce. Recv blocks the critical path. GPU sync wait (1.5&ndash;5ms) + network transfer (~2ms) = 7&ndash;10ms per call &times; 64 calls.</span></div>
+    <div style="margin-bottom:6px;"><strong style="color:var(--accent);">185ms/tok</strong> <span style="color:var(--silver-dim);">&rarr; Overlapped AllReduce. Recv runs during GPU sync wait. Per-call cost drops to 3&ndash;4ms. A 37% latency reduction from hiding I/O behind compute.</span></div>
+    <div><strong style="color:#8b5cf6;">80ms/tok</strong> <span style="color:var(--silver-dim);">&rarr; KV cache fix. Generation-phase payload shrinks from 49KB to 8KB. Per-call cost drops to ~1.2ms. A further 57% reduction from sending less data.</span></div>
+  </div>
+  <p>
+    Each stage removed a different bottleneck: first the blocking recv, then the payload size.
+    The remaining bottleneck is the GPU sync wait itself (~0.7ms per call), which is the time for
+    each layer&rsquo;s TensorRT compute to finish &mdash; the irreducible cost of the model&rsquo;s
+    arithmetic. Further gains require either reducing per-layer compute (quantization, pruning) or
+    overlapping the next layer&rsquo;s compute with the current layer&rsquo;s reduction (layer-level
+    pipelining, which we attempted but is blocked by TRT-LLM&rsquo;s buffer contract). Larger models
+    improve the ratio further: more compute per layer means more sync wait to hide communication
+    behind, making AllReduce overhead a smaller fraction of per-token cost.
+  </p>
+  <p>
+    To contextualize: 12.5 tokens/second is not competitive with single-GPU inference on a model
+    that fits in VRAM &mdash; llama.cpp on one 4070 Super runs a quantized model at 295 tok/s.
+    But TP and single-GPU address fundamentally different constraints. Single-GPU runs models that
+    fit on one card. TP splits a model that <strong>cannot fit on any single GPU</strong> across
+    several for capability &mdash; and at 12.5 tok/s, the output streams faster than a human reads.
+    The throughput is practical for interactive use, and the correctness result &mdash; identical
+    output from mismatched GPUs over a commodity network &mdash; is the primary contribution.
+  </p>
+
+  <h3>8. Limitations</h3>
+  <p>
+    Correctness is proven across two model scales. Overlapped AllReduce (Section 7d) improved
+    Mistral 7B latency from 293ms to 80ms/tok. The remaining optimizations:
+  </p>
+  <p>
+    <strong>Further computation-communication overlap</strong> — the current implementation overlaps
+    TCP recv with GPU sync wait by starting recv in a background thread. Full layer-level
+    pipelining — deferring the previous layer's recv+reduce while the next layer's compute
+    begins — was attempted but breaks TRT-LLM's buffer contract. Achieving this would require
+    modifying TensorRT's execution model or introducing a shadow buffer scheme.
+  </p>
+  <p>
+    <strong>Larger models improve the ratio</strong> — Mistral 7B (32 layers, 14GB) achieves nearly
+    the same per-token latency as TinyLlama (22 layers, 2GB) despite 10x more parameters. Each layer
+    has more compute relative to the fixed AllReduce overhead. At 70B+ parameters, the AllReduce
+    cost becomes a rounding error — exactly where TP shines.
+  </p>
+  <p>
+    <strong>Same SM architecture required within a TP group</strong> — heterogeneous TP has been confirmed
+    only across GPUs sharing the same SM architecture (Ada Lovelace, sm_89). Cross-architecture pairs
+    (e.g., Ampere sm_86 + Ada sm_89) within the same TP group remain untested. In MoE configurations,
+    this constraint applies only within each expert's TP group — different experts can run on different
+    architectures since they never AllReduce with each other.
+  </p>
+  <p>
+    <strong>Asymmetric weight splitting</strong> — currently, TP splits weight matrices evenly. With
+    heterogeneous GPUs, proportional splitting (more columns to the GPU with more VRAM) would allow
+    larger models to fit across mismatched hardware. The transport and reduction layers are already
+    agnostic to split ratios.
+  </p>
+  <p>
+    <strong>Concurrent serving</strong> &mdash; dense TP locks all ranks for every token. The current
+    system serves one user at a time. Continuous batching &mdash; processing multiple users&rsquo;
+    tokens in the same forward pass &mdash; would amortize AllReduce overhead across N users while
+    growing the payload only linearly (8KB &times; N). TRT-LLM supports this on Linux via its C++
+    executor; enabling it over our TCP transport requires adapting the scheduling logic. MoE
+    architectures (Section 9) solve this structurally: only 2 of 8 experts activate per token,
+    so 75% of the mesh can serve other users concurrently without batching.
+  </p>
+  <p>
+    We prioritized proving correctness over the most challenging transport &mdash; WiFi between consumer
+    laptops. The benchmarks demonstrate that at TP=2 for autoregressive decode, GPU synchronization
+    overhead &mdash; not network transfer &mdash; is the observed bottleneck: a 300&times; improvement
+    in network speed (WiFi to Ethernet) yielded zero throughput improvement. <strong>Whether network
+    latency becomes limiting after synchronization overhead is reduced (e.g. via persistent kernels or
+    CUDA graphs across the AllReduce boundary), or at higher TP degrees where payload sizes and peer
+    counts increase, remains an open question.</strong> What is settled is that the field's assumption
+    that network latency alone ruled out cross-node TP was wrong &mdash; the system works, and the
+    bottleneck is elsewhere.
+  </p>
+  <p>
+    Notably, our AllReduce uses a ring topology: each rank communicates only with its two neighbors,
+    regardless of N. Scaling from TP=2 to TP=N increases the number of sequential ring steps to
+    2(N&minus;1), but the per-chunk size <em>shrinks</em> to data_size/N, and per-node bandwidth
+    remains constant. For Mistral 7B's hidden dimension (4096 &times; 4 bytes = 16KB per AllReduce),
+    even TP=8 produces 14 steps of 2KB chunks &mdash; microseconds over gigabit Ethernet. The ring's
+    linear scaling, combined with the small payload sizes inherent to autoregressive decode, suggests
+    that commodity TCP may remain viable well beyond TP=2. We leave empirical validation at higher
+    TP degrees to future work.
+  </p>
+
+  <h3>9. Future Work</h3>
+  <h4>9a. Mixture-of-Experts and Edge Compute</h4>
+  <p>
+    Dense transformer models are the worst case for edge tensor parallelism — every layer requires
+    AllReduce across all ranks, every token. But the industry is moving to <strong>Mixture-of-Experts
+    (MoE)</strong> architectures, and this changes the math entirely.
+  </p>
+  <p>
+    In a MoE model like Mixtral<sup><a href="#ref7">[7]</a></sup>, each transformer layer contains
+    multiple expert sub-networks, but only 2 of 8 experts activate per token. A gating network routes
+    each token to its best-matching experts. The rest stay idle. This means most of the model's
+    parameters exist but don't participate in any given forward pass — a property that is inefficient in a
+    data center but <strong>advantageous for a distributed compute mesh</strong>.
+  </p>
+  <p>
+    Instead of splitting one dense model across GPUs that must synchronize every layer, each expert
+    lives on a different node. A token arrives, the gate selects two experts, and only those two
+    nodes compute. No AllReduce across all ranks — just point-to-point communication between the
+    gate and the selected experts. The per-layer synchronization bottleneck that makes dense TP
+    painful over WiFi largely disappears.
+  </p>
+  <p>
+    The compute mesh topology becomes an advantage, not a liability. Experts can be placed
+    geographically — routed to the nearest available GPU with that expert hot in VRAM, like a CDN
+    for inference. A gamer in Jakarta holds Expert 3, a researcher in Nairobi holds Expert 7. A token
+    that needs both pays two point-to-point hops, not a global AllReduce.
+  </p>
+  <p>
+    The two parallelism strategies also compose. If a single expert is too large for one GPU, it can
+    be tensor-parallelized across nearby GPUs — TP within the expert, expert parallelism across the
+    mesh. This creates two tiers of communication: <strong>EP across the internet</strong> for routing
+    tokens to the right expert (point-to-point, latency-tolerant, one hop), and <strong>TP across
+    local GPUs</strong> for computing within the expert (AllReduce over ethernet at 0.1ms, not WiFi at
+    5ms). Since only 2 of 8 experts activate per token, 75% of the mesh is idle for any given
+    request — available to serve other tokens concurrently.
+  </p>
+  <p>
+    <strong>Data center architecture is overprovisioned for MoE.</strong> Dense transformers activate
+    every parameter on every token &mdash; they fully utilize NVLink&rsquo;s 900 GB/s bandwidth and justify
+    the cost of keeping every GPU in a DGX node busy. MoE inverts this: 75% of parameters are idle
+    per token, and the communication pattern is sparse point-to-point, not dense AllReduce. Data centers
+    compensate by batching aggressively, but this requires sustained high request volume. A $3M GB200
+    NVL72 rack has 75% of its 13.8TB VRAM idle per token. A mesh inverts the cost structure: idle VRAM
+    costs nearly nothing because it sits in consumer hardware that would otherwise be sleeping, and
+    expert routing needs only commodity TCP. Moreover, data centers scale beyond NVLink via pipeline
+    parallelism &mdash; a degraded mechanism that increases sequential depth and introduces bubbles.
+    MoE on a mesh scales via expert parallelism: each expert occupies its own node(s), aggregate VRAM
+    grows linearly with mesh size (100 nodes &times; 12GB = 1.2TB), and per-token communication cost
+    does not increase. <strong>Data centers scale capacity by adding pipeline stages. The mesh scales
+    capacity by adding participants. One degrades utilization; the other does not.</strong>
+  </p>
+  <p>
+    <strong>Mesh formation.</strong> The orchestrator already solves the assignment problem for
+    dense TP: nodes register, advertise GPU capabilities, and receive rank assignments. MoE extends
+    this with expert placement. When a node joins the mesh, the orchestrator evaluates its VRAM
+    capacity, network latency to existing nodes, and which experts are underserved — then assigns
+    one or more experts and pushes the corresponding weight shards. If an expert is too large for a
+    single GPU, the orchestrator groups nearby low-latency nodes into a TP group for that expert,
+    exactly as it does today for dense models. The same heartbeat and session infrastructure that
+    manages dense TP sessions manages expert placement — the unit of assignment changes from "rank
+    in a TP group" to "expert shard on a node."
+  </p>
+  <p>
+    <strong>Redundancy and fault tolerance.</strong> Dense TP has no tolerance for node failure — if
+    any rank drops, the entire inference pass is invalid, because every layer's AllReduce requires
+    all participants. This is equally true in data centers: a failed GPU in an 8-way TP job kills
+    the job. Data centers mitigate this with hardware reliability (ECC, redundant power, hot-spare
+    nodes) and checkpoint-restart at the job scheduler level — not at the model level.
+    MoE on a mesh offers a structural alternative. Since only 2 of 8 experts activate per token and
+    75% of nodes are idle at any moment, the orchestrator can maintain <strong>replicated
+    experts</strong> — the same expert weights loaded on multiple nodes in different locations.
+    When the orchestrator's heartbeat detects a node failure (missed heartbeats over the existing
+    TCP keepalive), it re-routes subsequent tokens to a surviving replica of that expert. No
+    checkpoint, no restart, no lost inference state — the next token simply goes elsewhere. The
+    replication factor is a function of mesh size: with 24 nodes serving 8 experts, each expert
+    can have 3 replicas at no additional VRAM cost beyond what the mesh already provides. The
+    orchestrator's placement algorithm treats replica count as a parameter alongside VRAM capacity
+    and network latency, preferring geographic diversity so that a local network outage does not
+    eliminate all copies of the same expert.
+  </p>
+  <p>
+    <strong>Concurrent serving.</strong> Dense TP locks every GPU into a single inference pass.
+    MoE on a mesh does not: since only 2 of 8 experts activate per token, 75% of nodes can
+    simultaneously serve other users&rsquo; tokens. Multiple inference requests flow through the
+    mesh concurrently without explicit batching or model replication &mdash; the sparsity that makes
+    MoE parameter-efficient also makes it serving-efficient.
+  </p>
+  <p>
+    Our transport layer already supports arbitrary world sizes and rank-to-rank communication.
+    The infrastructure for MoE routing is the same TCP mesh we built for tensor parallelism — the
+    difference is traffic pattern, not protocol. <strong>Dense TP validates the transport
+    layer; MoE architectures are where it achieves practical scalability.</strong>
+  </p>
+
+  <!-- MoE Hybrid Parallelism diagram: EP across the mesh, TP within each expert -->
+  <div style="display:flex; justify-content:center; margin:32px 0;">
+    <div style="text-align:center;">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; color:var(--silver-dim);">MoE Hybrid Parallelism — EP + TP</div>
+      <svg width="520" height="370" viewBox="0 0 520 370" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Gate / Router -->
+        <rect x="195" y="10" width="130" height="36" rx="6" stroke="#8b5cf6" stroke-width="1.5" fill="#0e0e12"/>
+        <text x="260" y="26" text-anchor="middle" fill="#8b5cf6" font-size="10" font-family="Space Grotesk" font-weight="700">Gate / Router</text>
+        <text x="260" y="39" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">selects 2 of 8 experts per token</text>
+
+        <!-- Fan-out lines from gate to experts -->
+        <!-- To Expert 1 (active) -->
+        <line x1="230" y1="46" x2="80" y2="90" stroke="#8b5cf6" stroke-width="1.5"/>
+        <polygon points="76,86 80,96 86,88" fill="#8b5cf6"/>
+        <!-- To Expert 5 (active) -->
+        <line x1="290" y1="46" x2="440" y2="90" stroke="#8b5cf6" stroke-width="1.5"/>
+        <polygon points="434,88 440,96 444,86" fill="#8b5cf6"/>
+        <!-- To idle experts (dimmed) -->
+        <line x1="240" y1="46" x2="170" y2="90" stroke="#3a3a44" stroke-width="1" stroke-dasharray="3 2" opacity="0.5"/>
+        <line x1="250" y1="46" x2="260" y2="90" stroke="#3a3a44" stroke-width="1" stroke-dasharray="3 2" opacity="0.5"/>
+        <line x1="260" y1="46" x2="310" y2="90" stroke="#3a3a44" stroke-width="1" stroke-dasharray="3 2" opacity="0.5"/>
+        <line x1="270" y1="46" x2="350" y2="90" stroke="#3a3a44" stroke-width="1" stroke-dasharray="3 2" opacity="0.5"/>
+
+        <!-- ACTIVE Expert 1 — TP across 2 local GPUs -->
+        <rect x="10" y="96" width="140" height="140" rx="6" stroke="#8b5cf6" stroke-width="1" fill="#0e0e1a" stroke-dasharray="none"/>
+        <text x="80" y="112" text-anchor="middle" fill="#8b5cf6" font-size="9" font-family="Space Grotesk" font-weight="700">Expert 1 — Active</text>
+        <text x="80" y="124" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">Jakarta · TP within expert</text>
+        <!-- GPU A -->
+        <rect x="20" y="134" width="56" height="32" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="48" y="149" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk" font-weight="600">GPU A</text>
+        <text x="48" y="160" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">Expert 1a</text>
+        <!-- GPU B -->
+        <rect x="84" y="134" width="56" height="32" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="112" y="149" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk" font-weight="600">GPU B</text>
+        <text x="112" y="160" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">Expert 1b</text>
+        <!-- AllReduce within expert -->
+        <line x1="76" y1="150" x2="84" y2="150" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="2 1"/>
+        <text x="80" y="182" text-anchor="middle" fill="#8b5cf6" font-size="6" font-family="Space Grotesk" font-weight="600">AllReduce (LAN)</text>
+        <text x="80" y="192" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">~0.1ms ethernet</text>
+        <!-- Output from expert -->
+        <rect x="30" y="200" width="100" height="22" rx="3" stroke="#55555e" stroke-dasharray="4 2" fill="none"/>
+        <text x="80" y="214" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk">partial result</text>
+
+        <!-- Idle Experts (dimmed) -->
+        <rect x="170" y="96" width="56" height="50" rx="4" stroke="#3a3a44" fill="#0e0e12" opacity="0.4"/>
+        <text x="198" y="118" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk" opacity="0.5">Exp 2</text>
+        <text x="198" y="130" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk" opacity="0.4">idle</text>
+
+        <rect x="234" y="96" width="56" height="50" rx="4" stroke="#3a3a44" fill="#0e0e12" opacity="0.4"/>
+        <text x="262" y="118" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk" opacity="0.5">Exp 3</text>
+        <text x="262" y="130" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk" opacity="0.4">idle</text>
+
+        <rect x="298" y="96" width="56" height="50" rx="4" stroke="#3a3a44" fill="#0e0e12" opacity="0.4"/>
+        <text x="326" y="118" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk" opacity="0.5">Exp 4</text>
+        <text x="326" y="130" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk" opacity="0.4">idle</text>
+
+        <!-- ACTIVE Expert 5 — single GPU -->
+        <rect x="370" y="96" width="140" height="140" rx="6" stroke="#8b5cf6" stroke-width="1" fill="#0e0e1a"/>
+        <text x="440" y="112" text-anchor="middle" fill="#8b5cf6" font-size="9" font-family="Space Grotesk" font-weight="700">Expert 5 — Active</text>
+        <text x="440" y="124" text-anchor="middle" fill="#55555e" font-size="7" font-family="Space Grotesk">Nairobi · fits on 1 GPU</text>
+        <!-- Single GPU -->
+        <rect x="400" y="140" width="80" height="36" rx="3" stroke="#3a3a44" fill="#0e0e12"/>
+        <text x="440" y="157" text-anchor="middle" fill="#9898a4" font-size="8" font-family="Space Grotesk" font-weight="600">GPU C</text>
+        <text x="440" y="170" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">full expert</text>
+        <text x="440" y="195" text-anchor="middle" fill="#55555e" font-size="6" font-family="Space Grotesk">no AllReduce needed</text>
+        <!-- Output from expert -->
+        <rect x="390" y="200" width="100" height="22" rx="3" stroke="#55555e" stroke-dasharray="4 2" fill="none"/>
+        <text x="440" y="214" text-anchor="middle" fill="#9898a4" font-size="7" font-family="Space Grotesk">partial result</text>
+
+        <!-- Combine step -->
+        <line x1="80" y1="222" x2="260" y2="280" stroke="#8b5cf6" stroke-width="1.5"/>
+        <line x1="440" y1="222" x2="260" y2="280" stroke="#8b5cf6" stroke-width="1.5"/>
+        <rect x="195" y="278" width="130" height="30" rx="5" stroke="#8b5cf6" stroke-width="1" fill="#0e0e1a"/>
+        <text x="260" y="297" text-anchor="middle" fill="#8b5cf6" font-size="9" font-family="Space Grotesk" font-weight="600">Combine &amp; Output</text>
+
+        <!-- Summary labels -->
+        <text x="260" y="332" text-anchor="middle" fill="#9898a4" font-size="9" font-family="Space Grotesk" font-weight="600">2 point-to-point hops, not 22 global AllReduces</text>
+        <text x="260" y="347" text-anchor="middle" fill="#55555e" font-size="8" font-family="Space Grotesk">EP across the internet (latency-tolerant) · TP within experts (LAN-speed)</text>
+        <text x="260" y="362" text-anchor="middle" fill="#55555e" font-size="8" font-family="Space Grotesk">6 of 8 experts idle per token — available for other requests</text>
+      </svg>
+    </div>
+  </div>
+
+  <h4>9b. Distributed KV Cache</h4>
+  <p>
+    Foundation models increasingly support context windows of 128K–1M+ tokens. The KV cache
+    required to serve these contexts grows linearly with sequence length — at 128K tokens, Mistral 7B's
+    KV cache alone consumes 4–8GB per GPU, approaching or exceeding the total VRAM of consumer
+    hardware. This is the next wall after model size: even when tensor parallelism enables a model's
+    weights to fit across multiple GPUs, a long context window can exhaust the remaining VRAM on the
+    smallest device.
+  </p>
+  <p>
+    Existing solutions trade latency for capacity. FlexGen<sup><a href="#ref21">[21]</a></sup> offloads
+    KV cache to CPU RAM and disk, solving the memory problem but adding 10–50ms per page fault.
+    Ring Attention<sup><a href="#ref12">[12]</a></sup> distributes the sequence across devices, requiring
+    all devices to participate in every attention computation — a global synchronization cost that
+    scales with world size. PagedAttention (vLLM) manages KV cache as virtual memory pages on a single
+    GPU but cannot help when that GPU is full.
+  </p>
+  <p>
+    Our mesh architecture enables a different approach: <strong>distributed KV cache across idle
+    nodes</strong>. The orchestrator already tracks every node's GPU model, VRAM capacity, and current
+    utilization. The TCP transport already moves tensors between GPUs with pinned-memory staging. In
+    an MoE configuration, 75% of expert nodes are idle for any given token — their VRAM is empty and
+    available. Instead of evicting old KV entries to CPU or dropping context, we propose paging them
+    to peer GPUs in the mesh that have free VRAM.
+  </p>
+  <p>
+    This creates a three-tier memory hierarchy for KV cache:
+  </p>
+  <p>
+    <strong>Tier 1 — Local GPU VRAM</strong> (hot): Recent tokens, zero additional latency. Standard
+    KV cache behavior.<br>
+    <strong>Tier 2 — Peer GPU VRAM</strong> (warm): Older tokens paged to idle nodes in the mesh.
+    Retrieval cost is one TCP round trip (1–5ms over ethernet) — slower than local VRAM but faster
+    than disk I/O (10–50ms) and competitive with CPU offloading when accounting for the H2D copy
+    back to GPU.<br>
+    <strong>Tier 3 — CPU RAM / disk</strong> (cold): Oldest tokens, last resort. Same as existing
+    offloading approaches.
+  </p>
+  <p>
+    The critical difference from existing offloading schemes is that Tier 2 uses <strong>GPU VRAM on
+    peer nodes</strong>, not local CPU RAM. A fetch from peer GPU VRAM over ethernet is a DMA-speed
+    copy on both ends with a network hop in between — the same staged pipeline (GPU → pinned host →
+    TCP → pinned host → GPU) already proven in our AllReduce implementation. Unlike Ring Attention,
+    only the node that needs a specific KV block fetches it — no global synchronization, no ring
+    topology, just point-to-point retrieval.
+  </p>
+  <p>
+    In MoE configurations, this composes naturally with expert routing. The gate routes a token to
+    two active experts; the remaining six expert nodes are idle, their combined VRAM forming a
+    distributed memory pool. The same orchestrator that routes computation can route KV cache
+    placement — assigning pages to the nearest node with free VRAM, like a CDN for memory. As context
+    grows, the mesh absorbs it across available nodes rather than forcing each node to manage the
+    problem alone.
+  </p>
+  <p>
+    Three prerequisites make this approach viable: (1) an orchestrator with real-time visibility into
+    per-node VRAM utilization, (2) a transport layer capable of GPU-to-GPU tensor transfer across the
+    network, and (3) idle nodes with empty VRAM available as storage. Our system already satisfies all
+    three. The remaining work is a cache eviction policy (LRU with locality-aware placement) and
+    integration with TensorRT-LLM's attention kernels to support non-contiguous KV cache reads.
+    <strong>The same mesh that routes computation can also route memory, reducing dependence on
+    centralized cloud infrastructure.</strong>
+  </p>
+
+  <h3>10. Conclusion</h3>
+  <p>
+    We presented the first implementation of heterogeneous tensor parallelism across consumer GPUs
+    on separate machines over commodity TCP networks. By solving two problems that blocked prior
+    attempts — precision loss during networked AllReduce and synchronization failure across
+    mismatched GPUs — we demonstrated that tensor parallelism is feasible outside of homogeneous
+    data center hardware. Our benchmarks revealed that in synchronous tensor parallelism, GPU
+    synchronization overhead — not network latency — is the dominant bottleneck: a 300× improvement
+    in network latency yielded zero improvement in throughput. Overlapping TCP recv with GPU
+    synchronization reduced per-call AllReduce cost by 50&ndash;60%. Combined with correct KV caching
+    &mdash; which shrinks the generation-phase AllReduce payload from 49KB to 8KB &mdash; Mistral 7B
+    generation improved from 293ms to <strong>80ms/tok (12.5 tok/s)</strong>.
+  </p>
+  <p>
+    The system produces identical output from two different GPUs (RTX 4070 Super and RTX 4060
+    Laptop) running Mistral 7B — a 14GB model too large for either GPU alone — over gigabit
+    ethernet. The industry's shift toward Mixture-of-Experts architectures, where only a fraction
+    of parameters activate per token, structurally favors distributed meshes over centralized data
+    centers: expert routing requires only point-to-point communication over commodity networks,
+    not AllReduce over NVLink, and data centers scale past their NVLink domains via pipeline
+    parallelism — a degraded mechanism that reintroduces the bubbles and idle GPUs that tensor
+    parallelism was designed to eliminate. A mesh scales via expert parallelism, which does not
+    degrade. Dense tensor parallelism proved the transport works. Mixture-of-Experts is where it
+    becomes practical.
+  </p>
+
+  <h3>References</h3>
+    <p id="ref1">
+    [1] Borzunov, A., et al. "Petals: Collaborative Inference and Fine-tuning of Large Models."
+    <em>Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics
+    (ACL 2023)</em>, System Demonstrations, 2023.
+  </p>
+  <p id="ref2">
+    [2] Exo Explore. "exo: Run your own AI cluster at home with everyday devices."
+    <em>github.com/exo-explore/exo</em>, 2024.
+  </p>
+  <p id="ref3">
+    [3] Gibiansky, A. "Bringing HPC Techniques to Deep Learning."
+    <em>Baidu Research</em>, 2017.
+  </p>
+  <p id="ref4">
+    [4] He, Q., et al. "Flash Communication: Reducing Tensor Parallelism Bottleneck for Fast LLM
+    Inference." <em>arXiv:2412.04964</em>, 2024.
+  </p>
+  <p id="ref5">
+    [5] Huang, Y., et al. "GPipe: Efficient Training of Giant Neural Networks using Pipeline
+    Parallelism." <em>Advances in Neural Information Processing Systems (NeurIPS)</em>, 2019.
+  </p>
+  <p id="ref6">
+    [6] Hwang, C., et al. "MSCCL++: Rethinking GPU Communication Abstractions for AI Inference."
+    <em>arXiv:2504.09014</em>, 2025.
+  </p>
+  <p id="ref7">
+    [7] Jiang, A.Q., et al. "Mixtral of Experts." <em>arXiv:2401.04088</em>, 2024.
+  </p>
+  <p id="ref8">
+    [8] Jiang, Y., et al. "HexGen: Generative Inference of Foundation Model over Heterogeneous
+    Decentralized Environment." <em>Proceedings of the 41st International Conference on Machine
+    Learning (ICML)</em>, 2024.
+  </p>
+  <p id="ref9">
+    [9] Jiang, Y., et al. "HexGen-2: Disaggregated Generative Inference of LLMs in Heterogeneous
+    Environment." <em>Proceedings of the 13th International Conference on Learning Representations
+    (ICLR)</em>, 2025.
+  </p>
+  <p id="ref10">
+    [10] Lee, S., et al. "AMP: Automatically Finding Model Parallel Strategies with Heterogeneity
+    Awareness." <em>Advances in Neural Information Processing Systems (NeurIPS)</em>, 2022.
+  </p>
+  <p id="ref11">
+    [11] Li, Z., et al. "Prima.cpp: Fast 30–70B LLM Inference on Heterogeneous and Low-Resource
+    Home Clusters." <em>arXiv:2504.08791</em>, 2025.
+  </p>
+  <p id="ref12">
+    [12] Liu, H., et al. "Ring Attention with Blockwise Transformers for Near-Infinite Context."
+    <em>arXiv:2310.01889</em>, 2023.
+  </p>
+  <p id="ref13">
+    [13] Mei, X., et al. "Helix: Distributed Serving of Large Language Models via Max-Flow on
+    Heterogeneous GPUs." <em>Proceedings of the 30th International Conference on Architectural
+    Support for Programming Languages and Operating Systems (ASPLOS)</em>, 2025.
+  </p>
+  <p id="ref14">
+    [14] Mo, Z., et al. "Hetis: Serving LLMs in Heterogeneous GPU Clusters with Fine-grained and
+    Dynamic Parallelism." <em>Proceedings of the International Conference for High Performance
+    Computing, Networking, Storage and Analysis (SC)</em>, 2025.
+  </p>
+  <p id="ref15">
+    [15] NVIDIA. "CUDA C++ Best Practices Guide: Data Transfer Between Host and Device."
+    <em>docs.nvidia.com/cuda/cuda-c-best-practices-guide</em>, 2024.
+  </p>
+  <p id="ref16">
+    [16] NVIDIA. "NCCL: NVIDIA Collective Communications Library." <em>developer.nvidia.com/nccl</em>, 2024.
+  </p>
+  <p id="ref17">
+    [17] NVIDIA. "Over 100 Million RTX AI PCs and Workstations." <em>NVIDIA Newsroom, CES 2024</em>,
+    January 2024.
+  </p>
+  <p id="ref18">
+    [18] NVIDIA. "TensorRT-LLM." <em>github.com/NVIDIA/TensorRT-LLM</em>, 2024.
+  </p>
+  <p id="ref19">
+    [19] Patarasuk, P. and Yuan, X. "Bandwidth Optimal All-reduce Algorithms for Clusters of
+    Workstations." <em>Journal of Parallel and Distributed Computing</em>, Vol. 69, No. 2, 2009.
+  </p>
+  <p id="ref20">
+    [20] Rasley, J., et al. "DeepSpeed: System Optimizations Enable Training Deep Learning Models
+    with Over 100 Billion Parameters." <em>Proceedings of the 26th ACM SIGKDD International Conference
+    on Knowledge Discovery & Data Mining</em>, 2020.
+  </p>
+  <p id="ref21">
+    [21] Sheng, Y., et al. "FlexGen: High-Throughput Generative Inference of Large Language Models
+    with a Single GPU." <em>Proceedings of the 40th International Conference on Machine Learning
+    (ICML)</em>, 2023.
+  </p>
+  <p id="ref22">
+    [22] Shoeybi, M., et al. "Megatron-LM: Training Multi-Billion Parameter Language Models Using
+    Model Parallelism." <em>arXiv:1909.08053</em>, 2019.
+  </p>
+  <p id="ref23">
+    [23] Singhania, P., et al. "LLM Inference Beyond a Single Node: From Bottlenecks to Mitigations
+    with Fast All-Reduce Communication." <em>arXiv:2511.09557</em>, 2025.
+  </p>
+  <p id="ref24">
+    [24] Tong, C., et al. "Parallax: Efficient LLM Inference Service over Decentralized
+    Environment." <em>arXiv:2509.26182</em>, 2025. Under review at ICLR 2026.
+  </p>
+  <p id="ref25">
+    [25] Wang, G., et al. "Domino: Eliminating Communication in LLM Training via Generic Tensor
+    Slicing and Overlapping." <em>arXiv:2409.15241</em>, 2024.
+  </p>
+  <p id="ref26">
+    [26] Zheng, L., et al. "Alpa: Automating Inter- and Intra-Operator Parallelism for Distributed
+    Deep Learning." <em>Proceedings of the 16th USENIX Symposium on Operating Systems Design and
+    Implementation (OSDI)</em>, 2022.
+  </p>
+  </div>
+</div>
+<div class="site-copyright">&copy; 2026 Bare Metal AI, Inc.</div>
+</div>
+
+<script>
+setTimeout(() => {
+  document.getElementById('tiers-slot').innerHTML = `
+    <div class="tiers">
+      <h2>Three ways to run</h2>
+      <div class="tier-grid">
+        <div class="tier">
+          <div class="tier-label">Open-Weight LLMs</div>
+          <div class="tier-name">Your PC is the cloud</div>
+          <div class="tier-price">Free, forever</div>
+          <div class="tier-desc">
+            Run open-weight LLMs on your NVIDIA GPU with TensorRT-LLM's optimized CUDA kernels.
+            Ollama and LM Studio use llama.cpp &mdash; general-purpose CUDA that leaves performance on the table.
+            Same price (free). Your GPU is 3x faster than they think it is.
+            Chat history is AES-256 encrypted on your device and never touches our servers.
+          </div>
+        </div>
+        <div class="tier">
+          <div class="tier-label">Multi-GPU over WiFi</div>
+          <div class="tier-name">Your house is a mesh</div>
+          <div class="tier-price">Working today</div>
+          <div class="tier-desc">
+            Split a model across heterogeneous GPUs on separate machines over your home network.
+            A 3060 and a 4070 on different PCs? They work together. Custom TCP transport replaces NVIDIA's
+            NCCL &mdash; no NVLink, no InfiniBand, no matching hardware required.
+          </div>
+        </div>
+        <div class="tier">
+          <div class="tier-label">MoE over the Internet</div>
+          <div class="tier-name">The network is the computer</div>
+          <div class="tier-price">Coming soon</div>
+          <div class="tier-desc">
+            Run Mixture-of-Experts models like Mixtral across heterogeneous GPUs anywhere on the internet.
+            Experts routed to the nearest available card, no matter whose machine it's on.
+            A gamer in Jakarta, a researcher in Nairobi, a student in São Paulo &mdash;
+            every idle GPU becomes a node in the global AI compute mesh.
+          </div>
+        </div>
+      </div>
+    </div>`;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.querySelector('.tiers').classList.add('show');
+      setTimeout(updateScrollHint, 2000);
+    });
+  });
+}, 2600);
+const s1 = document.querySelector('.section-1');
+const s2 = document.querySelector('.section-2');
+const s3 = document.querySelector('.section-3');
+const hint = document.querySelector('.scroll-hint');
+const wpHint = document.querySelector('.whitepaper-hint');
+let currentSection = 1;
+let transitioning = false;
+
+function restartAnims(el) {
+  el.classList.remove('visible');
+  void el.offsetWidth;
+  el.classList.add('visible');
+}
+
+function goToSection2() {
+  if (currentSection !== 1 || transitioning) return;
+  transitioning = true;
+  s1.classList.add('faded');
+  restartAnims(s2);
+  hint.classList.add('hidden');
+  currentSection = 2;
+  setTimeout(() => { transitioning = false; wheelAccum = 0; }, 1200);
+}
+
+function goToSection1() {
+  if (currentSection !== 2 || transitioning) return;
+  transitioning = true;
+  // Restart section 1 animations
+  s1.querySelectorAll('[style*="animation"], .hero h1, .hero .sub, .hero .desc, .hero .manifesto-line, .cta-row').forEach(el => {
+    const anim = getComputedStyle(el).animation;
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  });
+  s1.classList.remove('faded');
+  s2.classList.remove('visible');
+  setTimeout(updateScrollHint, 50);
+  // Re-show tiers
+  const tiers = document.querySelector('.tiers');
+  if (tiers) {
+    tiers.classList.remove('show');
+    void tiers.offsetWidth;
+    setTimeout(() => tiers.classList.add('show'), 2600);
+  }
+  currentSection = 1;
+  setTimeout(() => { transitioning = false; wheelAccum = 0; }, 1200);
+}
+
+function goToSection3() {
+  if (currentSection !== 2 || transitioning) return;
+  transitioning = true;
+  s2.classList.add('faded');
+  restartAnims(s3);
+  wpHint.style.opacity = '0';
+  currentSection = 3;
+  setTimeout(() => { transitioning = false; wheelAccum = 0; }, 1200);
+}
+
+function goToSection2FromWP(force) {
+  if (currentSection !== 3 || transitioning) return;
+  if (!force && s3.scrollTop > 0) return;
+  transitioning = true;
+  s3.scrollTop = 0;
+  restartAnims(s2);
+  s2.classList.remove('faded');
+  s3.classList.remove('visible');
+  wpHint.style.opacity = '1';
+  currentSection = 2;
+  setTimeout(() => { transitioning = false; wheelAccum = 0; }, 1200);
+}
+
+function goHome() {
+  if (currentSection === 1) return;
+  transitioning = true;
+  if (currentSection === 3) {
+    s3.scrollTop = 0;
+    s3.classList.remove('visible');
+  }
+  s2.classList.remove('visible');
+  s2.classList.remove('faded');
+  s1.querySelectorAll('[style*="animation"], .hero h1, .hero .sub, .hero .desc, .hero .manifesto-line, .cta-row').forEach(el => {
+    el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+  });
+  s1.classList.remove('faded');
+  setTimeout(updateScrollHint, 50);
+  wpHint.style.opacity = '1';
+  currentSection = 1;
+  history.replaceState(null, '', window.location.pathname);
+  setTimeout(() => { transitioning = false; wheelAccum = 0; }, 1200);
+}
+
+function goToPaper() {
+  if (currentSection === 3) return;
+  transitioning = true;
+  s1.classList.add('faded');
+  s2.classList.add('faded');
+  s2.classList.remove('visible');
+  restartAnims(s3);
+  hint.classList.add('hidden');
+  wpHint.style.opacity = '0';
+  currentSection = 3;
+  history.replaceState(null, '', '#paper');
+  setTimeout(() => { transitioning = false; wheelAccum = 0; }, 1200);
+}
+
+// Show scroll-hint only when section 1 is scrolled near bottom
+function updateScrollHint() {
+  if (currentSection !== 1 || !document.querySelector('.tiers')) { hint.classList.add('hidden'); return; }
+  const atBottom = s1.scrollTop + s1.clientHeight >= s1.scrollHeight - 60;
+  hint.classList.toggle('hidden', !atBottom);
+}
+s1.addEventListener('scroll', updateScrollHint, { passive: true });
+
+let wheelAccum = 0;
+const WHEEL_THRESHOLD = 80;
+let wheelTimer = null;
+
+document.addEventListener('wheel', (e) => {
+  wheelAccum += e.deltaY;
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(() => { wheelAccum = 0; }, 200);
+
+  if (Math.abs(wheelAccum) < WHEEL_THRESHOLD) return;
+  wheelAccum = 0;
+
+  if (e.deltaY > 0) {
+    if (currentSection === 1) {
+      if (s1.scrollTop + s1.clientHeight >= s1.scrollHeight - 30) goToSection2();
+    }
+    else if (currentSection === 2) goToSection3();
+  }
+  // Scroll-up backward navigation disabled — use back button only
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    if (currentSection === 1) {
+      if (s1.scrollTop + s1.clientHeight >= s1.scrollHeight - 30) goToSection2();
+    } else if (currentSection === 2) goToSection3();
+  }
+  if (e.key === 'ArrowUp') {
+    if (currentSection === 2) goToSection1();
+    else if (currentSection === 3) goToSection2FromWP(true);
+  }
+});
+
+let touchY = 0;
+document.addEventListener('touchstart', (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+document.addEventListener('touchend', (e) => {
+  const dy = touchY - e.changedTouches[0].clientY;
+  if (Math.abs(dy) < 60) return;
+  if (dy > 0) { // swipe up
+    if (currentSection === 1) {
+      if (s1.scrollTop + s1.clientHeight >= s1.scrollHeight - 30) goToSection2();
+    } else if (currentSection === 2) {
+      // Only transition if scrolled to bottom
+      const el = s2;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 30) goToSection3();
+    }
+  }
+  // Swipe-down backward navigation disabled — use back button only
+}, { passive: true });
+
+// Hide back buttons on mobile when scrolled down
+function updateBackHints() {
+  if (window.innerWidth > 768) return;
+  const backS2 = document.querySelector('.back-hint-s2');
+  const backS3 = document.querySelector('.whitepaper .back-hint');
+  if (backS2) backS2.classList.toggle('scrolled-away', s2.scrollTop > 30);
+  if (backS3) backS3.classList.toggle('scrolled-away', s3.scrollTop > 30);
+}
+s2.addEventListener('scroll', updateBackHints, { passive: true });
+s3.addEventListener('scroll', updateBackHints, { passive: true });
+
+// Hash routing — jump to section on load, update hash on navigate
+const hashMap = { '#breakthrough': 2, '#paper': 3 };
+const reverseHash = { 1: '', 2: '#breakthrough', 3: '#paper' };
+
+function navigateToHash(hash) {
+  const target = hashMap[hash];
+  if (!target) return;
+  // Skip animations for direct link — instant transition
+  transitioning = false;
+  if (target === 2) {
+    s1.classList.add('faded');
+    s2.classList.add('visible');
+    hint.classList.add('hidden');
+    currentSection = 2;
+  } else if (target === 3) {
+    s1.classList.add('faded');
+    s2.classList.add('faded');
+    s2.classList.add('visible');
+    s3.classList.add('visible');
+    hint.classList.add('hidden');
+    wpHint.style.opacity = '0';
+    currentSection = 3;
+  }
+}
+
+// Update hash on section change
+const origGoTo2 = goToSection2;
+goToSection2 = function() { origGoTo2(); history.replaceState(null, '', reverseHash[2]); };
+const origGoTo1 = goToSection1;
+goToSection1 = function() { origGoTo1(); history.replaceState(null, '', window.location.pathname); };
+const origGoTo3 = goToSection3;
+goToSection3 = function() { origGoTo3(); history.replaceState(null, '', reverseHash[3]); };
+const origGoTo2FromWP = goToSection2FromWP;
+goToSection2FromWP = function() { origGoTo2FromWP(); history.replaceState(null, '', reverseHash[2]); };
+
+// Handle back/forward
+window.addEventListener('hashchange', () => navigateToHash(window.location.hash));
+
+// On load — check hash
+if (window.location.hash) {
+  navigateToHash(window.location.hash);
+}
+
+let toastTimer;
+function showToast(msg, e) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  if (e) {
+    el.style.left = e.clientX + 12 + 'px';
+    el.style.top = e.clientY - 8 + 'px';
+  }
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1500);
+}
+</script>
+
+<div class="toast" id="toast"></div>
+
+<div style="text-align:center; padding:24px; font-size:11px; color:#55555e; letter-spacing:1px;">
+  <a href="/privacy" style="color:#9898a4; text-decoration:none;">Privacy</a> &middot; <a href="/terms" style="color:#9898a4; text-decoration:none;">Terms</a>
+  <div style="margin-top:6px;">&copy; 2026 Bare Metal AI, Inc. All rights reserved.</div>
+</div>
+
+</body>
+</html>

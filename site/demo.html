@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BareMetalRT &mdash; Live Demo</title>
+<link rel="stylesheet" href="/static/style.css?v=94">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="header">
+  <a class="logo" href="/" style="text-decoration:none;">BareMetalRT</a>
+  <span class="spacer"></span>
+  <div class="mode-switcher" id="mode-switcher">
+    <button class="mode-btn" data-mode="1gpu" onclick="tryDemo()" title="Single GPU inference mode">1 GPU</button>
+    <button class="mode-btn active" data-mode="tp2" title="Two GPUs over TCP">2 GPU</button>
+    <button class="mode-btn disabled" onclick="showModeToast('TP \u00b7 Home Mesh coming soon', event)" title="Coming soon" data-mode="tp">TP &middot; Home</button>
+    <button class="mode-btn disabled" onclick="showModeToast('MoE \u00b7 Internet Mesh coming soon', event)" title="Coming soon" data-mode="moe">MoE &middot; Mesh</button>
+  </div>
+  <span class="status-badge starting" id="status-badge">MAINTENANCE</span>
+  <div class="user-menu" id="user-menu" style="display:none;">
+    <div class="user-initials" id="user-badge" onclick="document.getElementById('user-dropdown').classList.toggle('active')" title="Account menu"></div>
+    <div class="user-dropdown" id="user-dropdown">
+      <div class="dropdown-item" style="opacity:0.3; pointer-events:none; cursor:default;">Account Settings</div>
+      <div class="dropdown-item" style="opacity:0.3; pointer-events:none; cursor:default;">Model Storage</div>
+      <div class="dropdown-item" style="opacity:0.3; pointer-events:none; cursor:default;">API Keys</div>
+      <div class="dropdown-item" style="opacity:0.3; pointer-events:none; cursor:default;">API Docs</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item" onclick="signOut()">Sign Out</div>
+    </div>
+  </div>
+</div>
+
+<!-- Mode toast -->
+<div class="toast" id="mode-toast"></div>
+
+<!-- Maintenance banner (dynamic — controlled via admin panel) -->
+<div id="maintenance-banner" style="
+  display:none;
+  background:linear-gradient(90deg, #2a1a50 0%, #1a1040 50%, #2a1a50 100%);
+  border-bottom:1px solid #8b5cf6;
+  padding:10px 24px;
+  text-align:center;
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  font-size:13px;
+  color:#d8d8e0;
+  letter-spacing:0.5px;
+"></div>
+
+<div class="mesh" id="mesh">
+  <!-- TCP connection lines spanning across both cards -->
+  <div class="allreduce-overlay" id="allreduce-overlay">
+    <div class="allreduce-track top"></div>
+    <div class="ar-label">TCP</div>
+    <div class="allreduce-track bot"></div>
+  </div>
+  <div class="node r0" id="node0">
+    <div class="node-info">
+      <div class="wait" id="node0-info">Waiting for node...</div>
+    </div>
+    <div class="node-gpu">
+      <svg viewBox="0 0 520 280" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="g0-body" x1="0" y1="0" x2="520" y2="280" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1a1a20"/><stop offset="35%" stop-color="#28282e"/><stop offset="50%" stop-color="#1e1e24"/><stop offset="70%" stop-color="#2a2a30"/><stop offset="100%" stop-color="#141418"/></linearGradient>
+          <linearGradient id="g0-shroud" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3a44"/><stop offset="50%" stop-color="#22222a"/><stop offset="100%" stop-color="#3a3a44"/></linearGradient>
+          <radialGradient id="g0-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.35"/><stop offset="60%" stop-color="#8b5cf6" stop-opacity="0.08"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+          <linearGradient id="g0-pcb" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0a3a0a"/><stop offset="100%" stop-color="#062806"/></linearGradient>
+          <linearGradient id="g0-metalHi" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#55555e" stop-opacity="0"/><stop offset="50%" stop-color="#9898a4" stop-opacity="0.6"/><stop offset="100%" stop-color="#55555e" stop-opacity="0"/></linearGradient>
+          <linearGradient id="g0-bp" x1="0" y1="0" x2="520" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#2a2a30"/><stop offset="40%" stop-color="#34343a"/><stop offset="100%" stop-color="#22222a"/></linearGradient>
+        </defs>
+        <ellipse cx="260" cy="150" rx="240" ry="120" fill="url(#g0-glow)" opacity="0.5"/>
+        <g transform="translate(30,20)">
+          <rect x="20" y="2" width="430" height="8" rx="1" fill="url(#g0-bp)" opacity="0.7"/>
+          <rect x="10" y="8" width="450" height="200" rx="4" fill="url(#g0-body)" stroke="#3a3a44" stroke-width="0.8"/>
+          <g opacity="0.06" stroke="#d8d8e0" stroke-width="0.3"><line x1="10" y1="30" x2="460" y2="30"/><line x1="10" y1="50" x2="460" y2="50"/><line x1="10" y1="70" x2="460" y2="70"/><line x1="10" y1="90" x2="460" y2="90"/><line x1="10" y1="110" x2="460" y2="110"/><line x1="10" y1="130" x2="460" y2="130"/><line x1="10" y1="150" x2="460" y2="150"/><line x1="10" y1="170" x2="460" y2="170"/><line x1="10" y1="190" x2="460" y2="190"/></g>
+          <path d="M230 8L180 108L230 208" stroke="#3a3a44" stroke-width="1.2" fill="none" opacity="0.5"/>
+          <path d="M232 8L282 108L232 208" stroke="#3a3a44" stroke-width="1.2" fill="none" opacity="0.5"/>
+          <rect x="10" y="8" width="170" height="200" rx="4" fill="url(#g0-shroud)" opacity="0.15"/>
+          <g transform="translate(120,108)"><circle r="78" fill="none" stroke="#2a2a32" stroke-width="3"/><circle r="76" fill="#0e0e12" opacity="0.8"/><circle r="74" fill="none" stroke="#22222a" stroke-width="1"/></g>
+          <g class="g0fl" opacity="0.7"><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(51.4,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(102.8,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(154.3,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(205.7,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(257.1,120,108)"/><path d="M120,100Q150,38 128,36Q110,48 120,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(308.6,120,108)"/></g>
+          <g transform="translate(120,108)"><circle r="12" fill="#1a1a20" stroke="#3a3a44" stroke-width="1"/><circle r="5" fill="#22222a"/><path d="M-3.5,0C-3.5,-2.5-1.5,-4 0.5,-4C2,-4 3.5,-2 3.5,0C3.5,2 2,4 0.5,4C-1.5,4-3.5,2.5-3.5,0Z" fill="none" stroke="#76e651" stroke-width="0.8" opacity="0.8"/></g>
+          <g transform="translate(350,108)"><circle r="78" fill="none" stroke="#2a2a32" stroke-width="3"/><circle r="76" fill="#0e0e12" opacity="0.8"/><circle r="74" fill="none" stroke="#22222a" stroke-width="1"/></g>
+          <g class="g0fr" opacity="0.7"><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(51.4,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(102.8,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(154.3,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(205.7,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(257.1,350,108)"/><path d="M350,100Q320,38 342,36Q360,48 350,100" fill="#28282e" stroke="#3a3a44" stroke-width="0.4" transform="rotate(308.6,350,108)"/></g>
+          <g transform="translate(350,108)"><circle r="12" fill="#1a1a20" stroke="#3a3a44" stroke-width="1"/><circle r="5" fill="#22222a"/></g>
+          <rect x="10" y="104" width="450" height="1.5" fill="url(#g0-metalHi)" opacity="0.3"/>
+          <rect x="20" y="208" width="430" height="12" fill="url(#g0-pcb)" rx="1"/>
+          <g fill="#b8962e" opacity="0.6"><rect x="140" y="212" width="16" height="5" rx="0.5"/><rect x="160" y="212" width="16" height="5" rx="0.5"/><rect x="180" y="212" width="16" height="5" rx="0.5"/><rect x="200" y="212" width="16" height="5" rx="0.5"/><rect x="220" y="212" width="16" height="5" rx="0.5"/><rect x="240" y="212" width="16" height="5" rx="0.5"/><rect x="260" y="212" width="16" height="5" rx="0.5"/><rect x="280" y="212" width="16" height="5" rx="0.5"/><rect x="300" y="212" width="16" height="5" rx="0.5"/><rect x="320" y="212" width="16" height="5" rx="0.5"/></g>
+          <rect x="0" y="4" width="12" height="216" rx="2" fill="#2a2a30" stroke="#3a3a44" stroke-width="0.5"/>
+          <g fill="#0e0e12" stroke="#3a3a44" stroke-width="0.5"><rect x="2" y="20" width="8" height="14" rx="1"/><rect x="2" y="42" width="8" height="12" rx="1"/><rect x="2" y="60" width="8" height="12" rx="1"/><rect x="2" y="78" width="8" height="12" rx="1"/></g>
+          <text x="235" y="56" font-family="'Space Grotesk',system-ui,sans-serif" font-size="9" font-weight="600" letter-spacing="3" fill="#55555e" text-anchor="middle" opacity="0.6">GEFORCE RTX</text>
+          <line x1="198" y1="62" x2="272" y2="62" stroke="#76e651" stroke-width="0.6" opacity="0.25"/>
+          <g stroke="#2a2a32" stroke-width="0.6" opacity="0.4"><line x1="200" y1="40" x2="200" y2="176"/><line x1="208" y1="33" x2="208" y2="183"/><line x1="216" y1="28" x2="216" y2="188"/><line x1="224" y1="24" x2="224" y2="192"/><line x1="232" y1="20" x2="232" y2="196"/><line x1="240" y1="22" x2="240" y2="194"/><line x1="248" y1="26" x2="248" y2="190"/><line x1="256" y1="30" x2="256" y2="186"/><line x1="264" y1="36" x2="264" y2="180"/></g>
+        </g>
+        <ellipse cx="260" cy="248" rx="180" ry="8" fill="#8b5cf6" opacity="0.06"/>
+      </svg>
+    </div>
+    <div class="model-shard">
+      <div class="shard-label">MISTRAL 7B &middot; 14GB</div>
+      <div class="shard-layers">
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+      </div>
+      <div class="shard-detail">32 transformer layers</div>
+    </div>
+  </div>
+
+  <div class="node r1" id="node1">
+    <div class="node-info">
+      <div class="wait" id="node1-info">Waiting for node...</div>
+    </div>
+    <div class="node-gpu">
+      <!-- Laptop GPU module — flat BGA chip with heatsink -->
+      <svg viewBox="0 0 520 280" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="g1-pcb" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1a1e"/><stop offset="100%" stop-color="#101014"/></linearGradient>
+          <linearGradient id="g1-hs" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3a40"/><stop offset="30%" stop-color="#2a2a30"/><stop offset="100%" stop-color="#1e1e24"/></linearGradient>
+          <linearGradient id="g1-die" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1a1a22"/><stop offset="50%" stop-color="#28282e"/><stop offset="100%" stop-color="#1a1a22"/></linearGradient>
+          <radialGradient id="g1-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.3"/><stop offset="60%" stop-color="#8b5cf6" stop-opacity="0.06"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+        </defs>
+        <!-- Ambient glow -->
+        <ellipse cx="260" cy="140" rx="200" ry="100" fill="url(#g1-glow)" opacity="0.5"/>
+        <g transform="translate(60,30)">
+          <!-- PCB board -->
+          <rect x="0" y="0" width="400" height="220" rx="4" fill="url(#g1-pcb)" stroke="#2a2a2e" stroke-width="0.8"/>
+          <!-- PCB traces -->
+          <g stroke="#2a2a30" stroke-width="0.5" opacity="0.4">
+            <line x1="20" y1="20" x2="380" y2="20"/><line x1="20" y1="200" x2="380" y2="200"/>
+            <line x1="20" y1="40" x2="140" y2="40"/><line x1="260" y1="40" x2="380" y2="40"/>
+            <line x1="20" y1="180" x2="140" y2="180"/><line x1="260" y1="180" x2="380" y2="180"/>
+            <line x1="30" y1="10" x2="30" y2="210"/><line x1="370" y1="10" x2="370" y2="210"/>
+          </g>
+          <!-- BGA pads (grid around die) -->
+          <g fill="#b8962e" opacity="0.3">
+            <rect x="30" y="55" width="4" height="4" rx="0.5"/><rect x="38" y="55" width="4" height="4" rx="0.5"/><rect x="46" y="55" width="4" height="4" rx="0.5"/><rect x="54" y="55" width="4" height="4" rx="0.5"/><rect x="62" y="55" width="4" height="4" rx="0.5"/><rect x="70" y="55" width="4" height="4" rx="0.5"/><rect x="78" y="55" width="4" height="4" rx="0.5"/><rect x="86" y="55" width="4" height="4" rx="0.5"/><rect x="94" y="55" width="4" height="4" rx="0.5"/><rect x="102" y="55" width="4" height="4" rx="0.5"/>
+            <rect x="30" y="160" width="4" height="4" rx="0.5"/><rect x="38" y="160" width="4" height="4" rx="0.5"/><rect x="46" y="160" width="4" height="4" rx="0.5"/><rect x="54" y="160" width="4" height="4" rx="0.5"/><rect x="62" y="160" width="4" height="4" rx="0.5"/><rect x="70" y="160" width="4" height="4" rx="0.5"/><rect x="78" y="160" width="4" height="4" rx="0.5"/><rect x="86" y="160" width="4" height="4" rx="0.5"/><rect x="94" y="160" width="4" height="4" rx="0.5"/><rect x="102" y="160" width="4" height="4" rx="0.5"/>
+            <rect x="298" y="55" width="4" height="4" rx="0.5"/><rect x="306" y="55" width="4" height="4" rx="0.5"/><rect x="314" y="55" width="4" height="4" rx="0.5"/><rect x="322" y="55" width="4" height="4" rx="0.5"/><rect x="330" y="55" width="4" height="4" rx="0.5"/><rect x="338" y="55" width="4" height="4" rx="0.5"/><rect x="346" y="55" width="4" height="4" rx="0.5"/><rect x="354" y="55" width="4" height="4" rx="0.5"/><rect x="362" y="55" width="4" height="4" rx="0.5"/><rect x="370" y="55" width="4" height="4" rx="0.5"/>
+            <rect x="298" y="160" width="4" height="4" rx="0.5"/><rect x="306" y="160" width="4" height="4" rx="0.5"/><rect x="314" y="160" width="4" height="4" rx="0.5"/><rect x="322" y="160" width="4" height="4" rx="0.5"/><rect x="330" y="160" width="4" height="4" rx="0.5"/><rect x="338" y="160" width="4" height="4" rx="0.5"/><rect x="346" y="160" width="4" height="4" rx="0.5"/><rect x="354" y="160" width="4" height="4" rx="0.5"/><rect x="362" y="160" width="4" height="4" rx="0.5"/><rect x="370" y="160" width="4" height="4" rx="0.5"/>
+          </g>
+          <!-- Heatsink plate -->
+          <rect x="120" y="45" width="160" height="130" rx="2" fill="url(#g1-hs)" stroke="#3a3a44" stroke-width="0.8"/>
+          <!-- Heatsink fins -->
+          <g stroke="#44444a" stroke-width="0.4" opacity="0.5">
+            <line x1="130" y1="50" x2="130" y2="170"/><line x1="140" y1="50" x2="140" y2="170"/>
+            <line x1="150" y1="50" x2="150" y2="170"/><line x1="160" y1="50" x2="160" y2="170"/>
+            <line x1="170" y1="50" x2="170" y2="170"/><line x1="180" y1="50" x2="180" y2="170"/>
+            <line x1="190" y1="50" x2="190" y2="170"/><line x1="200" y1="50" x2="200" y2="170"/>
+            <line x1="210" y1="50" x2="210" y2="170"/><line x1="220" y1="50" x2="220" y2="170"/>
+            <line x1="230" y1="50" x2="230" y2="170"/><line x1="240" y1="50" x2="240" y2="170"/>
+            <line x1="250" y1="50" x2="250" y2="170"/><line x1="260" y1="50" x2="260" y2="170"/>
+            <line x1="270" y1="50" x2="270" y2="170"/>
+          </g>
+          <!-- GPU die (visible through heatsink gap) -->
+          <rect x="165" y="85" width="70" height="50" rx="1" fill="url(#g1-die)" stroke="#3a3a44" stroke-width="0.6"/>
+          <!-- Die markings -->
+          <text x="200" y="113" font-family="'Space Grotesk',system-ui,sans-serif" font-size="7" font-weight="600" letter-spacing="1.5" fill="#55555e" text-anchor="middle" opacity="0.6">AD107</text>
+          <!-- NVIDIA green accent -->
+          <path d="M196.5,103 C196.5,100.5 198.5,99 200.5,99 C202,99 203.5,101 203.5,103 C203.5,105 202,107 200.5,107 C198.5,107 196.5,105.5 196.5,103 Z" fill="none" stroke="#76e651" stroke-width="0.6" opacity="0.7"/>
+          <!-- VRAM chips -->
+          <g fill="#1a1a20" stroke="#2a2a32" stroke-width="0.5">
+            <rect x="30" y="70" width="30" height="20" rx="1"/><rect x="30" y="130" width="30" height="20" rx="1"/>
+            <rect x="340" y="70" width="30" height="20" rx="1"/><rect x="340" y="130" width="30" height="20" rx="1"/>
+          </g>
+          <g font-family="'SF Mono',monospace" font-size="4" fill="#3a3a44" text-anchor="middle">
+            <text x="45" y="83">VRAM</text><text x="45" y="143">VRAM</text>
+            <text x="355" y="83">VRAM</text><text x="355" y="143">VRAM</text>
+          </g>
+          <!-- GeForce RTX label -->
+          <text x="200" y="195" font-family="'Space Grotesk',system-ui,sans-serif" font-size="8" font-weight="600" letter-spacing="2.5" fill="#55555e" text-anchor="middle" opacity="0.5">GEFORCE RTX 4060 MOBILE</text>
+        </g>
+      </svg>
+    </div>
+    <div class="model-shard">
+      <div class="shard-label">MISTRAL 7B &middot; 14GB</div>
+      <div class="shard-layers">
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+        <div class="layer half"></div><div class="layer half"></div><div class="layer half"></div><div class="layer half"></div>
+      </div>
+      <div class="shard-detail">32 transformer layers</div>
+    </div>
+  </div>
+</div>
+
+<div class="messages" id="messages">
+  <div class="welcome" id="welcome">
+    <div class="welcome-tp" id="welcome-tp">
+      <div class="tagline">For the first time ever</div>
+      <div class="subtitle">Two heterogeneous GPUs run inference over a commodity TCP network.</div>
+      <div class="desc">
+        Mistral 7B (14GB) via tensor parallelism across two consumer GPUs over ethernet. 12.5 tok/s.<br>
+        NVIDIA TensorRT-LLM. Custom TCP transport replacing NCCL. Data center precision.
+      </div>
+    </div>
+    <div class="welcome-pp" id="welcome-pp" style="display:none;">
+      <div class="tagline">Single GPU Inference</div>
+      <div class="subtitle">Coming soon</div>
+      <div class="desc" style="white-space:normal; text-align:center; max-width:480px;">
+        Run any open-weight LLM on a single NVIDIA GPU with TensorRT-LLM's optimized CUDA kernels. Full data center speed, locally, at zero cost.
+      </div>
+    </div>
+    <div class="demo-limits">512 token context window &middot; ~400 word limit</div>
+  </div>
+</div>
+
+<div class="input-area">
+  <div class="input-row">
+    <span class="input-prompt" id="input-prompt">Type a message to start &#8594;</span>
+    <textarea id="prompt" rows="3" placeholder="Enter prompt..." autocomplete="off"></textarea>
+    <button id="send-btn" onclick="chat()">&#8593;</button>
+  </div>
+</div>
+
+<script src="/static/app.js?v=20"></script>
+<script>
+// Fetch banner state
+(async () => {
+  try {
+    const r = await fetch('/admin/banners');
+    if (!r.ok) return;
+    const banners = await r.json();
+    const b = banners.banner_2gpu;
+    const el = document.getElementById('maintenance-banner');
+    if (b && b.enabled) {
+      el.textContent = b.message;
+      el.style.display = 'block';
+    }
+  } catch(e) {}
+})();
+
+// Check auth and show user menu
+(async () => {
+  try {
+    const r = await fetch('/auth/me');
+    if (!r.ok) return;
+    const u = await r.json();
+    document.getElementById('user-badge').textContent = u.first_name || u.name || u.email.split('@')[0];
+    document.getElementById('user-menu').style.display = 'flex';
+  } catch(e) {}
+})();
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.user-menu')) {
+    const dd = document.getElementById('user-dropdown');
+    if (dd) dd.classList.remove('active');
+  }
+});
+
+let toastTimer = null;
+let toastMoveHandler = null;
+function showModeToast(text, e) {
+  const el = document.getElementById('mode-toast');
+  el.textContent = text;
+  if (e) { el.style.left = e.clientX + 'px'; el.style.top = (e.clientY + 16) + 'px'; }
+  if (toastMoveHandler) document.removeEventListener('mousemove', toastMoveHandler);
+  toastMoveHandler = (ev) => { el.style.left = ev.clientX + 'px'; el.style.top = (ev.clientY + 16) + 'px'; };
+  document.addEventListener('mousemove', toastMoveHandler);
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.classList.remove('show'); document.removeEventListener('mousemove', toastMoveHandler); toastMoveHandler = null; }, 1500);
+}
+
+async function signOut() {
+  await fetch('/auth/logout', { method: 'POST' });
+  window.location = '/';
+}
+
+async function tryDemo() {
+  try {
+    const r = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: window.DEMO_EMAIL || '', password: window.DEMO_PASS || '' }),
+    });
+    if (r.ok) { window.location = '/app'; }
+    else { alert('Demo temporarily unavailable'); }
+  } catch(e) { alert('Demo temporarily unavailable'); }
+}
+</script>
+</body>
+</html>

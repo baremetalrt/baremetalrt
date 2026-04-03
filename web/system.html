@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System Info — Bare Metal AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08080a; --surface: #0e0e12; --surface2: #141418;
+  --border: #22222a; --border-hi: #3a3a44;
+  --silver: #d8d8e0; --silver-dim: #9898a4; --silver-dark: #55555e;
+  --purple: #8b5cf6; --purple-dim: rgba(139,92,246,0.12);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Space Grotesk', system-ui, sans-serif; background: var(--bg); color: var(--silver); }
+.header { display: flex; align-items: center; padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.logo { font-size: 16px; font-weight: 800; letter-spacing: 3px; text-decoration: none;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.back { margin-left: 16px; color: var(--silver-dim); text-decoration: none; font-size: 18px; }
+.back:hover { color: var(--purple); }
+.spacer { flex: 1; }
+.content { max-width: 600px; margin: 0 auto; padding: 40px 24px; }
+.section { margin-bottom: 32px; }
+.section-title { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--silver-dim); margin-bottom: 16px; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.info-item { background: var(--surface); border: 1px solid var(--border); padding: 12px 16px; }
+.info-item .label { font-size: 10px; color: var(--silver-dark); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+.info-item .value { font-size: 15px; font-weight: 600; color: var(--silver); }
+.info-item.full { grid-column: 1 / -1; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.status-dot.green { background: #22c55e; }
+.status-dot.red { background: #f43f5e; }
+.status-dot.yellow { background: #eab308; }
+.refresh-btn { font-size: 11px; padding: 5px 12px; border: 1px solid var(--border-hi); background: transparent;
+  color: var(--silver-dim); cursor: pointer; font-family: inherit; letter-spacing: 0.5px; text-transform: uppercase;
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); margin-top: 16px; }
+.refresh-btn:hover { color: var(--silver); border-color: var(--silver-dim); }
+</style>
+</head>
+<body>
+<div class="header">
+  <a class="logo" href="/app">BareMetalRT</a>
+  <a class="back" href="/app">&larr;</a>
+  <span class="spacer"></span>
+</div>
+<div class="content">
+
+  <div class="section">
+    <div class="section-title">GPU</div>
+    <div class="info-grid">
+      <div class="info-item full"><div class="label">GPU</div><div class="value" id="gpu-name">—</div></div>
+      <div class="info-item"><div class="label">VRAM</div><div class="value" id="gpu-vram">—</div></div>
+      <div class="info-item"><div class="label">Driver</div><div class="value" id="gpu-driver">—</div></div>
+      <div class="info-item"><div class="label">CUDA</div><div class="value" id="gpu-cuda">—</div></div>
+      <div class="info-item"><div class="label">Status</div><div class="value" id="gpu-status">—</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Engine</div>
+    <div class="info-grid">
+      <div class="info-item full"><div class="label">Active Model</div><div class="value" id="eng-model">—</div></div>
+      <div class="info-item full"><div class="label">Engine Path</div><div class="value" id="eng-path" style="font-size:11px; word-break:break-all;">—</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">System</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="label">OS</div><div class="value" id="sys-os">—</div></div>
+      <div class="info-item"><div class="label">Python</div><div class="value" id="sys-python">—</div></div>
+      <div class="info-item"><div class="label">Hostname</div><div class="value" id="sys-host">—</div></div>
+      <div class="info-item"><div class="label">LAN IP</div><div class="value" id="sys-ip">—</div></div>
+      <div class="info-item"><div class="label">Version</div><div class="value" id="sys-version">—</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Network</div>
+    <div class="info-grid">
+      <div class="info-item full"><div class="label">WS Bridge</div><div class="value" id="net-ws">—</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Live Stats</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="label">Temperature</div><div class="value" id="live-temp">—</div></div>
+      <div class="info-item"><div class="label">Utilization</div><div class="value" id="live-util">—</div></div>
+      <div class="info-item"><div class="label">Power</div><div class="value" id="live-power">—</div></div>
+      <div class="info-item"><div class="label">VRAM Used</div><div class="value" id="live-vram">—</div></div>
+    </div>
+  </div>
+
+  <button class="refresh-btn" onclick="loadInfo()">Refresh</button>
+
+</div>
+
+<script>
+async function loadInfo() {
+  // Check auth
+  const auth = await fetch('/auth/me');
+  if (!auth.ok) { window.location = '/app'; return; }
+
+  // GPU connection
+  const gs = await fetch('/api/gpu-status');
+  const gsd = await gs.json();
+  if (gsd.connected) {
+    document.getElementById('net-ws').innerHTML = '<span class="status-dot green"></span>Connected';
+  } else {
+    document.getElementById('net-ws').innerHTML = '<span class="status-dot red"></span>Disconnected';
+    return;
+  }
+
+  // System info from daemon
+  try {
+    const r = await fetch('/api/system-info');
+    const d = await r.json();
+    if (d.error) return;
+    document.getElementById('gpu-name').textContent = d.gpu_name || '—';
+    document.getElementById('gpu-vram').textContent = d.gpu_vram_mb ? Math.round(d.gpu_vram_mb / 1024) + ' GB' : '—';
+    document.getElementById('gpu-driver').textContent = d.driver_version || '—';
+    document.getElementById('gpu-cuda').textContent = d.cuda_version || '—';
+    document.getElementById('gpu-status').innerHTML = '<span class="status-dot green"></span>' + (d.daemon_status || '—');
+    document.getElementById('eng-model').textContent = d.active_model || 'None';
+    document.getElementById('eng-path').textContent = d.engine_dir || '—';
+    document.getElementById('sys-os').textContent = d.os || '—';
+    document.getElementById('sys-python').textContent = d.python_version || '—';
+    document.getElementById('sys-host').textContent = d.hostname || '—';
+    document.getElementById('sys-ip').textContent = d.lan_ip || '—';
+    document.getElementById('sys-version').textContent = d.version || '—';
+  } catch(e) {}
+
+  updateLiveStats();
+}
+
+async function updateLiveStats() {
+  try {
+    const r = await fetch('/api/gpu-metrics');
+    const d = await r.json();
+    if (d.temperature_c !== undefined) {
+      const tc = d.temperature_c;
+      const tempColor = tc > 80 ? '#f43f5e' : (tc > 65 ? '#eab308' : '#22c55e');
+      document.getElementById('live-temp').innerHTML = `<span style="color:${tempColor}">${tc}°C</span>`;
+      document.getElementById('live-util').textContent = d.gpu_util_pct + '%';
+      document.getElementById('live-power').textContent = d.power_w + 'W';
+      const used = (d.vram_used_mb / 1024).toFixed(1);
+      const total = (d.vram_total_mb / 1024).toFixed(1);
+      document.getElementById('live-vram').textContent = `${used} / ${total} GB`;
+    }
+  } catch(e) {}
+}
+
+loadInfo();
+setInterval(updateLiveStats, 3000);
+</script>
+</body>
+</html>

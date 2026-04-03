@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Downloads — Bare Metal AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08080a; --surface: #0e0e12; --surface2: #141418;
+  --border: #22222a; --border-hi: #3a3a44;
+  --silver: #d8d8e0; --silver-dim: #9898a4; --silver-dark: #55555e;
+  --purple: #8b5cf6; --purple-dim: rgba(139,92,246,0.12);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Space Grotesk', system-ui, sans-serif; background: var(--bg); color: var(--silver); }
+.header { display: flex; align-items: center; padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.logo { font-size: 16px; font-weight: 800; letter-spacing: 3px; text-decoration: none;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.back { margin-left: 16px; color: var(--silver-dim); text-decoration: none; font-size: 18px; }
+.back:hover { color: var(--purple); }
+.spacer { flex: 1; }
+
+.content { max-width: 700px; margin: 0 auto; padding: 40px 24px; }
+.section { margin-bottom: 32px; }
+.section-title { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--silver-dim); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.section-count { font-size: 10px; background: var(--surface2); border: 1px solid var(--border); padding: 1px 7px; border-radius: 10px; color: var(--silver-dark); font-weight: 500; }
+.empty-msg { font-size: 13px; color: var(--silver-dark); }
+
+/* Download row */
+.dl-row {
+  padding: 14px 16px; background: var(--surface); border: 1px solid var(--border);
+  margin-bottom: 6px; transition: border-color 0.2s;
+}
+.dl-row:hover { border-color: var(--border-hi); }
+.dl-top { display: flex; align-items: center; gap: 12px; }
+.dl-info { flex: 1; min-width: 0; }
+.dl-name { font-size: 14px; font-weight: 600; color: var(--silver); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-meta { font-size: 11px; color: var(--silver-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-status { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 8px; border-radius: 2px; }
+.dl-status.downloading { color: var(--purple); background: var(--purple-dim); }
+.dl-status.paused { color: #f59e0b; background: rgba(245,158,11,0.12); }
+.dl-status.done { color: #22c55e; background: rgba(34,197,94,0.12); }
+.dl-status.error { color: #f43f5e; background: rgba(244,63,94,0.12); }
+.dl-status.building { color: #3b82f6; background: rgba(59,130,246,0.12); }
+
+/* Progress bar */
+.dl-progress { margin-top: 10px; }
+.dl-progress-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.dl-progress-text { font-size: 11px; color: var(--silver-dim); flex: 1; }
+.dl-progress-pct { font-size: 12px; font-weight: 600; color: #a78bfa; min-width: 40px; text-align: right; }
+.dl-bar { height: 6px; background: rgba(124,58,237,0.15); border-radius: 3px; overflow: hidden; }
+.dl-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 50%, #7c3aed 100%);
+  background-size: 200% 100%;
+  transition: width 0.4s ease;
+}
+.dl-bar-fill.animate {
+  animation: dlShimmer 1.5s ease-in-out infinite;
+}
+@keyframes dlShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Action buttons */
+.dl-actions { display: flex; gap: 6px; align-items: center; }
+.btn { font-size: 11px; padding: 5px 12px; border: 1px solid var(--border-hi); background: transparent;
+  color: var(--silver-dim); cursor: pointer; font-family: inherit; letter-spacing: 0.5px; text-transform: uppercase;
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); transition: all 0.2s; }
+.btn:hover { color: var(--silver); border-color: var(--silver-dim); }
+.btn.primary { background: var(--purple); border-color: var(--purple); color: white; }
+.btn.primary:hover { background: #7c3aed; }
+.btn.warn { border-color: #f59e0b; color: #f59e0b; }
+.btn.warn:hover { background: rgba(245,158,11,0.1); }
+
+/* Priority arrows */
+.priority-arrows { display: flex; flex-direction: column; gap: 2px; }
+.priority-arrows button {
+  background: none; border: 1px solid var(--border); color: var(--silver-dark);
+  cursor: pointer; font-size: 10px; width: 22px; height: 16px; display: flex;
+  align-items: center; justify-content: center; border-radius: 2px; padding: 0;
+  transition: all 0.2s; line-height: 1;
+}
+.priority-arrows button:hover { color: var(--purple); border-color: var(--purple); }
+.priority-arrows button:disabled { opacity: 0.2; cursor: default; }
+
+/* Big percentage */
+.dl-pct-big { font-size: 20px; font-weight: 700; color: #a78bfa; min-width: 58px; text-align: right; letter-spacing: -0.5px; }
+
+/* Available models */
+.avail-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+  background: var(--surface); border: 1px solid var(--border); margin-bottom: 4px;
+}
+.avail-row .info { flex: 1; }
+.avail-row .name { font-size: 13px; font-weight: 600; color: var(--silver); }
+.avail-row .meta { font-size: 11px; color: var(--silver-dim); margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="logo" href="/app">BareMetalRT</a>
+  <a class="back" href="/app">&larr;</a>
+  <span class="spacer"></span>
+</div>
+
+<div class="content">
+  <div class="section" id="active-section">
+    <div class="section-title">Active Downloads <span class="section-count" id="active-count">0</span></div>
+    <div id="active-list"></div>
+  </div>
+
+  <div class="section" id="available-section">
+    <div class="section-title">Available Models</div>
+    <div id="available-list"></div>
+  </div>
+</div>
+
+<script>
+let _queueOrder = JSON.parse(localStorage.getItem('dl_queue_order') || '[]');
+let isDemo = false;
+
+async function init() {
+  const r = await fetch('/auth/me');
+  if (!r.ok) { window.location = '/app'; return; }
+  const me = await r.json();
+  isDemo = me.email === 'demo@baremetalrt.ai';
+  await refresh();
+  setInterval(refresh, 3000);
+}
+
+async function refresh() {
+  let mr;
+  try { mr = await fetch('/api/models'); } catch { return; }
+  if (!mr.ok) return;
+  const d = await mr.json();
+  const models = d.models || [];
+
+  const activeList = document.getElementById('active-list');
+  const availList = document.getElementById('available-list');
+  const actives = [];
+  const available = [];
+
+  for (const m of models) {
+    let sr;
+    try { sr = await fetch(`/api/models/${m.id}/status`); } catch { continue; }
+    const st = await sr.json();
+    const pull = st.pull || { status: 'idle' };
+    const build = st.build || { status: 'idle' };
+
+    if (pull.status === 'downloading' || pull.status === 'paused' || build.status === 'building') {
+      actives.push({ model: m, pull, build });
+    } else if (!m.downloaded) {
+      available.push(m);
+    }
+  }
+
+  // Sort actives by queue order (user-prioritized)
+  actives.sort((a, b) => {
+    const ai = _queueOrder.indexOf(a.model.id);
+    const bi = _queueOrder.indexOf(b.model.id);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  // Render active downloads
+  document.getElementById('active-count').textContent = actives.length;
+  if (actives.length === 0) {
+    activeList.innerHTML = '<div class="empty-msg">No active downloads.</div>';
+  } else {
+    activeList.innerHTML = '';
+    for (let idx = 0; idx < actives.length; idx++) {
+      const { model: m, pull, build } = actives[idx];
+      const active = pull.status === 'downloading' || pull.status === 'paused' ? pull : build;
+      const status = active.status;
+      const pct = active.percent != null && active.percent > 0 ? active.percent : null;
+      const progressText = active.progress || '';
+      const barWidth = pct != null ? Math.min(100, Math.max(2, pct)) + '%' : '100%';
+      const animClass = (status === 'downloading' || status === 'building') ? 'animate' : '';
+      const pctDisplay = pct != null ? Math.round(pct) + '%' : '--';
+
+      let btns = '';
+      if (status === 'downloading') {
+        btns = `<button class="btn warn" onclick="pauseDownload('${m.id}')">Pause</button>` +
+          `<button class="btn danger" onclick="cancelDownload('${m.id}')">Cancel</button>`;
+      } else if (status === 'paused') {
+        btns = `<button class="btn primary" onclick="resumeDownload('${m.id}')">Resume</button>` +
+          `<button class="btn danger" onclick="cancelDownload('${m.id}')">Cancel</button>`;
+      }
+
+      const isFirst = idx === 0;
+      const isLast = idx === actives.length - 1;
+      const arrows = actives.length > 1 ? `
+        <div class="priority-arrows">
+          <button onclick="movePriority('${m.id}', -1)" ${isFirst ? 'disabled' : ''} title="Higher priority">&#9650;</button>
+          <button onclick="movePriority('${m.id}', 1)" ${isLast ? 'disabled' : ''} title="Lower priority">&#9660;</button>
+        </div>` : '';
+
+      const row = document.createElement('div');
+      row.className = 'dl-row';
+      row.innerHTML = `
+        <div class="dl-top">
+          ${arrows}
+          <div class="dl-info">
+            <div class="dl-name" title="${m.name}">${m.name}</div>
+            <div class="dl-meta" title="${m.hf_repo}">${m.params_b}B params · ${m.hf_repo}</div>
+          </div>
+          <div class="dl-pct-big">${pctDisplay}</div>
+          <span class="dl-status ${status}">${status}</span>
+          <div class="dl-actions">${btns}</div>
+        </div>
+        <div class="dl-progress">
+          <div class="dl-progress-row">
+            <span class="dl-progress-text">${progressText}</span>
+          </div>
+          <div class="dl-bar"><div class="dl-bar-fill ${animClass}" style="width:${barWidth}"></div></div>
+        </div>
+      `;
+      activeList.appendChild(row);
+    }
+  }
+
+  // Render available
+  if (available.length === 0) {
+    availList.innerHTML = '<div class="empty-msg">All models downloaded.</div>';
+  } else {
+    availList.innerHTML = '';
+    for (const m of available) {
+      const vramGb = Math.round(m.vram_fp16_mb / 1024);
+      const row = document.createElement('div');
+      row.className = 'avail-row';
+      const pullBtn = isDemo
+        ? `<button class="btn" disabled style="opacity:0.35;cursor:default;" title="Not available in demo mode">Pull</button>`
+        : `<button class="btn primary" onclick="startDownload('${m.id}')">Pull</button>`;
+      row.innerHTML = `
+        <div class="info">
+          <div class="name">${m.name}</div>
+          <div class="meta">${m.params_b}B · ${vramGb}GB VRAM · ${m.context_length} context</div>
+        </div>
+        ${pullBtn}
+      `;
+      availList.appendChild(row);
+    }
+  }
+}
+
+function movePriority(id, dir) {
+  // Ensure all active IDs are in the queue order
+  const activeEls = document.querySelectorAll('.dl-row');
+  const activeIds = [];
+  activeEls.forEach(el => {
+    const nameEl = el.querySelector('.dl-name');
+    if (nameEl) {
+      // Find model ID from the pause/resume button onclick
+      const btn = el.querySelector('.dl-actions button');
+      if (btn) {
+        const match = btn.getAttribute('onclick')?.match(/'([^']+)'/);
+        if (match) activeIds.push(match[1]);
+      }
+    }
+  });
+
+  // Build ordered list from current render order
+  if (_queueOrder.length === 0) _queueOrder = [...activeIds];
+  // Add any missing IDs
+  for (const aid of activeIds) {
+    if (!_queueOrder.includes(aid)) _queueOrder.push(aid);
+  }
+
+  const idx = _queueOrder.indexOf(id);
+  if (idx === -1) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= _queueOrder.length) return;
+  // Swap
+  [_queueOrder[idx], _queueOrder[newIdx]] = [_queueOrder[newIdx], _queueOrder[idx]];
+  localStorage.setItem('dl_queue_order', JSON.stringify(_queueOrder));
+  refresh();
+}
+
+async function startDownload(id) {
+  if (isDemo) return;
+  // Add to queue
+  if (!_queueOrder.includes(id)) _queueOrder.push(id);
+  localStorage.setItem('dl_queue_order', JSON.stringify(_queueOrder));
+  await fetch(`/api/models/${id}/pull`, { method: 'POST' });
+  refresh();
+}
+
+async function pauseDownload(id) {
+  await fetch(`/api/models/${id}/pause`, { method: 'POST' });
+  refresh();
+}
+
+async function cancelDownload(id) {
+  if (!confirm('Cancel download and delete partial files?')) return;
+  await fetch(`/api/models/${id}/cancel`, { method: 'POST' });
+  _queueOrder = _queueOrder.filter(x => x !== id);
+  localStorage.setItem('dl_queue_order', JSON.stringify(_queueOrder));
+  setTimeout(refresh, 1000);
+}
+
+async function resumeDownload(id) {
+  await fetch(`/api/models/${id}/pull`, { method: 'POST' });
+  refresh();
+}
+
+init();
+</script>
+</body>
+</html>

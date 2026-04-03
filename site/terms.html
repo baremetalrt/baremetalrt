@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms of Service — Bare Metal AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #08080a; --surface: #0e0e12; --border: #22222a; --silver: #d8d8e0; --silver-dim: #9898a4; --purple: #8b5cf6; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Space Grotesk', system-ui, sans-serif; background: var(--bg); color: var(--silver); }
+.header { display: flex; align-items: center; padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.logo { font-size: 16px; font-weight: 800; letter-spacing: 3px; text-decoration: none;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.content { max-width: 720px; margin: 0 auto; padding: 48px 24px; line-height: 1.8; }
+h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+h2 { font-size: 18px; font-weight: 600; margin-top: 32px; margin-bottom: 12px; color: #fff; }
+p { margin-bottom: 16px; color: var(--silver-dim); font-size: 15px; }
+.updated { font-size: 13px; color: #55555e; margin-bottom: 32px; }
+a { color: var(--purple); }
+ul { padding-left: 20px; margin-bottom: 16px; }
+li { margin-bottom: 8px; color: var(--silver-dim); font-size: 15px; }
+.footer { text-align: center; padding: 32px; font-size: 11px; color: #55555e; }
+</style>
+</head>
+<body>
+<div class="header"><a class="logo" href="/">BareMetalRT</a></div>
+<div class="content">
+<h1>Terms of Service</h1>
+<div class="updated">Last updated: April 1, 2026</div>
+
+<p>These terms govern your use of the BareMetalRT platform operated by Bare Metal AI, Inc. By using our service, you agree to these terms.</p>
+
+<h2>1. The Service</h2>
+<p>BareMetalRT provides GPU-accelerated LLM inference software. The service includes a web application at baremetalrt.ai and a desktop daemon that runs on your hardware. Inference is performed on your own GPU — we do not provide compute resources.</p>
+
+<h2>2. Your Account</h2>
+<p>You must provide accurate information when registering. You are responsible for maintaining the security of your account credentials and API keys. Notify us immediately if you suspect unauthorized access.</p>
+
+<h2>3. Acceptable Use</h2>
+<p>You agree not to:</p>
+<ul>
+<li>Use the service for any illegal purpose</li>
+<li>Attempt to gain unauthorized access to our systems</li>
+<li>Interfere with or disrupt the service for other users</li>
+<li>Reverse engineer, decompile, or disassemble the software except as permitted by law</li>
+<li>Use the service to generate content that violates applicable laws</li>
+</ul>
+
+<h2>4. Intellectual Property</h2>
+<p>The BareMetalRT software, including its TCP transport layer, TensorRT-LLM integration, and web interface, is the property of Bare Metal AI, Inc. Open-source components are licensed under their respective licenses (Apache 2.0 for the TRT-LLM fork).</p>
+
+<h2>5. Models</h2>
+<p>LLM models available through our platform are provided by third parties (Microsoft, Mistral AI, Alibaba, etc.) under their own licenses. You are responsible for complying with each model's license terms. We do not claim ownership of any model weights.</p>
+
+<h2>6. Privacy</h2>
+<p>Your chat conversations are processed locally on your GPU, AES-256 encrypted, and stored on your device. Bare Metal AI does not access, store, or transmit your chat content. See our <a href="/privacy">Privacy Policy</a> for details on what data we do collect.</p>
+
+<h2>7. Disclaimer</h2>
+<p>The service is provided "as is" without warranties of any kind. We do not guarantee uptime, accuracy of model outputs, or fitness for any particular purpose. LLM outputs may contain errors, biases, or hallucinations.</p>
+
+<h2>8. Limitation of Liability</h2>
+<p>To the maximum extent permitted by law, Bare Metal AI, Inc. shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the service.</p>
+
+<h2>9. Changes</h2>
+<p>We may update these terms. Continued use of the service after changes constitutes acceptance. We will notify registered users of material changes via email.</p>
+
+<h2>10. Contact</h2>
+<p>Bare Metal AI, Inc.<br>legal@baremetalrt.ai</p>
+</div>
+<div class="footer">&copy; 2026 Bare Metal AI, Inc. All rights reserved.</div>
+</body>
+</html>

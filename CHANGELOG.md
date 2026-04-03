@@ -2,6 +2,30 @@
 
 All notable changes to BareMetalRT will be documented in this file.
 
+## [0.5.1-beta] - 2026-04-03
+
+### Added
+- Stop token handling for model-specific end-of-turn tokens
+- Degenerate output detection (control characters)
+- Empty-decode stop token detection
+
+### Fixed
+- Generation now correctly stops on all model-specific EOS tokens
+- Special tokens no longer leak into chat output
+
+## [0.5.0-beta] - 2026-04-03
+
+### Added
+- One-click GPU claiming (Plex-style device linking)
+- WebSocket relay with proper locking
+- Dynamic path resolution for frozen exe builds
+
+### Fixed
+- Production audit — WS relay race condition, error visibility
+- Chat input state management when GPU connects
+- Installer DLL and tokenizer loading from site-packages
+- CDN cache busting with content hashes
+
 ## [0.4.1-beta] - 2026-03-31
 
 ### Added

@@ -1,58 +1,78 @@
-# OpenAI-Compatible API Server for Local Llama 2 Inference
+# BareMetalRT API Reference
 
-## 🚀 Quick Start
+BareMetalRT exposes an OpenAI-compatible API for chat completions.
 
-1. **Install dependencies:**
-   ```sh
-   pip install fastapi uvicorn torch transformers
-   ```
+## Authentication
 
-2. **Start the API server (recommended):**
-   ```sh
-   python -m uvicorn api.openai_api:app --host 0.0.0.0 --port 8000
-   ```
-   This method works on all platforms and does not require uvicorn to be in your PATH.
-
-3. **Test the API:**
-   - Use the provided `scripts/test_api.py` script:
-     ```sh
-     python scripts/test_api.py
-     ```
-   - Or use Postman/curl to POST to `http://localhost:8000/v1/completions`.
-
----
-
-This document describes how to install dependencies, start the FastAPI server, and test the OpenAI-compatible API for local single-node inference.
-
-## Requirements
-- Python 3.10+
-- Windows (tested)
-- GPU recommended for best performance
-
-## Install Dependencies
-```
-pip install fastapi uvicorn torch transformers
-```
-
-## Start the API Server
-Recommended (works everywhere):
-```
-python -m uvicorn api.openai_api:app --host 0.0.0.0 --port 8000
-```
-
-## API Endpoint
-- **POST** `/v1/completions`  
-  OpenAI-compatible completion endpoint. Accepts JSON payload with `prompt`, `max_tokens`, etc.
-
-## Example API Test
-Run the following script to test the API after starting the server:
+All API requests require a Bearer token. Generate API keys in [Account Settings](https://baremetalrt.ai/account).
 
 ```
-python test_api.py
+Authorization: Bearer bmrt_your_api_key
 ```
 
-This will send a sample prompt and print the response. You should see a JSON object with `choices`, `id`, `object`, etc., matching the OpenAI API format.
+## Endpoints
 
----
+### POST /v1/chat/completions
 
-For troubleshooting, ensure your model and dependencies are installed, and check the console for errors during server startup.
+OpenAI-compatible chat completion with streaming.
+
+```bash
+curl https://baremetalrt.ai/v1/chat/completions \
+  -H "Authorization: Bearer bmrt_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "mistral-7b",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "max_tokens": 256,
+    "stream": true
+  }'
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `model` | string | Model to use (e.g. `mistral-7b`) |
+| `messages` | array | Chat messages (`role` + `content`) |
+| `max_tokens` | integer | Maximum tokens to generate (default: 256) |
+| `stream` | boolean | Enable SSE streaming (default: true) |
+
+#### Response (streaming)
+
+```
+data: {"token": "Hello", "token_id": 22557, "time_ms": 78.2}
+data: {"token": "!", "token_id": 28808, "time_ms": 80.1}
+data: {"done": true, "total_tokens": 24}
+```
+
+### GET /api/models
+
+List available models on connected GPU nodes.
+
+### GET /health
+
+Server health check. Returns node count and version.
+
+## Client Examples
+
+### Python
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://baremetalrt.ai/v1",
+    api_key="bmrt_your_api_key",
+)
+
+response = client.chat.completions.create(
+    model="mistral-7b",
+    messages=[{"role": "user", "content": "Hello!"}],
+    max_tokens=128,
+)
+print(response.choices[0].message.content)
+```
+
+### IDE Integration
+
+Set the API base URL to `https://baremetalrt.ai/v1` and use your BareMetalRT API key in any OpenAI-compatible IDE plugin (Continue, Cursor, etc.).

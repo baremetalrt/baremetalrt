@@ -204,7 +204,7 @@ async def download_installer():
         installer = PROJECT_ROOT / "dist" / "BareMetalRT-Setup.exe"
     if installer.exists():
         return FileResponse(str(installer), filename=f"BareMetalRT-{VERSION}-Setup.exe", media_type="application/x-msdownload")
-    return RedirectResponse("https://github.com/baremetalrt/baremetalrt/releases")
+    return RedirectResponse("https://github.com/baremetalrt/baremetalrt/releases/latest")
 
 
 @app.api_route("/{path:path}", methods=["GET"], include_in_schema=False)

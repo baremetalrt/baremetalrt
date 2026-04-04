@@ -259,6 +259,7 @@ async def proxy_chat(request: Request):
                             content={"error": f"Failed to reach GPU node: {e}"})
 
     async def stream_from_ws():
+        got_done = False
         try:
             while True:
                 msg = await asyncio.wait_for(_ws_response_queue.get(), timeout=300.0)
@@ -267,10 +268,14 @@ async def proxy_chat(request: Request):
                     break
                 yield msg
                 if '"done": true' in msg or '"done":true' in msg:
+                    got_done = True
                     break
                 if '"error"' in msg:
                     break
         except asyncio.TimeoutError:
             yield f"data: {json.dumps({'error': 'Timeout waiting for GPU node'})}\n\n"
+        # Always send a done signal so the frontend knows streaming ended
+        if not got_done:
+            yield f"data: {json.dumps({'done': True, 'truncated': True})}\n\n"
 
     return StreamingResponse(stream_from_ws(), media_type="text/event-stream")

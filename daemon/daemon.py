@@ -864,7 +864,7 @@ async def api_status():
 
 class ChatRequest(BaseModel):
     message: str
-    max_tokens: int = 512
+    max_tokens: int = 2048
     history: list[dict] = []  # [{"role": "user"|"assistant", "content": "..."}]
 
 
@@ -933,7 +933,7 @@ async def api_chat(req: ChatRequest):
         return JSONResponse(status_code=400, content={"error": "Chat only on rank 0"})
 
     return StreamingResponse(
-        _generate_tokens(req.message, min(req.max_tokens, 2048), req.history),
+        _generate_tokens(req.message, min(req.max_tokens, 4096), req.history),
         media_type="text/event-stream",
     )
 
@@ -1397,7 +1397,7 @@ def _ws_bridge_worker(orchestrator_url: str):
                     else:
                         # Default: chat message
                         message = req_data.get("message", "")
-                        max_tokens = min(req_data.get("max_tokens", 512), 2048)
+                        max_tokens = min(req_data.get("max_tokens", 2048), 4096)
                         history = req_data.get("history", [])
                         try:
                             for chunk in _generate_tokens(message, max_tokens, history):
@@ -1436,24 +1436,33 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
         reason = f"status={state.status}, engine={'loaded' if state.engine else 'none'}, tokenizer={'loaded' if state.tokenizer else 'none'}"
         log.warning(f"Chat rejected: {reason}")
         yield f"data: {json.dumps({'error': f'Not ready ({reason})'})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'total_tokens': 0})}\n\n"
         return
 
     # Truncate history from oldest turns until prompt fits context budget
     hist = list(history or [])
-    # Cap max_tokens to half the context window so there's always room for the prompt
-    max_tokens = min(max_tokens, state.engine.MAX_SEQ_LEN // 2)
-    max_prompt_tokens = state.engine.MAX_SEQ_LEN - max_tokens - 16  # leave margin
+    # Encode prompt first, then give remaining context window to generation
+    # (reserve 64 tokens as safety margin for special tokens / rounding)
+    margin = 64
     while True:
         prompt = _format_prompt(message, hist)
         input_ids = state.tokenizer.encode(prompt)
-        if len(input_ids) <= max_prompt_tokens or len(hist) < 2:
+        available = state.engine.MAX_SEQ_LEN - len(input_ids) - margin
+        if available >= min(max_tokens, 128) or len(hist) < 2:
             break
         hist = hist[2:]  # drop oldest user+assistant pair
 
     # If prompt still too long even after dropping all history, reject
-    if len(input_ids) > max_prompt_tokens:
+    available = state.engine.MAX_SEQ_LEN - len(input_ids) - margin
+    if available < 64:
         yield f"data: {json.dumps({'error': 'Context window full — please start a new conversation.'})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'total_tokens': 0})}\n\n"
         return
+
+    # Use all remaining context for generation, up to what was requested
+    max_tokens = min(max_tokens, available)
+    log.info(f"Chat: prompt={len(input_ids)} tokens, max_output={max_tokens}, "
+             f"context_window={state.engine.MAX_SEQ_LEN}")
 
     # Reset KV cache — each request sends full prompt with history
     state.engine.reset_kv_cache()
@@ -1510,6 +1519,7 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
 
     if first_token < 0:
         yield f"data: {json.dumps({'error': 'context phase failed'})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'total_tokens': 0})}\n\n"
         return
     if first_token in stop_ids:
         yield f"data: {json.dumps({'done': True, 'total_tokens': 0})}\n\n"
@@ -1537,6 +1547,7 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
 
         if token_id < 0:
             yield f"data: {json.dumps({'error': 'generation failed'})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'total_tokens': len(generated), 'truncated': True})}\n\n"
             return
         if token_id in stop_ids:
             hit_eos = True

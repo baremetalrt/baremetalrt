@@ -58,6 +58,6 @@ class NodeResponse(BaseModel):
 # Chat
 class ChatRequest(BaseModel):
     message: str
-    max_tokens: int = 128
+    max_tokens: int = 2048
     history: list[dict] = []
     model: Optional[str] = None

@@ -580,7 +580,7 @@ async function chat() {
       body: JSON.stringify({
         message: msg,
         history: conversationHistory.slice(-10),
-        max_tokens: 2048,
+        max_tokens: 4096,
       }),
     });
 
@@ -601,12 +601,20 @@ async function chat() {
     const genStart = performance.now();
     let genDone = false;
 
+    let wasTruncated = false;
+
     function processLine(line) {
       if (!line.startsWith('data: ')) return;
       try {
         const data = JSON.parse(line.slice(6));
         if (data.error) {
-          el.innerHTML = '<span style="color:#f43f5e">' + esc(data.error) + '</span>';
+          // If we already have partial text, show it with the error appended
+          if (fullText) {
+            fullText += '\n\n**Error:** ' + data.error;
+            el.innerHTML = renderMarkdown(fullText);
+          } else {
+            el.innerHTML = '<span style="color:#f43f5e">' + esc(data.error) + '</span>';
+          }
           genDone = true;
           return;
         }
@@ -620,7 +628,8 @@ async function chat() {
         if (data.done) {
           if (data.total_tokens) tokenCount = data.total_tokens;
           if (data.truncated) {
-            fullText += '\n\n*(Response truncated — token limit reached)*';
+            wasTruncated = true;
+            fullText += '\n\n---\n*Response truncated — token limit reached. Start a new message to continue.*';
           }
           genDone = true;
         }
@@ -645,20 +654,35 @@ async function chat() {
     // Process any remaining data in buffer
     if (buffer.trim()) processLine(buffer.trim());
 
+    // If stream ended without a done signal and we have partial text, mark as truncated
+    if (!genDone && fullText && tokenCount > 0) {
+      wasTruncated = true;
+      fullText += '\n\n---\n*Response interrupted — connection lost. Your partial response is shown above.*';
+    }
+
     const elapsed = (performance.now() - genStart) / 1000;
     const tokSec = tokenCount > 0 && elapsed > 0 ? (tokenCount / elapsed).toFixed(1) : null;
 
     if (fullText) {
       let statsHtml = '';
       if (tokenCount > 0 && tokSec) {
-        statsHtml = `<div class="gen-stats">${tokenCount} tokens \u00b7 ${tokSec} tok/s \u00b7 ${elapsed.toFixed(1)}s</div>`;
+        const truncLabel = wasTruncated ? ' · truncated' : '';
+        statsHtml = `<div class="gen-stats">${tokenCount} tokens · ${tokSec} tok/s · ${elapsed.toFixed(1)}s${truncLabel}</div>`;
       }
       el.innerHTML = renderMarkdown(fullText) + statsHtml;
       conversationHistory.push({ role: 'assistant', content: fullText });
       saveHistory();
     }
   } catch(e) {
-    el.innerHTML = '<span style="color:#f43f5e">Connection error</span>';
+    // If we had partial text before the error, preserve it
+    if (fullText) {
+      el.innerHTML = renderMarkdown(fullText) +
+        '<div class="gen-stats" style="color:#f43f5e">Connection lost — partial response shown</div>';
+      conversationHistory.push({ role: 'assistant', content: fullText });
+      saveHistory();
+    } else {
+      el.innerHTML = '<span style="color:#f43f5e">Connection error — please try again</span>';
+    }
   }
 
   clearInterval(verbInterval);

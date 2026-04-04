@@ -5,14 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <title>BareMetalRT &mdash; Live Demo</title>
+<meta name="description" content="Try BareMetalRT live — heterogeneous tensor parallelism across consumer GPUs over TCP. Chat with Mistral 7B running on real gaming hardware.">
+<meta property="og:title" content="BareMetalRT — Live Demo">
+<meta property="og:description" content="Chat with Mistral 7B running on consumer GPUs over TCP. No cloud, no NVLink.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#08080a">
 <link rel="stylesheet" href="/static/style.css?v=94">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<div class="header">
-  <a class="logo" href="/" style="text-decoration:none;">BareMetalRT</a>
+<header class="header" role="banner">
+  <a class="logo" href="/" style="text-decoration:none;" aria-label="BareMetalRT home">BareMetalRT</a>
   <span class="spacer"></span>
   <div class="mode-switcher" id="mode-switcher">
     <button class="mode-btn" data-mode="1gpu" onclick="tryDemo()" title="Single GPU inference mode">1 GPU</button>
@@ -32,7 +37,7 @@
       <div class="dropdown-item" onclick="signOut()">Sign Out</div>
     </div>
   </div>
-</div>
+</header>
 
 <!-- Mode toast -->
 <div class="toast" id="mode-toast"></div>
@@ -219,7 +224,7 @@
 <div class="input-area">
   <div class="input-row">
     <span class="input-prompt" id="input-prompt">Type a message to start &#8594;</span>
-    <textarea id="prompt" rows="3" placeholder="Enter prompt..." autocomplete="off"></textarea>
+    <textarea id="prompt" rows="3" placeholder="Enter prompt..." autocomplete="off" aria-label="Chat message"></textarea>
     <button id="send-btn" onclick="chat()">&#8593;</button>
   </div>
 </div>

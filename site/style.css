@@ -79,7 +79,8 @@ body {
 .header .logo {
   font-size: 18px; font-weight: 800; letter-spacing: 3px; color: #fff;
   background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
 }
 .header .pipe { color: var(--silver-dark); margin: 0 14px; font-weight: 200; }
 .header .spacer { flex: 1; }
@@ -179,7 +180,8 @@ body {
 [data-theme="light"] .theme-toggle { background: var(--toggle-bg); }
 [data-theme="light"] .header .logo {
   background: linear-gradient(180deg, #1a1a22 0%, #3a3a44 50%, #1a1a22 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
 }
 
 /* Smooth theme transitions */
@@ -426,8 +428,8 @@ body, .header, .msg, .input-area, .mesh, .node, .welcome .mode,
   font-size: 32px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
   text-align: center;
   background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
   filter: drop-shadow(0 0 20px rgba(192,192,208,0.4)) drop-shadow(0 0 60px rgba(192,192,208,0.15));
   animation: taglineGlow 2s ease-out 0.3s both;
 }
@@ -544,4 +546,19 @@ body, .header, .msg, .input-area, .mesh, .node, .welcome .mode,
   .node { width: 120px; }
   .welcome .tagline { font-size: 15px; }
   .welcome .subtitle { font-size: 11px; }
+}
+
+/* Accessibility — reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus indicators */
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
 }

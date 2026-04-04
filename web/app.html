@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <title>BareMetalRT — Bare Metal AI</title>
+<meta name="description" content="Run LLM inference on your own GPU hardware. BareMetalRT uses NVIDIA TensorRT-LLM CUDA kernels for data-center-grade performance on consumer GPUs.">
+<meta name="theme-color" content="#08080a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/app/static/app.css?v=__VERSION__">
@@ -96,9 +98,12 @@ if (document.cookie.includes('token=')) {
     <a onclick="if(history.length>1)history.back();else location.href='/'" style="position:absolute; top:12px; right:16px; color:var(--silver-dark); text-decoration:none; font-size:18px; line-height:1; cursor:pointer;">&times;</a>
     <h2 id="auth-title">Sign In</h2>
     <div class="error" id="auth-error"></div>
-    <input type="text" id="auth-name" placeholder="Name" style="display:none">
-    <input type="email" id="auth-email" placeholder="Email">
-    <input type="password" id="auth-password" placeholder="Password"
+    <label for="auth-name" class="sr-only">Name</label>
+    <input type="text" id="auth-name" placeholder="Name" style="display:none" autocomplete="name">
+    <label for="auth-email" class="sr-only">Email</label>
+    <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
+    <label for="auth-password" class="sr-only">Password</label>
+    <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password"
       onkeydown="if(event.key==='Enter')submitAuth()">
     <button class="btn-submit" id="auth-submit" onclick="submitAuth()">Sign In</button>
     <div class="switch" id="auth-switch">
@@ -236,10 +241,10 @@ if (document.cookie.includes('token=')) {
     <span id="chat-model-text"></span>
   </div>
   <div class="input-row">
-    <textarea id="prompt" rows="1" placeholder="Sign in to start chatting..." disabled
+    <textarea id="prompt" rows="1" placeholder="Sign in to start chatting..." disabled aria-label="Chat message"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chat()}"
       oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
-    <button class="send-btn" id="send-btn" onclick="chat()" disabled>&#8593;</button>
+    <button class="send-btn" id="send-btn" onclick="chat()" disabled aria-label="Send message">&#8593;</button>
   </div>
 </div>
 

@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <title>BareMetalRT — Edge GPU Compute Mesh</title>
+<meta name="description" content="BareMetalRT is the world's first GPU-native edge compute mesh. Run data-center-grade LLM inference on consumer gaming PCs using NVIDIA TensorRT-LLM CUDA kernels.">
+<meta property="og:title" content="BareMetalRT — Edge GPU Compute Mesh">
+<meta property="og:description" content="Data center intelligence, powered by your gaming PC. The first heterogeneous tensor parallelism on consumer hardware over commodity networks.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://baremetalrt.ai">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="BareMetalRT — Edge GPU Compute Mesh">
+<meta name="twitter:description" content="Data center intelligence, powered by your gaming PC.">
+<meta name="theme-color" content="#08080a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -22,7 +31,7 @@
 body {
   font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
   background: var(--bg); color: var(--silver);
-  margin: 0; overflow: hidden; height: 100vh;
+  margin: 0; overflow: hidden; height: 100vh; height: 100dvh;
 }
 
 /* Fixed header */
@@ -46,6 +55,11 @@ body {
 .section-2.visible { opacity: 1; pointer-events: auto; z-index: 3; visibility: visible; }
 .section-2.faded { opacity: 0; pointer-events: none; z-index: 1; }
 .section-3.visible { opacity: 1; pointer-events: auto; z-index: 3; visibility: visible; }
+
+/* Button resets for semantic elements */
+button.scroll-hint, button.whitepaper-hint, button.back-hint, button.back-hint-s2 {
+  background: none; border: none; font-family: inherit;
+}
 
 /* Scroll hint */
 .scroll-hint {
@@ -101,7 +115,8 @@ body {
 .logo {
   font-size: 18px; font-weight: 800; letter-spacing: 3px;
   background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
 }
 .nav { display: flex; gap: 24px; align-items: center; }
 .nav a {
@@ -128,14 +143,16 @@ body {
   font-size: 48px; font-weight: 700;
   letter-spacing: 1px; line-height: 1.15;
   background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
   animation: glowReveal 2s ease-out 0.3s both;
 }
 .hero .sub {
   font-size: 15px; font-weight: 500;
   letter-spacing: 2.5px; text-transform: uppercase;
   background: linear-gradient(135deg, #f0f0f4 0%, #7a7a88 35%, #d8d8e4 55%, #686870 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
   margin-top: 24px;
   animation: dramaticFadeUp 1s ease-out 1.2s both;
 }
@@ -355,9 +372,12 @@ body {
 
 /* Site copyright */
 .site-copyright {
-  position: absolute; bottom: 12px; right: 24px;
+  position: absolute; bottom: 16px; right: 24px;
   font-size: 11px; color: #55555e; letter-spacing: 0.5px;
   pointer-events: none;
+}
+.hero-inner {
+  position: relative; min-height: 100%;
 }
 
 /* Footer */
@@ -378,6 +398,21 @@ body {
   pointer-events: none;
 }
 .toast.show { opacity: 1; }
+
+/* Accessibility — reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus indicators */
+a:focus-visible, button:focus-visible, .cta:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
 
 /* Responsive — tablet */
 @media (max-width: 1024px) {
@@ -408,9 +443,10 @@ body {
   .hero .desc { font-size: 14px; line-height: 1.7; margin-top: 20px; }
   .hero .manifesto-line { font-size: 16px; margin-top: 14px; }
 
-  /* CTA */
-  .cta-row { flex-direction: column; align-items: center; gap: 12px; }
+  /* CTA — keep row, hide download (Windows-only) on mobile */
+  .cta-row { gap: 16px; }
   .cta { padding: 11px 36px; font-size: 14px; }
+  .cta-glow--secondary { display: none; }
 
   /* Tiers */
   .tiers { padding: 16px 16px 48px; }
@@ -480,6 +516,7 @@ body {
   .logo { font-size: 13px; letter-spacing: 1.5px; }
   .nav { gap: 10px; }
   .nav a { font-size: 12px; }
+  .section { top: 44px; }
   .hero h1 { font-size: 24px; }
   .hero .desc { font-size: 13px; }
   .edge h2 { font-size: 26px; }
@@ -490,19 +527,19 @@ body {
 </head>
 <body>
 
-<div class="header">
-  <span class="logo" onclick="goHome()" style="cursor:pointer;">BareMetalRT</span>
-  <div class="nav">
+<header class="header" role="banner">
+  <a class="logo" href="/" aria-label="BareMetalRT home">BareMetalRT</a>
+  <nav class="nav" aria-label="Main navigation">
     <a href="/demo" class="nav-live">Live Demo</a>
     <a href="#" onclick="goToPaper(); return false;">WhitePaper</a>
-    <a href="https://github.com/baremetalrt/baremetalrt" target="_blank">GitHub</a>
+    <a href="https://github.com/baremetalrt/baremetalrt" target="_blank" rel="noopener">GitHub</a>
     <a href="/app" class="nav-live" style="margin-left: 8px;">Sign In</a>
-  </div>
-</div>
+  </nav>
+</header>
 
-<div class="section section-1">
+<main class="section section-1">
 <div class="hero-inner">
-<div class="hero">
+<section class="hero" aria-label="Hero">
   <h1>Data center intelligence.<br>Powered by your gaming PC.</h1>
   <div class="desc">
     Intelligence shouldn't be owned by the hyperscalers alone.
@@ -513,18 +550,19 @@ body {
   </div>
   <div class="cta-row">
     <a class="cta cta-primary" href="/demo">Demo</a>
-    <span class="cta-glow cta-glow--secondary"><a class="cta cta-secondary" href="/download" download>Download</a></span>
+    <span class="cta-glow cta-glow--secondary"><a class="cta cta-secondary" href="/downloads">Download</a></span>
   </div>
 </div>
 
 <div id="tiers-slot"></div>
-<div class="scroll-hint hidden" id="scroll-hint" onclick="goToSection2()">The Breakthrough<span class="arrow">&#8964;</span></div>
+<button class="scroll-hint hidden" id="scroll-hint" onclick="goToSection2()" aria-label="Navigate to The Breakthrough section">The Breakthrough<span class="arrow">&#8964;</span></button>
 <div class="site-copyright">&copy; 2026 Bare Metal AI, Inc.</div>
 </div>
-</div>
+</section>
+</main>
 
-<div class="section section-2">
-<div class="back-hint-s2" onclick="goToSection1()">&#8592; Back</div>
+<section class="section section-2" aria-label="The Breakthrough">
+<button class="back-hint-s2" onclick="goToSection1()" aria-label="Back to home">&#8592; Back</button>
 <div class="edge">
   <h2>The Breakthrough</h2>
   <div class="edge-sub">
@@ -588,13 +626,13 @@ body {
 </div>
 
 
-<div class="whitepaper-hint" onclick="goToSection3()">Read the whitepaper<span class="arrow">&#8964;</span></div>
+<button class="whitepaper-hint" onclick="goToSection3()" aria-label="Read the whitepaper">Read the whitepaper<span class="arrow">&#8964;</span></button>
 <div class="site-copyright">&copy; 2026 Bare Metal AI, Inc.</div>
-</div>
+</section>
 
-<div class="section section-3">
+<section class="section section-3" aria-label="Whitepaper">
 <div class="whitepaper">
-  <div class="back-hint" onclick="goToSection2FromWP(true)">&#8592; Back</div>
+  <button class="back-hint" onclick="goToSection2FromWP(true)" aria-label="Back to The Breakthrough">&#8592; Back</button>
   <h2>Whitepaper</h2>
   <div class="wp-sub">Heterogeneous Tensor Parallelism over Commodity TCP Networks via FP32 GPU-Native Reduction</div>
 
@@ -2241,7 +2279,7 @@ body {
   </div>
 </div>
 <div class="site-copyright">&copy; 2026 Bare Metal AI, Inc.</div>
-</div>
+</section>
 
 <script>
 setTimeout(() => {

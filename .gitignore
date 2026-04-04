@@ -151,7 +151,6 @@ paper/*.out
 paper/arxiv_submission.zip
 
 # Paper content (keep local)
-paper/main.pdf
 paper/references.bib
 models/
 

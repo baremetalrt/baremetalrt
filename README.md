@@ -8,7 +8,7 @@
 
 Intelligence shouldn't be owned by the hyperscalers alone. BareMetalRT turns the 200+ million NVIDIA GPUs running Windows into a distributed compute mesh — using NVIDIA's own TensorRT-LLM CUDA kernels, the same engine that powers cloud inference APIs. Built for the edge, not the cloud.
 
-**[Download Installer](https://github.com/baremetalrt/baremetalrt/releases/latest)** | **[Live Demo](https://baremetalrt.ai/demo)** | **[Documentation](https://baremetalrt.ai/docs)** | **[PyPI](https://pypi.org/project/baremetalrt/)** | **[Technical Paper](paper/main.tex)**
+**[Download Installer](https://github.com/baremetalrt/baremetalrt/releases/latest)** | **[Live Demo](https://baremetalrt.ai/demo)** | **[Documentation](https://baremetalrt.ai/docs)** | **[PyPI](https://pypi.org/project/baremetalrt/)** | **[Technical Paper](paper/main.pdf)**
 
 ## How It Works
 
@@ -109,7 +109,7 @@ bmrt run mistral-7b
 - **Double-buffered pinned memory** — four page-locked host buffers alternate between consecutive AllReduce calls, preventing data races between in-flight transfers.
 - **TensorRT-LLM on Windows** — full native port of NVIDIA's inference engine (Conan profiles, FMHA kernels, nanobind bindings, MSVC/CUDA interop). No WSL, no Docker.
 
-See [Architecture](docs/ARCHITECTURE.md) for the full system design, or read the [technical paper](paper/main.tex).
+See [Architecture](docs/ARCHITECTURE.md) for the full system design, or read the [technical paper](paper/main.pdf).
 
 ## What's in This Repo
 

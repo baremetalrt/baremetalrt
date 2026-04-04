@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BareMetalRT — Host Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08080a; --surface: #0e0e12; --surface2: #141418;
+  --border: #22222a; --border-hi: #3a3a44;
+  --silver: #d8d8e0; --silver-dim: #9898a4; --silver-dark: #55555e;
+  --purple: #8b5cf6; --purple-dim: rgba(139,92,246,0.12);
+  --green: #22c55e; --yellow: #eab308; --red: #f43f5e;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  background: var(--bg); color: var(--silver); min-height: 100vh;
+}
+
+.header {
+  display: flex; align-items: center; padding: 14px 24px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-size: 18px; font-weight: 800; letter-spacing: 3px;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header .tag {
+  font-size: 10px; color: var(--silver-dark); letter-spacing: 1.5px;
+  text-transform: uppercase; margin-left: 12px; padding: 2px 8px;
+  border: 1px solid var(--border); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+}
+.spacer { flex: 1; }
+.status-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 4px 14px; border: 1px solid;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+.status-badge.online { color: var(--green); border-color: var(--green); background: rgba(34,197,94,0.08); }
+.status-badge.offline { color: var(--red); border-color: var(--red); background: rgba(244,63,94,0.08); }
+.status-badge.loading { color: var(--yellow); border-color: var(--yellow); background: rgba(234,179,8,0.08); }
+
+.content { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
+
+/* GPU card */
+.gpu-card {
+  background: var(--surface); border: 1px solid var(--border); padding: 20px;
+  margin-bottom: 24px;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+.gpu-card h2 { font-size: 14px; color: var(--silver-dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+.gpu-name { font-size: 20px; font-weight: 600; color: var(--silver); }
+.gpu-stats { display: flex; gap: 24px; margin-top: 12px; }
+.gpu-stat { font-size: 13px; color: var(--silver-dim); }
+.gpu-stat strong { color: var(--silver); }
+.vram-bar { height: 4px; background: var(--border); margin-top: 12px; position: relative; }
+.vram-bar .fill { height: 100%; background: var(--purple); transition: width 0.3s; }
+
+/* Section titles */
+.section-title {
+  font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--silver-dim); margin-bottom: 16px; margin-top: 8px;
+}
+
+/* Model cards */
+.model-card {
+  background: var(--surface); border: 1px solid var(--border); padding: 16px 20px;
+  margin-bottom: 8px; display: flex; align-items: center; gap: 16px;
+  transition: border-color 0.2s;
+}
+.model-card:hover { border-color: var(--border-hi); }
+.model-card .info { flex: 1; }
+.model-card .name { font-size: 15px; font-weight: 500; color: var(--silver); }
+.model-card .meta { font-size: 12px; color: var(--silver-dim); margin-top: 2px; }
+.model-card .desc { font-size: 12px; color: var(--silver-dark); margin-top: 4px; }
+
+.fit-badge {
+  font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  padding: 2px 8px; border: 1px solid;
+}
+.fit-badge.fits { color: var(--green); border-color: var(--green); }
+.fit-badge.no-fit { color: var(--red); border-color: var(--red); }
+
+.model-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.btn {
+  font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  padding: 6px 14px; border: 1px solid var(--border-hi); background: transparent;
+  color: var(--silver-dim); cursor: pointer; font-family: inherit;
+  clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+  transition: all 0.2s;
+}
+.btn:hover { color: var(--silver); border-color: var(--silver-dim); }
+.btn.primary { background: var(--purple); border-color: var(--purple); color: white; }
+.btn.primary:hover { background: #7c3aed; }
+.btn:disabled { opacity: 0.3; cursor: default; }
+
+.progress { font-size: 11px; color: var(--yellow); margin-top: 4px; }
+.model-card.active { border-color: var(--purple); }
+
+/* Connection info */
+.conn-info {
+  background: var(--surface); border: 1px solid var(--border); padding: 16px 20px;
+  margin-bottom: 24px; font-size: 13px; color: var(--silver-dim);
+}
+.conn-info strong { color: var(--silver); }
+.conn-info .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.conn-info .dot.green { background: var(--green); }
+.conn-info .dot.red { background: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="logo">BareMetalRT</span>
+  <span class="tag">Host</span>
+  <span class="spacer"></span>
+  <span class="status-badge loading" id="status-badge">LOADING</span>
+</div>
+
+<div class="content">
+  <!-- GPU info -->
+  <div class="gpu-card">
+    <h2>GPU</h2>
+    <div class="gpu-name" id="gpu-name">Detecting...</div>
+    <div class="gpu-stats">
+      <div class="gpu-stat"><strong id="gpu-vram">—</strong> VRAM</div>
+      <div class="gpu-stat">Status: <strong id="gpu-status">—</strong></div>
+      <div class="gpu-stat">Model: <strong id="active-model">None</strong></div>
+    </div>
+    <div class="vram-bar"><div class="fill" id="vram-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Connection status -->
+  <div class="conn-info" id="conn-info">
+    <span class="dot red" id="conn-dot"></span>
+    <strong>Orchestrator:</strong> <span id="conn-status">Checking...</span>
+  </div>
+
+  <!-- Models -->
+  <div class="section-title">Models</div>
+  <div id="model-list">Loading...</div>
+</div>
+
+<script>
+async function refresh() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+
+    document.getElementById('gpu-name').textContent = d.gpu || 'Unknown';
+    document.getElementById('gpu-vram').textContent = d.vram_mb ? Math.round(d.vram_mb / 1024) + 'GB' : '—';
+    document.getElementById('gpu-status').textContent = d.status || '—';
+    document.getElementById('active-model').textContent = d.model || 'None';
+
+    const badge = document.getElementById('status-badge');
+    if (d.status === 'ready') {
+      badge.className = 'status-badge online';
+      badge.textContent = 'READY';
+    } else if (d.status === 'error') {
+      badge.className = 'status-badge offline';
+      badge.textContent = 'ERROR';
+    } else {
+      badge.className = 'status-badge loading';
+      badge.textContent = d.status ? d.status.toUpperCase() : 'LOADING';
+    }
+
+    // Connection status
+    const connDot = document.getElementById('conn-dot');
+    const connStatus = document.getElementById('conn-status');
+    if (d.solo_mode) {
+      connDot.className = 'dot green';
+      connStatus.textContent = 'Local only (no orchestrator)';
+    } else {
+      connDot.className = 'dot green';
+      connStatus.textContent = 'Connected to baremetalrt.ai';
+    }
+  } catch(e) {
+    document.getElementById('status-badge').className = 'status-badge offline';
+    document.getElementById('status-badge').textContent = 'OFFLINE';
+  }
+}
+
+async function loadModels() {
+  try {
+    const r = await fetch('/api/models');
+    const d = await r.json();
+    const list = document.getElementById('model-list');
+    list.innerHTML = '';
+
+    for (const m of d.models) {
+      const isActive = d.active_model && d.active_model.includes(m.id.replace(/-/g, ''));
+      const card = document.createElement('div');
+      card.className = 'model-card' + (isActive ? ' active' : '');
+
+      const fitClass = m.fits === true ? 'fits' : (m.fits === false ? 'no-fit' : '');
+      const fitText = m.fits === true ? 'FITS' : (m.fits === false ? 'TOO LARGE' : '');
+      const fitBadge = fitClass ? `<span class="fit-badge ${fitClass}">${fitText}</span>` : '';
+
+      let actions = '';
+      if (!m.downloaded) {
+        actions = `<button class="btn primary" onclick="pullModel('${m.id}')">Pull</button>`;
+      } else if (!m.engine_built) {
+        actions = `<button class="btn primary" onclick="buildModel('${m.id}')">Build Engine</button>`;
+      } else {
+        actions = `<button class="btn" onclick="loadModel('${m.id}')">Load</button>`;
+      }
+
+      const vram = m.vram_fp16_mb ? Math.round(m.vram_fp16_mb / 1024) + 'GB FP16' : '';
+
+      card.innerHTML = `
+        <div class="info">
+          <div class="name">${m.name} ${fitBadge}</div>
+          <div class="meta">${m.params_b}B params · ${vram} · ${m.context_length} ctx</div>
+          <div class="desc">${m.description}</div>
+          <div class="progress" id="progress-${m.id}" style="display:none"></div>
+        </div>
+        <div class="model-actions">${actions}</div>
+      `;
+      list.appendChild(card);
+    }
+  } catch(e) {
+    document.getElementById('model-list').textContent = 'Failed to load models';
+  }
+}
+
+async function pullModel(id) {
+  const r = await fetch(`/api/models/${id}/pull`, { method: 'POST' });
+  const d = await r.json();
+  pollStatus(id);
+}
+
+async function buildModel(id) {
+  const r = await fetch(`/api/models/${id}/build`, { method: 'POST' });
+  const d = await r.json();
+  pollStatus(id);
+}
+
+async function loadModel(id) {
+  // TODO: switch active model
+  alert('Model switching not yet implemented');
+}
+
+async function pollStatus(id) {
+  const el = document.getElementById('progress-' + id);
+  if (el) { el.style.display = ''; el.textContent = 'Starting...'; }
+
+  const poll = setInterval(async () => {
+    try {
+      const r = await fetch(`/api/models/${id}/status`);
+      const d = await r.json();
+      const active = d.pull.status === 'downloading' ? d.pull : d.build;
+      if (el) {
+        const pct = active.percent != null ? ` (${active.percent}%)` : '';
+        el.textContent = (active.progress || active.status) + pct;
+      }
+
+      if (active.status === 'done' || active.status === 'error' || active.status === 'idle') {
+        clearInterval(poll);
+        setTimeout(() => loadModels(), 1000);
+      }
+    } catch(e) {
+      clearInterval(poll);
+    }
+  }, 2000);
+}
+
+// Init
+refresh();
+loadModels();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>

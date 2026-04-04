@@ -82,6 +82,21 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\baremetalrt.iss
         shell: pwsh
 
+      - name: Sign executable
+        uses: azure/trusted-signing-action@v0.5.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: https://wus2.codesigning.azure.net
+          trusted-signing-account-name: Bare_Metal_AI
+          certificate-profile-name: baremetalrt-signing
+          files-folder: dist
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:

@@ -8,8 +8,7 @@
 param(
     [switch]$SkipAssets,
     [switch]$SkipBuild,
-    [string]$SignCert = "",
-    [string]$SignPassword = ""
+    [switch]$Sign
 )
 
 $ErrorActionPreference = "Stop"
@@ -80,16 +79,44 @@ if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
 
 $msiPath = "$ROOT\dist\$OUTPUT_NAME.exe"
 
-# ── Optional: Code signing ────────────────────────────
-if ($SignCert -and (Test-Path $msiPath)) {
-    Write-Host "  Signing installer..." -ForegroundColor Yellow
-    $signArgs = @("sign", "/f", $SignCert, "/t", "http://timestamp.digicert.com", "/d", "BareMetalRT", $msiPath)
-    if ($SignPassword) {
-        $signArgs = @("sign", "/f", $SignCert, "/p", $SignPassword, "/t", "http://timestamp.digicert.com", "/d", "BareMetalRT", $msiPath)
+# ── Optional: Azure Trusted Signing ───────────────────
+if ($Sign -and (Test-Path $msiPath)) {
+    Write-Host "  Signing with Azure Trusted Signing..." -ForegroundColor Yellow
+
+    # Install dlib if needed
+    $dlibDir = "$env:USERPROFILE\.trustedsigning"
+    if (-not (Test-Path "$dlibDir\bin\x64\Azure.CodeSigning.Dlib.dll")) {
+        Write-Host "  Installing Trusted Signing dlib..." -ForegroundColor Gray
+        dotnet tool install --global Microsoft.Trusted.Signing.Client 2>$null
+        New-Item -ItemType Directory -Force -Path $dlibDir | Out-Null
+        & nuget install Microsoft.Trusted.Signing.Client -OutputDirectory $dlibDir -ExcludeVersion 2>$null
     }
-    & signtool @signArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  Warning: Signing failed (installer still usable)" -ForegroundColor Yellow
+
+    $dlib = Get-ChildItem -Path $dlibDir -Recurse -Filter "Azure.CodeSigning.Dlib.dll" |
+            Where-Object { $_.FullName -match "x64" } | Select-Object -First 1
+
+    if (-not $dlib) {
+        Write-Host "  Warning: Trusted Signing dlib not found. Install manually." -ForegroundColor Yellow
+    } else {
+        # Sign the main exe first, then the installer
+        $filesToSign = @("$ROOT\dist\baremetalrt.exe", $msiPath)
+        $metadata = "$INSTALLER_DIR\signing-metadata.json"
+
+        foreach ($file in $filesToSign) {
+            if (Test-Path $file) {
+                Write-Host "  Signing $(Split-Path -Leaf $file)..." -ForegroundColor Gray
+                & signtool sign /v /debug /fd SHA256 `
+                    /tr "http://timestamp.acs.microsoft.com" /td SHA256 `
+                    /dlib $dlib.FullName `
+                    /dmdf $metadata `
+                    $file
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "  Warning: Signing failed for $(Split-Path -Leaf $file)" -ForegroundColor Yellow
+                } else {
+                    Write-Host "  Signed: $(Split-Path -Leaf $file)" -ForegroundColor Green
+                }
+            }
+        }
     }
 }
 

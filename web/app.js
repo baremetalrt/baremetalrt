@@ -597,6 +597,35 @@ async function chat() {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let tokenCount = 0;
+    const genStart = performance.now();
+    let genDone = false;
+
+    function processLine(line) {
+      if (!line.startsWith('data: ')) return;
+      try {
+        const data = JSON.parse(line.slice(6));
+        if (data.error) {
+          el.innerHTML = '<span style="color:#f43f5e">' + esc(data.error) + '</span>';
+          genDone = true;
+          return;
+        }
+        if (data.token) {
+          fullText += data.token;
+          tokenCount++;
+          if (firstToken) { firstToken = false; clearInterval(verbInterval); }
+          el.innerHTML = renderMarkdown(fullText) + '<span class="cursor"></span>';
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+        if (data.done) {
+          if (data.total_tokens) tokenCount = data.total_tokens;
+          if (data.truncated) {
+            fullText += '\n\n*(Response truncated — token limit reached)*';
+          }
+          genDone = true;
+        }
+      } catch(e) { console.error('chat/sse-parse:', e); }
+    }
 
     while (true) {
       const { done, value } = await reader.read();
@@ -607,31 +636,24 @@ async function chat() {
       buffer = lines.pop();
 
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        try {
-          const data = JSON.parse(line.slice(6));
-          if (data.error) {
-            el.innerHTML = '<span style="color:#f43f5e">' + esc(data.error) + '</span>';
-            break;
-          }
-          if (data.token) {
-            fullText += data.token;
-            if (firstToken) { firstToken = false; clearInterval(verbInterval); }
-            el.innerHTML = renderMarkdown(fullText) + '<span class="cursor"></span>';
-            el.scrollIntoView({ behavior: 'smooth' });
-          }
-          if (data.done) {
-            if (data.truncated) {
-              fullText += '\n\n*(Response truncated — token limit reached)*';
-            }
-            break;
-          }
-        } catch(e) { console.error('chat/sse-parse:', e); }
+        processLine(line);
+        if (genDone) break;
       }
+      if (genDone) break;
     }
 
+    // Process any remaining data in buffer
+    if (buffer.trim()) processLine(buffer.trim());
+
+    const elapsed = (performance.now() - genStart) / 1000;
+    const tokSec = tokenCount > 0 && elapsed > 0 ? (tokenCount / elapsed).toFixed(1) : null;
+
     if (fullText) {
-      el.innerHTML = renderMarkdown(fullText);
+      let statsHtml = '';
+      if (tokenCount > 0 && tokSec) {
+        statsHtml = `<div class="gen-stats">${tokenCount} tokens \u00b7 ${tokSec} tok/s \u00b7 ${elapsed.toFixed(1)}s</div>`;
+      }
+      el.innerHTML = renderMarkdown(fullText) + statsHtml;
       conversationHistory.push({ role: 'assistant', content: fullText });
       saveHistory();
     }

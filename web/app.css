@@ -385,6 +385,7 @@ body {
 .msg.assistant th { background: var(--surface2); font-weight: 600; }
 .msg.assistant hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
 .msg.assistant del { opacity: 0.5; }
+.gen-stats { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 11px; color: #6b6b7b; letter-spacing: 0.3px; }
 .msg.assistant .task { list-style: none; margin-left: -20px; }
 .msg.assistant .task input { margin-right: 6px; accent-color: var(--purple); }
 .msg.assistant blockquote {

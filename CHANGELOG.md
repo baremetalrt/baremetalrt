@@ -56,7 +56,7 @@ All notable changes to BareMetalRT will be documented in this file.
 - Floating GPU widget in chat view (fans spin during inference)
 - Hot-swap model support with active model hidden from available list
 - End-to-end authenticated chat over WebSocket bridge
-- PostgreSQL backend with user accounts and OAuth (Google)
+- User accounts with OAuth (Google)
 - OpenAI-compatible API server with streaming support
 
 ### Fixed

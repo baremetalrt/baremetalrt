@@ -145,8 +145,8 @@ BareMetalRT exposes an OpenAI-compatible API. See [API docs](https://baremetalrt
 - Web chat UI with streaming
 - Windows installer with automatic GPU claiming
 - OpenAI-compatible API
-- Google OAuth + API key auth
-- Postgres-backed user accounts and conversation history
+- User accounts with Google OAuth + API key auth
+- Chat history encrypted on-device — never stored on our servers
 
 ## Roadmap
 

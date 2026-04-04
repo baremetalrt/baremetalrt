@@ -16,7 +16,7 @@ All notable changes to BareMetalRT will be documented in this file.
 ## [0.5.0-beta] - 2026-04-03
 
 ### Added
-- One-click GPU claiming (Plex-style device linking)
+- Automatic GPU claiming (Plex-style device linking)
 - WebSocket relay with proper locking
 - Dynamic path resolution for frozen exe builds
 

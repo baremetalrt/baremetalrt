@@ -16,7 +16,7 @@ Go to [baremetalrt.ai/app](https://baremetalrt.ai/app) and sign up.
 
 ## 3. Link Your GPU
 
-After installing, the daemon starts automatically. In the web app, click **Link GPU** — it auto-discovers the daemon running on your machine and connects it to your account.
+After installing, the daemon starts automatically. Open the web app — it auto-discovers the daemon running on your machine and connects it to your account.
 
 ## 4. Chat
 

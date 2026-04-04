@@ -167,8 +167,8 @@ models/
 cmake-build-*/
 out/
 
-# Engine build outputs
-engine/build/
+# Engine (private repo, local build only)
+engine/
 
 # Model weights and engines (download/build locally)
 *.gguf
@@ -176,7 +176,6 @@ engine/build/
 *.bin
 *.engine
 *.plan
-engine/test_build/CMakeFiles/
 model.cache
 check_deps.py
 *.pyc

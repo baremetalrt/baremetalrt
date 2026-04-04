@@ -580,7 +580,7 @@ async function chat() {
       body: JSON.stringify({
         message: msg,
         history: conversationHistory.slice(-10),
-        max_tokens: 512,
+        max_tokens: 2048,
       }),
     });
 
@@ -620,7 +620,12 @@ async function chat() {
             el.innerHTML = renderMarkdown(fullText) + '<span class="cursor"></span>';
             el.scrollIntoView({ behavior: 'smooth' });
           }
-          if (data.done) break;
+          if (data.done) {
+            if (data.truncated) {
+              fullText += '\n\n*(Response truncated — token limit reached)*';
+            }
+            break;
+          }
         } catch(e) { console.error('chat/sse-parse:', e); }
       }
     }

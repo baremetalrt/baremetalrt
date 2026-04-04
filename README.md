@@ -1,6 +1,8 @@
 # BareMetalRT
 
 [![PyPI](https://img.shields.io/pypi/v/baremetalrt)](https://pypi.org/project/baremetalrt/)
+[![Release](https://img.shields.io/github/v/release/baremetalrt/baremetalrt?include_prereleases)](https://github.com/baremetalrt/baremetalrt/releases/latest)
+[![License](https://img.shields.io/badge/license-proprietary-blue)](LICENSE)
 
 **The world's first global GPU-native edge compute mesh.**
 

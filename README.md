@@ -1,10 +1,12 @@
 # BareMetalRT
 
+[![PyPI](https://img.shields.io/pypi/v/baremetalrt)](https://pypi.org/project/baremetalrt/)
+
 **The world's first global GPU-native edge compute mesh.**
 
 Intelligence shouldn't be owned by the hyperscalers alone. BareMetalRT turns the 200+ million NVIDIA GPUs running Windows into a distributed compute mesh — using NVIDIA's own TensorRT-LLM CUDA kernels, the same engine that powers cloud inference APIs. Built for the edge, not the cloud.
 
-**[Download Installer](https://github.com/baremetalrt/baremetalrt/releases/latest)** | **[Live Demo](https://baremetalrt.ai/demo)** | **[Documentation](https://baremetalrt.ai/docs)**
+**[Download Installer](https://github.com/baremetalrt/baremetalrt/releases/latest)** | **[Live Demo](https://baremetalrt.ai/demo)** | **[Documentation](https://baremetalrt.ai/docs)** | **[PyPI](https://pypi.org/project/baremetalrt/)**
 
 ## How It Works
 
@@ -56,6 +58,15 @@ curl https://baremetalrt.ai/v1/chat/completions \
   -d '{"model": "mistral-7b", "messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
+## CLI
+
+```bash
+pip install baremetalrt
+bmrt status
+bmrt models
+bmrt run mistral-7b
+```
+
 ## What's in This Repo
 
 This is the **public product repo** — the server, web UI, installer, and documentation.
@@ -66,6 +77,7 @@ baremetalrt/
 ├── web/           # Product web app (chat UI, account, downloads)
 ├── site/          # Landing page and demo
 ├── installer/     # Windows installer (Inno Setup)
+├── cli/           # bmrt CLI (pip install baremetalrt)
 ├── docs/          # Documentation
 └── paper/         # Technical paper
 ```

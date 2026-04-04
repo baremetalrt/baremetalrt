@@ -1535,6 +1535,7 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
     # Phase 2: Generation
     cur_token = first_token
     hit_eos = False
+    stop_reason = "max_tokens"
     for i in range(max_tokens - 1):
         notify_peer("generate", token_id=cur_token)
         token_id, ms = state.engine.generate_step(
@@ -1547,10 +1548,12 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
 
         if token_id < 0:
             yield f"data: {json.dumps({'error': 'generation failed'})}\n\n"
-            yield f"data: {json.dumps({'done': True, 'total_tokens': len(generated), 'truncated': True})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'total_tokens': len(generated), 'truncated': True, 'stop_reason': 'engine_error'})}\n\n"
             return
         if token_id in stop_ids:
             hit_eos = True
+            stop_reason = "eos"
+            log.info(f"EOS stop: token_id={token_id} after {len(generated)} tokens")
             break
 
         generated.append(token_id)
@@ -1560,22 +1563,24 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
 
         # Token decoded to empty = special/end token that skip_special_tokens stripped
         if not new_text:
-            log.info(f"Empty-decode stop token (id={token_id}), ending generation")
+            log.info(f"Empty-decode stop token (id={token_id}), ending generation after {len(generated)} tokens")
             generated.pop()
             hit_eos = True
+            stop_reason = "empty_decode"
             break
 
         # Detect degenerate output: control characters, replacement chars, etc.
         if all(c in _BAD_CHARS for c in new_text):
-            log.warning(f"Degenerate token detected (id={token_id}, text={repr(new_text)}), stopping generation")
+            log.warning(f"Degenerate token detected (id={token_id}, text={repr(new_text)}), stopping after {len(generated)} tokens")
             generated.pop()
+            stop_reason = "degenerate"
             break
 
         prev_text = full_text
         yield f"data: {json.dumps({'token': new_text, 'token_id': token_id, 'time_ms': round(ms, 1)})}\n\n"
 
     truncated = not hit_eos and len(generated) >= max_tokens - 1
-    yield f"data: {json.dumps({'done': True, 'total_tokens': len(generated), 'truncated': truncated})}\n\n"
+    yield f"data: {json.dumps({'done': True, 'total_tokens': len(generated), 'truncated': truncated, 'stop_reason': stop_reason})}\n\n"
 
 
 @app.get("/api/infer_ready")

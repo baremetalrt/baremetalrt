@@ -1,18 +1,31 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
-]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "baremetalrt"
+version = "0.5.1"
+description = "BareMetalRT — edge GPU compute mesh"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+authors = [{name = "Bare Metal AI, Inc.", email = "brian@baremetalrt.ai"}]
+dependencies = ["httpx>=0.24.0"]
+
+[project.urls]
+Homepage = "https://baremetalrt.ai"
+Repository = "https://github.com/baremetalrt/baremetalrt"
+Documentation = "https://baremetalrt.ai/docs"
+
+[project.scripts]
+bmrt = "cli.bmrt:main"
+
+[tool.setuptools.packages.find]
+include = ["cli*"]
 
 [tool.black]
 line-length = 120
-required-version = "22.3.0"
 
 [tool.isort]
 profile = "black"
 line_length = 120
-combine_as_imports = true
-combine_star = true
-known_local_folder = ["tests", "cli"]
-known_first_party = ["test_utils"]

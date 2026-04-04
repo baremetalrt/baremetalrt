@@ -753,12 +753,16 @@ class TRTEngine:
     def _sample(logits_cpu, temperature, top_k, repetition_penalty, penalize_ids):
         import torch
         if penalize_ids and repetition_penalty != 1.0:
-            pen_ids = torch.tensor(list(set(penalize_ids)), dtype=torch.long)
-            pen_ids = pen_ids[pen_ids < logits_cpu.shape[0]]
-            scores = logits_cpu[pen_ids]
-            scores = torch.where(scores > 0, scores / repetition_penalty,
-                                 scores * repetition_penalty)
-            logits_cpu[pen_ids] = scores
+            # Use a sliding window (last 64 tokens) to avoid over-penalizing
+            # long responses, and never penalize EOS/BOS tokens (0, 1, 2)
+            recent = penalize_ids[-64:] if len(penalize_ids) > 64 else penalize_ids
+            pen_ids = torch.tensor(list(set(recent)), dtype=torch.long)
+            pen_ids = pen_ids[(pen_ids >= 3) & (pen_ids < logits_cpu.shape[0])]
+            if len(pen_ids) > 0:
+                scores = logits_cpu[pen_ids]
+                scores = torch.where(scores > 0, scores / repetition_penalty,
+                                     scores * repetition_penalty)
+                logits_cpu[pen_ids] = scores
 
         if temperature > 0:
             logits_cpu /= temperature

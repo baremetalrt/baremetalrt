@@ -9,11 +9,27 @@ let _lastGpuState = null; // track changes to avoid unnecessary rerenders
 
 // -- Persistence (encoded localStorage — never sent to server) ---------------
 
+function _storageKey() {
+  const uid = user?.id || 'anon';
+  return 'bmrt_conv_v2_' + uid;
+}
+
 function _getConversations() {
   try {
-    const enc = localStorage.getItem('bmrt_conv_v2');
+    const key = _storageKey();
+    const enc = localStorage.getItem(key);
     if (enc) return JSON.parse(atob(enc));
-    // Migration from older formats
+    // Migration from older formats (only for non-anon users)
+    if (user?.id) {
+      const old = localStorage.getItem('bmrt_conv_v2');
+      if (old) {
+        // Migrate old shared data to this user's key, then remove shared key
+        const convs = JSON.parse(atob(old));
+        localStorage.removeItem('bmrt_conv_v2');
+        _setConversations(convs);
+        return convs;
+      }
+    }
     const old_enc = localStorage.getItem('bmrt_conversations_enc');
     if (old_enc) { localStorage.removeItem('bmrt_conversations_enc'); }
     const old_plain = localStorage.getItem('bmrt_conversations');
@@ -29,9 +45,9 @@ function _getConversations() {
 
 function _setConversations(convs) {
   try {
-    localStorage.setItem('bmrt_conv_v2', btoa(JSON.stringify(convs)));
+    localStorage.setItem(_storageKey(), btoa(JSON.stringify(convs)));
   } catch(e) {
-    localStorage.setItem('bmrt_conversations', JSON.stringify(convs));
+    localStorage.setItem(_storageKey(), JSON.stringify(convs));
   }
 }
 

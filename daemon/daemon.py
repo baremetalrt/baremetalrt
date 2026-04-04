@@ -864,7 +864,7 @@ async def api_status():
 
 class ChatRequest(BaseModel):
     message: str
-    max_tokens: int = 128
+    max_tokens: int = 512
     history: list[dict] = []  # [{"role": "user"|"assistant", "content": "..."}]
 
 
@@ -933,7 +933,7 @@ async def api_chat(req: ChatRequest):
         return JSONResponse(status_code=400, content={"error": "Chat only on rank 0"})
 
     return StreamingResponse(
-        _generate_tokens(req.message, min(req.max_tokens, 512), req.history),
+        _generate_tokens(req.message, min(req.max_tokens, 2048), req.history),
         media_type="text/event-stream",
     )
 
@@ -1397,7 +1397,7 @@ def _ws_bridge_worker(orchestrator_url: str):
                     else:
                         # Default: chat message
                         message = req_data.get("message", "")
-                        max_tokens = min(req_data.get("max_tokens", 128), 512)
+                        max_tokens = min(req_data.get("max_tokens", 512), 2048)
                         history = req_data.get("history", [])
                         try:
                             for chunk in _generate_tokens(message, max_tokens, history):
@@ -1425,6 +1425,8 @@ def _ws_bridge_worker(orchestrator_url: str):
 
 # Control chars to detect degenerate output (U+0000–U+001F minus \n and \t)
 _CTRL_CHARS = set(chr(c) for c in range(0x20) if chr(c) not in ('\n', '\t'))
+# Characters that indicate broken/partial decoding
+_BAD_CHARS = _CTRL_CHARS | {'\ufffd', '\x7f'}
 
 
 def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None = None):
@@ -1552,9 +1554,9 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
             hit_eos = True
             break
 
-        # Detect degenerate output: control characters (U+0000–U+001F except \n \t)
-        if all(c in _CTRL_CHARS for c in new_text):
-            log.warning(f"Degenerate token detected (id={token_id}), stopping generation")
+        # Detect degenerate output: control characters, replacement chars, etc.
+        if all(c in _BAD_CHARS for c in new_text):
+            log.warning(f"Degenerate token detected (id={token_id}, text={repr(new_text)}), stopping generation")
             generated.pop()
             break
 

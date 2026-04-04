@@ -51,9 +51,9 @@ body {
 }
 .section-2 { overflow-y: auto; opacity: 0; z-index: 1; pointer-events: none; visibility: hidden; }
 .section-3 { overflow-y: auto; opacity: 0; z-index: 1; pointer-events: none; visibility: hidden; }
-.section-1.faded { opacity: 0; pointer-events: none; z-index: 1; }
+.section-1.faded { opacity: 0; pointer-events: none; z-index: 1; visibility: hidden; }
 .section-2.visible { opacity: 1; pointer-events: auto; z-index: 3; visibility: visible; }
-.section-2.faded { opacity: 0; pointer-events: none; z-index: 1; }
+.section-2.faded { opacity: 0; pointer-events: none; z-index: 1; visibility: hidden; }
 .section-3.visible { opacity: 1; pointer-events: auto; z-index: 3; visibility: visible; }
 
 /* Button resets for semantic elements */
@@ -508,6 +508,8 @@ a:focus-visible, button:focus-visible, .cta:focus-visible {
 
   /* Toast — keep visible */
   .toast { font-size: 11px; padding: 6px 12px; }
+
+  .global-footer { display: block; }
 }
 
 /* Responsive — small phone */
@@ -626,7 +628,6 @@ a:focus-visible, button:focus-visible, .cta:focus-visible {
 
 
 <button class="whitepaper-hint" onclick="goToSection3()" aria-label="Read the whitepaper">Read the whitepaper<span class="arrow">&#8964;</span></button>
-<div style="text-align:center; padding:16px 0; font-size:11px; color:#55555e; letter-spacing:0.5px;">&copy; 2026 Bare Metal AI, Inc.</div>
 </section>
 
 <section class="section section-3" aria-label="Whitepaper">
@@ -2276,7 +2277,6 @@ a:focus-visible, button:focus-visible, .cta:focus-visible {
     Implementation (OSDI)</em>, 2022.
   </p>
   </div>
-  <div style="text-align:center; padding:32px 0 16px; font-size:11px; color:#55555e; letter-spacing:0.5px;">&copy; 2026 Bare Metal AI, Inc.</div>
 </div>
 </section>
 
@@ -2345,6 +2345,7 @@ function goToSection2() {
   if (currentSection !== 1 || transitioning) return;
   transitioning = true;
   s1.classList.add('faded');
+  s2.scrollTop = 0;
   restartAnims(s2);
   hint.classList.add('hidden');
   currentSection = 2;
@@ -2560,7 +2561,7 @@ function showToast(msg, e) {
 
 <div class="toast" id="toast"></div>
 
-<div style="text-align:center; padding:24px; font-size:11px; color:#55555e; letter-spacing:1px;">
+<div class="global-footer" style="text-align:center; padding:24px; font-size:11px; color:#55555e; letter-spacing:1px;">
   <a href="/privacy" style="color:#9898a4; text-decoration:none;">Privacy</a> &middot; <a href="/terms" style="color:#9898a4; text-decoration:none;">Terms</a>
   <div style="margin-top:6px;">&copy; 2026 Bare Metal AI, Inc. All rights reserved.</div>
 </div>

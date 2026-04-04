@@ -1,5 +1,5 @@
 {
   "Endpoint": "https://wus2.codesigning.azure.net",
-  "CodeSigningAccountName": "Bare_Metal_AI",
+  "CodeSigningAccountName": "BareMetalAI",
   "CertificateProfileName": "baremetalrt-signing"
 }

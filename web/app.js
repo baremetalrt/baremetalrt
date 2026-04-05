@@ -906,22 +906,20 @@ function show2GpuLayout() {
     content.style.display = 'none';
     hero.style.display = '';
     hero.style.opacity = '1';
-    // Hold hero for 4.5s, then fade out
+    // Hold hero 3.5s (lines animate in by ~2.3s, read for ~1.2s), fade out 0.6s
     setTimeout(() => {
-      hero.style.transition = 'opacity 0.8s ease-out';
+      hero.style.transition = 'opacity 0.6s ease-out';
       hero.style.opacity = '0';
       setTimeout(() => {
         hero.style.display = 'none';
-        // Now show content — animations start fresh
         content.style.display = '';
         content.classList.add('reveal');
-        _playTpConnectSound();
         _renderStepper();
         _pollTp2Status();
         _tp2PollTimer = setInterval(_pollTp2Status, 5000);
         loadModels();
-      }, 800);
-    }, 4500);
+      }, 600);
+    }, 3500);
   } else {
     if (hero) hero.style.display = 'none';
     content.style.display = '';
@@ -929,7 +927,6 @@ function show2GpuLayout() {
     _pollTp2Status();
     _tp2PollTimer = setInterval(_pollTp2Status, 5000);
     loadModels();
-    setTimeout(_playTpConnectSound, 600);
   }
 }
 

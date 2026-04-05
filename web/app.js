@@ -758,10 +758,14 @@ async function fetchDevices() {
 }
 
 function _showGpuNav(show) {
-  const left = document.getElementById('gpu-arrow-left');
-  const right = document.getElementById('gpu-arrow-right');
-  if (left) left.style.display = show ? '' : 'none';
-  if (right) right.style.display = show ? '' : 'none';
+  const nav = document.getElementById('gpu-nav');
+  if (!nav) return;
+  nav.style.display = show ? 'flex' : 'none';
+  if (show) {
+    const dev = _userDevices[_deviceIdx];
+    const label = document.getElementById('gpu-nav-label');
+    if (label && dev) label.textContent = dev.gpu_name || dev.hostname;
+  }
 }
 
 async function prevDevice() {

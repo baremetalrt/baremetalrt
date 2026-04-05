@@ -1264,8 +1264,11 @@ def _ws_bridge_worker(orchestrator_url: str):
                         elif not model["downloaded"]:
                             ws.send(json.dumps({"error": "Download model first"}))
                         else:
+                            tp = req_data.get("tp", 1)
+                            rank = req_data.get("rank")
+                            peer_ip = req_data.get("peer_ip")
                             _build_tasks[model_id] = {"status": "building", "progress": "Starting..."}
-                            def _do_build(mid=model_id, m=model):
+                            def _do_build(mid=model_id, m=model, _tp=tp, _rank=rank, _peer=peer_ip):
                                 try:
                                     import subprocess, shutil
                                     # Unload engine to free VRAM for build
@@ -1279,7 +1282,7 @@ def _ws_bridge_worker(orchestrator_url: str):
                                         state.active_model_id = None
                                         import torch
                                         torch.cuda.empty_cache()
-                                    engine_dir = str(PROJECT_ROOT / "engine_cache" / f"{mid}-tp1")
+                                    engine_dir = str(PROJECT_ROOT / "engine_cache" / f"{mid}-tp{_tp}")
                                     ckpt_dir = os.path.join(engine_dir, "checkpoint")
                                     python = shutil.which("python") or shutil.which("py")
                                     build_script = _find_build_script()
@@ -1287,10 +1290,14 @@ def _ws_bridge_worker(orchestrator_url: str):
                                     _mseq = min(m.get("context_length", 4096), 4096)
                                     _minp = min(_mseq // 2, 1024)
                                     os.makedirs(engine_dir, exist_ok=True)
-                                    result = subprocess.run([python, build_script, "--convert",
+                                    cmd = [python, build_script, "--convert",
                                         "--model_dir", m["hf_dir"], "--checkpoint_dir", ckpt_dir,
-                                        "--output_dir", engine_dir, "--tp_size", "1", "--dtype", "float16",
-                                        "--max_input_len", str(_minp), "--max_seq_len", str(_mseq)],
+                                        "--output_dir", engine_dir, "--tp_size", str(_tp), "--dtype", "float16",
+                                        "--max_input_len", str(_minp), "--max_seq_len", str(_mseq)]
+                                    if _rank is not None and _peer:
+                                        cmd += ["--rank", str(_rank), "--peer", _peer]
+                                        log.info(f"TP={_tp} build: rank={_rank}, peer={_peer}")
+                                    result = subprocess.run(cmd,
                                         env=env, capture_output=True, text=True, timeout=3600, cwd=engine_dir)
                                     if result.returncode == 0:
                                         mark_engine_built(mid, engine_dir)

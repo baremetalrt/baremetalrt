@@ -452,9 +452,9 @@ pre:hover .copy-btn { opacity: 1; }
   gap: 80px; padding: 16px 0; position: relative;
 }
 .tp-node {
-  border: 1px solid #4a4a54; width: 220px;
+  border: 1px solid #333348; width: 220px;
   display: flex; flex-direction: column;
-  background: linear-gradient(135deg, #2a2a30 0%, #3a3a42 20%, #32323a 40%, #42424a 60%, #38383e 80%, #2a2a30 100%);
+  background: linear-gradient(135deg, #101014 0%, #1e1e24 20%, #181820 40%, #24242c 60%, #1c1c22 80%, #101014 100%);
   transition: all 0.5s ease;
 }
 .tp-node.active {

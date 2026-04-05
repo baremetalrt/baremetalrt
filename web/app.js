@@ -912,7 +912,7 @@ async function _pollTp2Status() {
     if (session.status === 'matched') {
       statusEl.textContent = 'SESSION MATCHED \u2014 READY FOR INFERENCE';
       statusEl.className = 'tp2-session-status matched';
-      _updateTpStepper(3);
+      _updateTpStepper(4);
       if (chatBtn) chatBtn.style.display = '';
     } else if (onlineCount >= 2) {
       statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 SELECT A MODEL`;
@@ -1047,8 +1047,8 @@ function _updateTpStepperTitle(modelId) {
 }
 
 function _updateTpStepper(step) {
-  // step: 0 = waiting for GPUs, 1 = pull, 2 = build, 3 = loaded
-  for (let i = 1; i <= 3; i++) {
+  // step: 0 = waiting, 1 = pull, 2 = split, 3 = build, 4 = loaded
+  for (let i = 1; i <= 4; i++) {
     const el = document.getElementById(`tp-step-${i}`);
     if (!el) continue;
     el.classList.remove('active', 'done');
@@ -1268,7 +1268,7 @@ async function cancelPull(id) {
 
 async function buildModel(id) {
   if (isDemo) { demoBlock(); return; }
-  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _updateTpStepper(2); _updateTpStepperTitle(id); }
+  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _updateTpStepper(3); _updateTpStepperTitle(id); }
   _setProgress(document.getElementById('prog-' + id), 'Building engine', null);
   if (_gpuMode === '2gpu') {
     await fetch(`/api/tp2/build/${id}`, { method: 'POST', headers: _apiHeaders() });

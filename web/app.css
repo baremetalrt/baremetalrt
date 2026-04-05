@@ -463,25 +463,25 @@ pre:hover .copy-btn { opacity: 1; }
 /* Stepper — horizontal bar below model list */
 .tp-stepper {
   max-width: 520px; margin: 20px auto 0; text-align: center;
-  padding: 14px 20px;
+  padding: 16px 20px;
   border-top: 1px solid var(--border);
 }
 .tp-stepper-title {
-  font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--silver-dark); margin-bottom: 10px;
+  font-size: 9px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--silver-dim); margin-bottom: 12px;
 }
 .tp-stepper-model {
-  font-size: 12px; font-weight: 600; color: var(--silver); margin-bottom: 8px;
+  font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 10px;
 }
 .tp-steps-row {
   display: flex; align-items: center; justify-content: center; gap: 0;
 }
 .tp-step {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 0 12px; transition: opacity 0.3s; opacity: 0.3;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 0 14px; transition: opacity 0.3s; opacity: 0.4;
 }
 .tp-step.active { opacity: 1; }
-.tp-step.done { opacity: 0.6; }
+.tp-step.done { opacity: 0.7; }
 .tp-step-dot {
   width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -497,7 +497,7 @@ pre:hover .copy-btn { opacity: 1; }
   border-color: #76e651; color: #76e651; background: rgba(118,230,81,0.08);
 }
 .tp-step-name {
-  font-size: 10px; font-weight: 600; color: var(--silver); letter-spacing: 0.5px;
+  font-size: 11px; font-weight: 700; color: #fff; letter-spacing: 0.5px;
 }
 .tp-step-line-h {
   width: 30px; height: 1.5px; background: var(--border); flex-shrink: 0;
@@ -515,6 +515,8 @@ pre:hover .copy-btn { opacity: 1; }
 }
 #tp-node0 { animation: tpSlideFromLeft 0.6s ease-out both; }
 #tp-node1 { animation: tpSlideFromRight 0.6s ease-out both; }
+#tp-node0.active { animation: tpSlideFromLeft 0.6s ease-out both, tpNodeGlow 2s ease-in-out 0.6s infinite; }
+#tp-node1.active { animation: tpSlideFromRight 0.6s ease-out both, tpNodeGlow 2s ease-in-out 0.6s infinite; }
 .tp-tcp-overlay { animation: tpTcpAppear 0.4s ease-out 0.6s both; }
 @keyframes tpSlideFromLeft {
   from { opacity: 0; transform: translateX(-60px); }

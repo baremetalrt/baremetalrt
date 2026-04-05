@@ -446,10 +446,17 @@ pre:hover .copy-btn { opacity: 1; }
 
 /* GPU device nav — wraps ← [card] → like .family-nav wraps ← All → */
 .gpu-nav {
-  display: flex; align-items: center; justify-content: center; gap: 16px;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 16px;
 }
 .gpu-nav > .gpu-card {
-  margin-left: 0; margin-right: 0;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  flex-shrink: 1;
 }
 
 /* TP=2 panel */

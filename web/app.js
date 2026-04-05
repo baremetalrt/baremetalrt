@@ -899,7 +899,7 @@ function show2GpuLayout() {
 
   const hero = document.getElementById('tp-hero');
   const content = document.getElementById('tp-content');
-  const showHero = isDemo;
+  const showHero = true;
 
   if (showHero && hero && content) {
     // First time: hero statement, then reveal content

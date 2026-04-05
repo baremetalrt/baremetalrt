@@ -357,7 +357,49 @@ async def api_daemon_shutdown(request: Request):
     return await _relay_to_daemon({"type": "shutdown"}, node_id=node_id, user_id=user_id)
 
 
-# -- TP=2 coordinated build ---------------------------------------------------
+# -- TP=2 coordinated operations -----------------------------------------------
+
+async def _get_tp_nodes(request: Request) -> tuple[str, str]:
+    """Get rank0 and rank1 node_ids for the authenticated user."""
+    user = await require_auth(request)
+    user_id = str(user["id"])
+    from server.services.node_manager import get_user_nodes
+    user_nodes = get_user_nodes(user_id)
+    if len(user_nodes) < 2:
+        return None, None
+    # Also check WS-connected nodes
+    user_conns = [nid for nid, dc in _daemon_connections.items() if dc.user_id == user_id]
+    if len(user_conns) < 2:
+        return None, None
+    # Rank 0 = highest VRAM
+    return user_conns[0], user_conns[1]
+
+
+@router.post("/api/tp2/pull/{model_id}")
+async def tp2_pull(model_id: str, request: Request):
+    """Pull model on both daemons simultaneously."""
+    r0, r1 = await _get_tp_nodes(request)
+    if not r0 or not r1:
+        return JSONResponse(status_code=400, content={"error": "Need 2 GPUs online"})
+    res0, res1 = await asyncio.gather(
+        _relay_to_daemon({"type": "pull", "model_id": model_id}, node_id=r0),
+        _relay_to_daemon({"type": "pull", "model_id": model_id}, node_id=r1),
+    )
+    return {"rank0": res0, "rank1": res1}
+
+
+@router.get("/api/tp2/status/{model_id}")
+async def tp2_model_status(model_id: str, request: Request):
+    """Get pull/build status from both daemons."""
+    r0, r1 = await _get_tp_nodes(request)
+    if not r0 or not r1:
+        return {"rank0": {}, "rank1": {}}
+    res0, res1 = await asyncio.gather(
+        _relay_to_daemon({"type": "model_status", "model_id": model_id}, node_id=r0),
+        _relay_to_daemon({"type": "model_status", "model_id": model_id}, node_id=r1),
+    )
+    return {"rank0": res0, "rank1": res1}
+
 
 @router.post("/api/tp2/build/{model_id}")
 async def tp2_build(model_id: str, request: Request):

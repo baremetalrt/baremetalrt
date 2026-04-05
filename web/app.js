@@ -1200,7 +1200,8 @@ function _setProgress(el, text, pct, modelId, status) {
 async function pullModel(id) {
   if (isDemo) { demoBlock(); return; }
   _setProgress(document.getElementById('prog-' + id), 'Downloading', null, id, 'downloading');
-  const r = await fetch(`/api/models/${id}/pull`, { method: 'POST' });
+  const pullUrl = _gpuMode === '2gpu' ? `/api/tp2/pull/${id}` : `/api/models/${id}/pull`;
+  const r = await fetch(pullUrl, { method: 'POST', headers: _apiHeaders() });
   const d = await r.json().catch(() => ({}));
   if (d.status === 'already_downloaded') {
     const el = document.getElementById('prog-' + id);

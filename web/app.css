@@ -518,14 +518,24 @@ pre:hover .copy-btn { opacity: 1; }
   inherits: false;
 }
 .model-btn.pulse {
-  position: relative; overflow: visible;
+  position: relative; overflow: visible; background: transparent; border-color: transparent;
+  filter: drop-shadow(0 0 6px rgba(139,92,246,0.4)) drop-shadow(0 0 14px rgba(139,92,246,0.2));
 }
-.model-btn.pulse::after {
+.model-btn.pulse::before {
   content: ''; position: absolute; inset: -2px;
   clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
   background: conic-gradient(from var(--btn-angle), transparent 40%, rgba(139,92,246,0.9) 50%, rgba(167,139,250,1) 55%, transparent 60%);
   animation: rotateBtnBorder 3s linear infinite;
-  z-index: -1;
+  z-index: 0;
+}
+.model-btn.pulse::after {
+  content: ''; position: absolute; inset: 0;
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  background: #8b5cf6;
+  z-index: 0;
+}
+.model-btn.pulse span, .model-btn.pulse {
+  z-index: 1;
 }
 @keyframes rotateBtnBorder {
   to { --btn-angle: 360deg; }

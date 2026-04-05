@@ -151,9 +151,16 @@ async def ws_chat_bridge(ws: WebSocket):
 
     user_id = str(row["user_id"])
 
-    # Fallback node_id for old daemons that don't send it
+    # Fallback node_id for old daemons that don't send it:
+    # Look up the real node_id from the api_key name (format: "auto-{node_id}")
     if not node_id:
-        node_id = f"ws_{key_hash[:8]}"
+        key_row = await db.fetch_one(
+            "SELECT name FROM api_keys WHERE key_hash = $1", key_hash,
+        )
+        if key_row and key_row["name"] and key_row["name"].startswith("auto-"):
+            node_id = key_row["name"][5:]  # strip "auto-" prefix
+        else:
+            node_id = f"ws_{key_hash[:8]}"
 
     await ws.accept()
 

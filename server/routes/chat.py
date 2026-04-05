@@ -360,18 +360,18 @@ async def api_daemon_shutdown(request: Request):
 # -- TP=2 coordinated operations -----------------------------------------------
 
 async def _get_tp_nodes(request: Request) -> tuple[str, str]:
-    """Get rank0 and rank1 node_ids for the authenticated user."""
+    """Get rank0 and rank1 node_ids for the authenticated user.
+    Uses WS connections as source of truth, falls back to node_manager for VRAM sorting."""
     user = await require_auth(request)
     user_id = str(user["id"])
-    from server.services.node_manager import get_user_nodes
-    user_nodes = get_user_nodes(user_id)
-    if len(user_nodes) < 2:
-        return None, None
-    # Also check WS-connected nodes
     user_conns = [nid for nid, dc in _daemon_connections.items() if dc.user_id == user_id]
     if len(user_conns) < 2:
         return None, None
-    # Rank 0 = highest VRAM
+    # Sort by VRAM (highest first = rank 0) using node_manager data if available
+    def vram(nid):
+        n = nodes.get(nid)
+        return n.gpu_vram_total_mb if n else 0
+    user_conns.sort(key=vram, reverse=True)
     return user_conns[0], user_conns[1]
 
 
@@ -403,21 +403,19 @@ async def tp2_model_status(model_id: str, request: Request):
 
 @router.post("/api/tp2/build/{model_id}")
 async def tp2_build(model_id: str, request: Request):
-    """Coordinate TP=2 engine build across both matched daemons."""
-    await require_auth(request)
-    session = get_session()
-    if session.get("status") != "matched":
-        return JSONResponse(status_code=400, content={"error": "Need matched 2-GPU session. Both GPUs must be online."})
+    """Coordinate TP=2 engine build across both daemons."""
+    r0, r1 = await _get_tp_nodes(request)
+    if not r0 or not r1:
+        return JSONResponse(status_code=400, content={"error": "Need 2 GPUs online"})
 
-    rank0_id = session["rank0"]["node_id"]
-    rank1_id = session["rank1"]["node_id"]
-    rank0_ip = session["rank0"]["ip"]
-    rank1_ip = session["rank1"]["ip"]
+    # Get IPs from node_manager
+    rank0_node = nodes.get(r0)
+    rank1_node = nodes.get(r1)
+    rank0_ip = rank0_node.ip if rank0_node else "0.0.0.0"
+    rank1_ip = rank1_node.ip if rank1_node else "0.0.0.0"
 
-    if rank0_id not in _daemon_connections:
-        return JSONResponse(status_code=503, content={"error": f"Rank 0 ({session['rank0'].get('hostname', rank0_id)}) not connected via WS"})
-    if rank1_id not in _daemon_connections:
-        return JSONResponse(status_code=503, content={"error": f"Rank 1 ({session['rank1'].get('hostname', rank1_id)}) not connected via WS"})
+    rank0_id = r0
+    rank1_id = r1
 
     r0, r1 = await asyncio.gather(
         _relay_to_daemon(

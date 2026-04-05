@@ -1273,9 +1273,17 @@ def _ws_bridge_worker(orchestrator_url: str):
                                     python = shutil.which("python") or shutil.which("py")
                                     build_script = _find_build_script()
                                     env = _engine_env()
+                                    try:
+                                        import torch
+                                        _vram = torch.cuda.get_device_properties(0).total_mem // (1024*1024)
+                                    except Exception:
+                                        _vram = 8000
+                                    _mseq = 4096 if _vram > 14000 else 2048
+                                    _minp = min(_mseq // 2, 1024)
                                     result = subprocess.run([python, build_script, "--convert",
                                         "--model_dir", m["hf_dir"], "--checkpoint_dir", ckpt_dir,
-                                        "--output_dir", engine_dir, "--tp_size", "1", "--dtype", "float16"],
+                                        "--output_dir", engine_dir, "--tp_size", "1", "--dtype", "float16",
+                                        "--max_input_len", str(_minp), "--max_seq_len", str(_mseq)],
                                         env=env, capture_output=True, text=True, timeout=3600)
                                     if result.returncode == 0:
                                         mark_engine_built(mid, engine_dir)
@@ -1831,6 +1839,17 @@ async def api_build_model(model_id: str):
             env = _engine_env()
 
             _build_tasks[model_id]["progress"] = "Converting checkpoint + building engine..."
+            # Scale context window based on available VRAM
+            # 4096 needs ~12.5GB build memory; use 2048 for <=12GB GPUs
+            try:
+                import torch
+                vram_mb = torch.cuda.get_device_properties(0).total_mem // (1024 * 1024)
+            except Exception:
+                vram_mb = 8000
+            max_seq = 4096 if vram_mb > 14000 else 2048
+            max_input = min(max_seq // 2, 1024)
+            log.info(f"Building engine: max_seq={max_seq}, max_input={max_input} (VRAM={vram_mb}MB)")
+
             cmd = [python, build_script,
                    "--convert",
                    "--model_dir", hf_dir,
@@ -1838,8 +1857,8 @@ async def api_build_model(model_id: str):
                    "--output_dir", engine_dir,
                    "--tp_size", "1",
                    "--dtype", "float16",
-                   "--max_input_len", "1024",
-                   "--max_seq_len", "4096"]
+                   "--max_input_len", str(max_input),
+                   "--max_seq_len", str(max_seq)]
             result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=3600)
 
             if result.returncode != 0:

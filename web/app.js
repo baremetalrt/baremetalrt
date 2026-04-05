@@ -1128,9 +1128,12 @@ function _updateGpuCard(md) {
   if (md.gpu_name && document.getElementById('gpu-status-text')) {
     // Show hostname when multiple devices are linked
     const activeDev = _userDevices.find(d => d.node_id === _activeNodeId);
-    const formatted = _formatGpuTitle(md.gpu_name);
-    const label = (_userDevices.length > 1 && activeDev) ? `${formatted}\n${activeDev.hostname}` : formatted;
-    document.getElementById('gpu-status-text').textContent = label;
+    const clean = _cleanGpuName(md.gpu_name);
+    const match = clean.match(/^(NVIDIA\s+GeForce)\s+(.+)$/i);
+    const line1 = match ? match[1] : clean;
+    const line2Parts = [match ? match[2] : ''];
+    if (_userDevices.length > 1 && activeDev) line2Parts.push(activeDev.hostname);
+    document.getElementById('gpu-status-text').textContent = line1 + '\n' + line2Parts.join(' \u00b7 ');
     _swapGpuSvg(md.gpu_name);
   }
   if (md.gpu_vram_mb) document.getElementById('gpu-vram-display').textContent = Math.round(md.gpu_vram_mb / 1024) + 'GB VRAM';

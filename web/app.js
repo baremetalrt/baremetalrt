@@ -568,6 +568,7 @@ async function chat() {
   generating = true;
   document.getElementById('send-btn').disabled = true;
   document.getElementById('gpu-card').classList.add('generating');
+  _setStepBanner('GENERATING', 'Inference running...', 'active', _gpuMode === '2gpu' ? 'tp' : '1gpu');
   document.body.classList.add('inferring');
 
   // Switch to chat view
@@ -725,6 +726,8 @@ async function chat() {
   document.body.classList.remove('inferring');
   document.getElementById('send-btn').disabled = false;
   document.getElementById('prompt').focus();
+  const mode = _gpuMode === '2gpu' ? 'tp' : '1gpu';
+  _setStepBanner('READY', 'Chat with ' + (currentModel || 'model'), 'matched', mode);
 }
 
 // -- Models -----------------------------------------------------------------
@@ -1374,28 +1377,37 @@ async function loadModel(id) {
   const btns = document.querySelectorAll('.model-btn');
   btns.forEach(b => { if (b.textContent === 'Load') b.classList.add('loading'); });
   if (el) { el.style.display = ''; el.textContent = 'Loading engine...'; }
+  const mode = _gpuMode === '2gpu' ? 'tp' : '1gpu';
+  const step = _gpuMode === '2gpu' ? 'STEP 4 \u00b7 LOAD' : 'LOADING';
+  _setStepBanner(step, 'Initializing engine...', 'active', mode);
   const loadUrl = _gpuMode === '2gpu' ? `/api/tp2/load/${id}` : `/api/models/${id}/load`;
   const r = await fetch(loadUrl, { method: 'POST', headers: _apiHeaders() });
   const d = await r.json();
   if (d.error) {
     if (el) el.textContent = d.error;
+    _setStepBanner('ERROR', d.error, '', mode);
   } else {
+    _setStepBanner('WARMING UP', 'Running warmup inference...', 'active', mode);
     currentModel = id;
     currentConvId = null;
     conversationHistory = [];
     document.getElementById('messages').innerHTML = '';
-    // Wait for daemon to finish loading before refresh
     await new Promise(r => setTimeout(r, 1000));
     _lastGpuState = null;
     await checkNode();
     await refreshGpuCard();
     await loadModels();
+    const m = (_allModels || []).find(x => x.id === id);
+    const name = m ? m.name : id;
+    _setStepBanner('READY', 'Chat with ' + name, 'matched', mode);
   }
 }
 
 async function unloadModel() {
   if (isDemo) { demoBlock(); return; }
   document.getElementById('unload-btn').textContent = 'Unloading...';
+  const mode = _gpuMode === '2gpu' ? 'tp' : '1gpu';
+  _setStepBanner('UNLOADING', 'Freeing VRAM...', 'active', mode);
   const r = await fetch('/api/unload', { method: 'POST' });
   document.getElementById('unload-btn').style.display = 'none';
   document.getElementById('gpu-display-name').textContent = 'No model loaded';
@@ -1410,6 +1422,7 @@ async function unloadModel() {
   _lastGpuState = null;
   await loadModels();
   await checkNode();
+  _setStepBanner('GPU ONLINE', 'Select a model below', 'active', mode);
 }
 
 async function restartDaemon() {
@@ -1454,10 +1467,26 @@ function pollModelStatus(id) {
         const pct = active.percent != null ? active.percent : null;
         const text = active.progress || active.status || '';
         _setProgress(el, text, pct, id, active.status);
+        // Update step banner with %
+        const mode = _gpuMode === '2gpu' ? 'tp' : '1gpu';
+        const pctStr = pct != null ? ` ${Math.round(pct)}%` : '';
+        if (active.status === 'downloading') {
+          const step = _gpuMode === '2gpu' ? 'STEP 1 \u00b7 PULL' : 'PULLING';
+          _setStepBanner(step, `Downloading${pctStr}`, 'active', mode);
+        } else if (active.status === 'building') {
+          const step = _gpuMode === '2gpu' ? 'STEP 3 \u00b7 BUILD' : 'BUILDING';
+          _setStepBanner(step, `Compiling engine${pctStr}`, 'active', mode);
+        } else if (active.status === 'paused') {
+          _setStepBanner('PAUSED', 'Download paused', '', mode);
+        }
       }
       if (!active || active.status === 'done' || active.status === 'error' || active.status === 'idle' || active.status === 'paused') {
         clearInterval(poll);
         if (el) { el.classList.remove('active'); }
+        if (active?.status === 'done') {
+          const mode = _gpuMode === '2gpu' ? 'tp' : '1gpu';
+          _setStepBanner('DONE', 'Ready for next step', 'matched', mode);
+        }
         setTimeout(loadModels, 1000);
       }
     } catch(e) { clearInterval(poll); }

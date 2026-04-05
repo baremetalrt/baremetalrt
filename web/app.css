@@ -447,81 +447,76 @@ pre:hover .copy-btn { opacity: 1; }
 
 /* TP=2 panel */
 .tp2-panel { margin-bottom: 20px; }
-.tp-layout {
-  position: relative;
-}
-.tp-mesh-wrap { }
-
-/* Stepper floats on the left without affecting mesh centering */
-@media (min-width: 769px) {
-  .tp-stepper { position: absolute; left: 0; top: 0; }
-}
-
-/* Setup stepper */
+/* Stepper — fixed to center-left of viewport, no layout impact */
 .tp-stepper {
-  width: 220px; flex-shrink: 0;
-  background: linear-gradient(135deg, #101014 0%, #1e1e24 20%, #181820 40%, #24242c 60%, #1c1c22 80%, #101014 100%);
-  border: 1px solid #333348; border-radius: 4px;
-  padding: 20px 18px; position: relative;
+  position: fixed; left: 16px; top: 50%; transform: translateY(-50%); z-index: 100;
+  width: 240px;
+  background: linear-gradient(135deg, #2a2a30 0%, #3a3a42 20%, #32323a 40%, #42424a 60%, #38383e 80%, #2a2a30 100%);
+  border: 1px solid #4a4a54; border-radius: 6px;
+  padding: 24px 20px;
 }
 .tp-stepper-title {
-  font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--silver-dim); margin-bottom: 20px; text-align: center;
+  font-size: 10px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--silver); margin-bottom: 20px; text-align: center;
 }
 .tp-stepper-model {
-  font-size: 11px; font-weight: 600; color: var(--silver); text-align: center;
-  margin-bottom: 12px; letter-spacing: 0.3px;
+  font-size: 12px; font-weight: 700; color: #fff; text-align: center;
+  margin-bottom: 14px; letter-spacing: 0.3px;
+  text-shadow: 0 0 20px rgba(200,200,220,0.2);
 }
 .tp-stepper-hide {
-  position: absolute; top: 8px; right: 10px;
+  position: absolute; top: 10px; right: 12px;
   background: none; border: none; color: var(--silver-dark); cursor: pointer;
-  font-size: 14px; line-height: 1; padding: 2px 4px;
+  font-size: 16px; line-height: 1; padding: 2px 4px;
 }
 .tp-stepper-hide:hover { color: var(--silver); }
 .tp-stepper-show {
-  position: absolute; left: 0; top: 0; z-index: 5;
+  position: fixed; left: 16px; top: 50%; transform: translateY(-50%); z-index: 100;
   font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--silver-dark); background: var(--surface); border: 1px solid var(--border);
-  padding: 6px 12px; cursor: pointer; font-family: inherit; border-radius: 2px;
+  color: var(--silver-dim);
+  background: linear-gradient(135deg, #2a2a30 0%, #3a3a42 50%, #2a2a30 100%);
+  border: 1px solid #4a4a54;
+  padding: 8px 14px; cursor: pointer; font-family: inherit; border-radius: 4px;
 }
-.tp-stepper-show:hover { color: var(--silver); border-color: var(--border-hi); }
+.tp-stepper-show:hover { color: var(--silver); border-color: #8b5cf6; }
 .tp-step {
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 8px 0; transition: opacity 0.3s;
-  opacity: 0.4;
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 10px 0; transition: opacity 0.3s;
+  opacity: 0.35;
 }
 .tp-step.active { opacity: 1; }
 .tp-step.done { opacity: 0.7; }
 .tp-step-dot {
-  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; color: var(--silver-dark);
-  border: 1.5px solid var(--border); background: var(--bg);
+  font-size: 11px; font-weight: 700; color: var(--silver-dark);
+  border: 1.5px solid var(--border-hi); background: var(--bg);
   transition: all 0.3s;
 }
 .tp-step.active .tp-step-dot {
   border-color: #8b5cf6; color: #8b5cf6;
-  box-shadow: 0 0 10px rgba(139,92,246,0.3);
+  box-shadow: 0 0 12px rgba(139,92,246,0.4);
 }
 .tp-step.done .tp-step-dot {
   border-color: #76e651; color: #76e651; background: rgba(118,230,81,0.08);
 }
 .tp-step-name {
-  font-size: 12px; font-weight: 600; color: var(--silver); letter-spacing: 0.3px;
+  font-size: 13px; font-weight: 600; color: var(--silver); letter-spacing: 0.3px;
 }
 .tp-step-desc {
-  font-size: 10px; color: var(--silver-dark); margin-top: 2px; line-height: 1.4;
+  font-size: 10px; color: var(--silver-dim); margin-top: 3px; line-height: 1.4;
 }
 .tp-step-line {
-  width: 1.5px; height: 12px; background: var(--border);
-  margin-left: 10px;
+  width: 1.5px; height: 14px; background: var(--border);
+  margin-left: 12px;
 }
 .tp-step.done + .tp-step-line { background: #76e651; opacity: 0.4; }
 
 @media (max-width: 768px) {
-  .tp-layout { flex-direction: column; }
-  .tp-stepper { width: 100%; display: flex; gap: 8px; padding: 10px; align-items: center; }
+  .tp-stepper { position: static; transform: none; width: 100%;
+    display: flex; gap: 8px; padding: 12px; align-items: center; margin-bottom: 12px; }
   .tp-stepper-title { margin-bottom: 0; }
+  .tp-stepper-show { position: static; transform: none; }
   .tp-step-line { display: none; }
   .tp-step-desc { display: none; }
 }

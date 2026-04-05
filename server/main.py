@@ -96,7 +96,8 @@ if web_dir.is_dir():
 async def no_cache_static(request, call_next):
     response = await call_next(request)
     if request.url.path.endswith(('.js', '.css')):
-        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
     return response
 
 
@@ -151,7 +152,8 @@ async def product_app():
         raw = app_file.read_text(encoding="utf-8")
         # Use file content hash as cache buster so CDN serves fresh JS after deploys
         js_hash = hashlib.md5(open(str(web_dir / "app.js"), "rb").read()).hexdigest()[:8]
-        html = raw.replace("__VERSION__", VERSION).replace("__JSHASH__", js_hash)
+        css_hash = hashlib.md5(open(str(web_dir / "app.css"), "rb").read()).hexdigest()[:8]
+        html = raw.replace("__VERSION__", VERSION).replace("__JSHASH__", js_hash).replace("__CSSHASH__", css_hash)
         return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
     return {"error": "app.html not found"}
 

@@ -887,28 +887,44 @@ async function _pollTp2Status() {
 
 function _updateTp2Card(rank, data, sessionStatus) {
   const prefix = `tp2-gpu${rank}`;
+  const nodeEl = document.getElementById(`tp-node${rank}`);
   const nameEl = document.getElementById(`${prefix}-name`);
   const hostEl = document.getElementById(`${prefix}-host`);
   const vramEl = document.getElementById(`${prefix}-vram`);
   const statusEl = document.getElementById(`${prefix}-status`);
+  const svgEl = document.getElementById(`${prefix}-svg`);
 
   if (data) {
-    nameEl.textContent = data.gpu || data.gpu_name || '--';
+    const gpuName = data.gpu || data.gpu_name || '';
+    nameEl.textContent = _cleanGpuName(gpuName);
     hostEl.textContent = data.hostname || '';
-    vramEl.textContent = data.vram_mb ? `${Math.round(data.vram_mb / 1024)} GB VRAM` : '';
+    vramEl.textContent = data.vram_mb ? `${Math.round(data.vram_mb / 1024)} GB` : '';
+
+    // Set GPU SVG based on laptop vs desktop
+    const isLaptop = /laptop|mobile|notebook/i.test(gpuName);
+    const desktopSvg = document.getElementById('gpu-svg-desktop');
+    const laptopSvg = document.getElementById('gpu-svg-laptop');
+    if (svgEl && desktopSvg && laptopSvg) {
+      const src = isLaptop ? laptopSvg : desktopSvg;
+      if (!svgEl.querySelector('svg')) svgEl.innerHTML = src.outerHTML;
+      const inner = svgEl.querySelector('svg');
+      if (inner) { inner.removeAttribute('id'); inner.style.display = ''; }
+    }
+
     if (sessionStatus === 'matched') {
-      statusEl.textContent = 'MATCHED';
-      statusEl.className = 'gpu-mini-status matched';
+      statusEl.innerHTML = '<span class="tp-dot" style="background:#8b5cf6;"></span> MATCHED';
+      if (nodeEl) nodeEl.classList.add('active');
     } else {
-      statusEl.textContent = 'ONLINE';
-      statusEl.className = 'gpu-mini-status online';
+      statusEl.innerHTML = '<span class="tp-dot" style="background:#76e651;"></span> ONLINE';
+      if (nodeEl) nodeEl.classList.add('active');
     }
   } else {
     nameEl.textContent = '--';
-    hostEl.textContent = '';
+    hostEl.textContent = 'Waiting...';
     vramEl.textContent = '';
-    statusEl.textContent = 'OFFLINE';
-    statusEl.className = 'gpu-mini-status offline';
+    statusEl.innerHTML = '<span class="tp-dot"></span> OFFLINE';
+    if (nodeEl) nodeEl.classList.remove('active');
+    if (svgEl) svgEl.innerHTML = '';
   }
 }
 

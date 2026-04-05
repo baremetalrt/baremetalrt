@@ -247,23 +247,38 @@ if (document.cookie.includes('token=')) {
 
     <!-- TP=2 panel (visible in 2-GPU mode) -->
     <div class="tp2-panel" id="tp2-panel" style="display:none;">
-      <div class="tp2-gpu-row">
-        <div class="gpu-card-mini" id="gpu-card-0">
-          <div class="rank-label">RANK 0</div>
-          <div class="gpu-mini-name" id="tp2-gpu0-name">--</div>
-          <div class="gpu-mini-host" id="tp2-gpu0-host"></div>
-          <div class="gpu-mini-vram" id="tp2-gpu0-vram">--</div>
-          <div class="gpu-mini-status offline" id="tp2-gpu0-status">OFFLINE</div>
+      <div class="tp-mesh" id="tp-mesh">
+        <!-- TCP overlay -->
+        <div class="tp-tcp-overlay" id="tp-tcp-overlay">
+          <div class="tp-tcp-track"></div>
+          <div class="tp-tcp-label">TCP</div>
+          <div class="tp-tcp-track"></div>
         </div>
-        <div class="tp2-tcp-link" id="tp2-tcp-link">
-          <svg viewBox="0 0 80 40" width="80" height="40"><line x1="0" y1="20" x2="80" y2="20" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/><text x="40" y="14" text-anchor="middle" fill="#8b5cf6" font-size="9" font-family="'Space Grotesk',system-ui" opacity="0.7">TCP</text></svg>
+        <!-- Rank 0 node -->
+        <div class="tp-node" id="tp-node0">
+          <div class="tp-node-info">
+            <div class="tp-rank">RANK 0</div>
+            <div class="tp-host" id="tp2-gpu0-host">Waiting...</div>
+            <div class="tp-gpu" id="tp2-gpu0-name">--</div>
+            <div class="tp-vram" id="tp2-gpu0-vram"></div>
+          </div>
+          <div class="tp-node-gpu" id="tp2-gpu0-svg"></div>
+          <div class="tp-node-status" id="tp2-gpu0-status">
+            <span class="tp-dot"></span> OFFLINE
+          </div>
         </div>
-        <div class="gpu-card-mini" id="gpu-card-1">
-          <div class="rank-label">RANK 1</div>
-          <div class="gpu-mini-name" id="tp2-gpu1-name">--</div>
-          <div class="gpu-mini-host" id="tp2-gpu1-host"></div>
-          <div class="gpu-mini-vram" id="tp2-gpu1-vram">--</div>
-          <div class="gpu-mini-status offline" id="tp2-gpu1-status">OFFLINE</div>
+        <!-- Rank 1 node -->
+        <div class="tp-node" id="tp-node1">
+          <div class="tp-node-info">
+            <div class="tp-rank">RANK 1</div>
+            <div class="tp-host" id="tp2-gpu1-host">Waiting...</div>
+            <div class="tp-gpu" id="tp2-gpu1-name">--</div>
+            <div class="tp-vram" id="tp2-gpu1-vram"></div>
+          </div>
+          <div class="tp-node-gpu" id="tp2-gpu1-svg"></div>
+          <div class="tp-node-status" id="tp2-gpu1-status">
+            <span class="tp-dot"></span> OFFLINE
+          </div>
         </div>
       </div>
       <div class="tp2-session-status" id="tp2-session-status">Waiting for both GPUs...</div>

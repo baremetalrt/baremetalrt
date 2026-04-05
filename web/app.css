@@ -489,7 +489,7 @@ pre:hover .copy-btn { opacity: 1; }
 }
 .tp-node-gpu svg { width: 100%; max-width: 140px; height: auto; }
 .tp-node-stats {
-  display: flex; justify-content: center; gap: 12px; padding: 4px 10px;
+  display: flex; justify-content: center; gap: 4px; padding: 4px 10px;
 }
 .tp-node-stats .tp-stat {
   flex: 1; text-align: center; font-size: 8px; color: var(--silver-dark); letter-spacing: 1px;

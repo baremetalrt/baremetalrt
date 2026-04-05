@@ -131,7 +131,6 @@ async function checkAuth() {
       document.getElementById('app-layout').style.display = 'flex';
       closeAuth();
       showModels();
-      if (_gpuMode !== '1gpu') setGpuMode(_gpuMode);
       document.getElementById('user-initials').textContent = user.first_name || user.name || user.email.split('@')[0];
       document.getElementById('prompt').placeholder = 'Send a message...';
       // Hide demo link when signed in
@@ -147,7 +146,8 @@ async function checkAuth() {
       }
 
       if (isDemo) applyDemoRestrictions();
-      if (!isDemo) fetchDevices();
+      if (!isDemo) await fetchDevices();
+      if (_gpuMode !== '1gpu') setGpuMode(_gpuMode);
       checkNode();
       checkDaemonVersion();
       if (!isDemo) checkPendingClaims();

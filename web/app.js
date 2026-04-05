@@ -1542,12 +1542,21 @@ function _pollTpModelStatus(id, el) {
         const bar0 = pct0 != null ? pct0 + '%' : '—';
         const bar1 = pct1 != null ? pct1 + '%' : '—';
         const status = r0?.status || r1?.status || 'starting';
+        const isDownloading = status === 'downloading';
+        const isPaused = r0?.status === 'paused' || r1?.status === 'paused';
+        let controls = '';
+        if (isDownloading) {
+          controls = `<div class="tp-prog-controls"><button class="prog-ctrl" onclick="pausePull('${id}')" title="Pause">&#9646;&#9646;</button><button class="prog-ctrl cancel" onclick="cancelPull('${id}')" title="Cancel">&#10005;</button></div>`;
+        } else if (isPaused) {
+          controls = `<div class="tp-prog-controls"><button class="prog-ctrl" onclick="pullModel('${id}')" title="Resume">&#9654;</button><button class="prog-ctrl cancel" onclick="cancelPull('${id}')" title="Cancel">&#10005;</button></div>`;
+        }
         el.style.display = '';
         el.classList.add('active');
         el.innerHTML = `
           <div class="tp-dual-progress">
             <div class="tp-prog-row"><span>Rank 0</span><div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct0 || 0}%"></div></div><span>${bar0}</span></div>
             <div class="tp-prog-row"><span>Rank 1</span><div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct1 || 0}%"></div></div><span>${bar1}</span></div>
+            ${controls}
           </div>`;
 
         // Update banner with average or min progress

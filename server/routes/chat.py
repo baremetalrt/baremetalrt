@@ -1,8 +1,10 @@
 """Chat proxy and WebSocket bridge routes — ported from orchestrator.py."""
 
 import asyncio
+import hashlib
 import json
 import logging
+from dataclasses import dataclass, field
 from typing import Optional
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
@@ -10,142 +12,224 @@ from fastapi.responses import JSONResponse
 from starlette.responses import StreamingResponse
 
 from server.auth.middleware import get_current_user, require_auth
-from server.services.node_manager import cleanup_stale
+from server.services.node_manager import cleanup_stale, get_session, nodes
+from server import db
 
 log = logging.getLogger("orchestrator")
 
 router = APIRouter(tags=["chat"])
 
-# WebSocket state for rank-0 chat bridge
-_ws_rank0: Optional[WebSocket] = None
-_ws_response_queue: Optional[asyncio.Queue] = None
-_ws_reader_running = False
-_relay_lock = asyncio.Lock()
+
+# -- Multi-daemon WebSocket registry ------------------------------------------
+
+@dataclass
+class DaemonConnection:
+    ws: WebSocket
+    queue: asyncio.Queue
+    reader_task: asyncio.Task
+    node_id: str
+    user_id: str
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+
+# node_id -> DaemonConnection
+_daemon_connections: dict[str, DaemonConnection] = {}
+
+# user_id -> node_id (which daemon is the "active" one for 1-GPU relay)
+_active_node: dict[str, str] = {}
+
+
+def _auto_select_active(user_id: str):
+    """Auto-select the highest-VRAM connected node for this user."""
+    user_conns = [(nid, dc) for nid, dc in _daemon_connections.items() if dc.user_id == user_id]
+    if not user_conns:
+        _active_node.pop(user_id, None)
+        return
+    def vram(nid):
+        n = nodes.get(nid)
+        return n.gpu_vram_total_mb if n else 0
+    user_conns.sort(key=lambda x: vram(x[0]), reverse=True)
+    _active_node[user_id] = user_conns[0][0]
 
 
 @router.get("/api/gpu-status")
-async def gpu_status():
-    """Quick check if a GPU daemon is connected via WS bridge."""
-    return {"connected": _ws_rank0 is not None}
+async def gpu_status(request: Request):
+    """Check which GPU daemons are connected via WS bridge."""
+    user = await get_current_user(request)
+    if not user:
+        # Legacy: return connected if any daemon is connected
+        return {"connected": len(_daemon_connections) > 0, "nodes": []}
+    user_id = str(user["id"])
+    user_conns = {nid: dc for nid, dc in _daemon_connections.items() if dc.user_id == user_id}
+    if not user_conns:
+        return {"connected": False, "active_node_id": None, "nodes": []}
+    active = _active_node.get(user_id)
+    if active not in user_conns:
+        _auto_select_active(user_id)
+        active = _active_node.get(user_id)
+    return {
+        "connected": True,
+        "active_node_id": active,
+        "nodes": [{"node_id": nid, "connected": True} for nid in user_conns],
+    }
+
+
+@router.post("/api/set-active-node/{node_id}")
+async def set_active_node(node_id: str, request: Request):
+    """Switch which daemon the relay targets for 1-GPU mode."""
+    user = await require_auth(request)
+    user_id = str(user["id"])
+    if node_id not in _daemon_connections or _daemon_connections[node_id].user_id != user_id:
+        return JSONResponse(status_code=404, content={"error": "Node not connected"})
+    _active_node[user_id] = node_id
+    return {"ok": True, "active_node_id": node_id}
 
 
 @router.get("/api/system-info")
-async def system_info():
+async def system_info(request: Request):
     """Get system info from daemon."""
-    result = await _relay_to_daemon({"type": "system_info"}, timeout_s=5.0)
+    user = await get_current_user(request)
+    user_id = str(user["id"]) if user else None
+    result = await _relay_to_daemon({"type": "system_info"}, timeout_s=5.0, user_id=user_id)
     return result
 
 
 @router.get("/api/gpu-metrics")
-async def gpu_metrics():
+async def gpu_metrics(request: Request):
     """Get real-time GPU metrics (VRAM, temp, utilization)."""
-    result = await _relay_to_daemon({"type": "gpu_metrics"}, timeout_s=5.0)
+    user = await get_current_user(request)
+    user_id = str(user["id"]) if user else None
+    result = await _relay_to_daemon({"type": "gpu_metrics"}, timeout_s=5.0, user_id=user_id)
     return result
 
 
 async def _ws_reader(ws: WebSocket, q: asyncio.Queue):
-    """Single reader coroutine — all messages from rank-0 flow through here."""
-    global _ws_reader_running
-    _ws_reader_running = True
+    """Single reader coroutine — all messages from a daemon flow through here."""
     try:
         while True:
             msg = await ws.receive_text()
-            # Skip keepalive pings from daemon
             if msg and '"keepalive"' in msg:
                 continue
             await q.put(msg)
     except WebSocketDisconnect:
         await q.put(None)
-    finally:
-        _ws_reader_running = False
 
 
 @router.websocket("/ws/chat_bridge")
 async def ws_chat_bridge(ws: WebSocket):
-    """Rank-0 daemon connects here. Requires API key in query param or header."""
-    global _ws_rank0, _ws_response_queue
-
-    # Auth: check query param ?token=bmrt_xxx or header
-    # WebSocket doesn't support cookies easily, so use query param
+    """Daemon connects here. Requires API key in query param or header."""
+    # Auth: check query param ?token=bmrt_xxx&node_id=abc123
     token = ws.query_params.get("token", "")
+    node_id = ws.query_params.get("node_id", "")
+
     if not token:
-        # Try to get from first message (handshake)
         await ws.accept()
         try:
             auth_msg = await asyncio.wait_for(ws.receive_text(), timeout=10.0)
             auth_data = json.loads(auth_msg)
             token = auth_data.get("api_key", "")
+            node_id = node_id or auth_data.get("node_id", "")
         except Exception:
             await ws.close(code=4001, reason="Auth required")
             return
 
     if not token.startswith("bmrt_"):
-        if _ws_rank0 is None:
-            await ws.accept()
+        await ws.accept()
         await ws.close(code=4001, reason="Invalid API key")
         return
 
     # Validate API key
-    import hashlib
-    from server import db
     key_hash = hashlib.sha256(token.encode()).hexdigest()
     row = await db.fetch_one(
         "SELECT user_id FROM api_keys WHERE key_hash = $1 AND revoked = false",
         key_hash,
     )
     if not row:
-        if _ws_rank0 is None:
-            await ws.accept()
+        await ws.accept()
         await ws.close(code=4001, reason="Invalid or revoked API key")
         return
 
-    if _ws_rank0 is None:
-        await ws.accept()
-    _ws_rank0 = ws
-    _ws_response_queue = asyncio.Queue()
-    log.info(f"WebSocket chat bridge: rank-0 connected [user={str(row['user_id'])[:8]}]")
+    user_id = str(row["user_id"])
 
-    reader = asyncio.create_task(_ws_reader(ws, _ws_response_queue))
+    # Fallback node_id for old daemons that don't send it
+    if not node_id:
+        node_id = f"ws_{key_hash[:8]}"
+
+    await ws.accept()
+
+    queue = asyncio.Queue()
+    reader = asyncio.create_task(_ws_reader(ws, queue))
+
+    conn = DaemonConnection(
+        ws=ws, queue=queue, reader_task=reader,
+        node_id=node_id, user_id=user_id,
+    )
+    _daemon_connections[node_id] = conn
+
+    # Auto-select if user has no active node
+    if user_id not in _active_node or _active_node[user_id] not in _daemon_connections:
+        _auto_select_active(user_id)
+
+    log.info(f"WS bridge: {node_id} connected [user={user_id[:8]}] (total: {len(_daemon_connections)})")
+
     try:
         await reader
     except Exception:
         pass
     finally:
-        # Brief grace period — daemon reconnects quickly
         await asyncio.sleep(2)
-        # Only clear if no new connection replaced us
-        if _ws_rank0 is ws:
-            _ws_rank0 = None
-            _ws_response_queue = None
-            log.warning("WebSocket chat bridge: rank-0 disconnected")
+        if _daemon_connections.get(node_id) is conn:
+            del _daemon_connections[node_id]
+            log.warning(f"WS bridge: {node_id} disconnected (total: {len(_daemon_connections)})")
+            if _active_node.get(user_id) == node_id:
+                _auto_select_active(user_id)
 
 
-async def _relay_to_daemon(payload: dict, timeout_s: float = 30.0) -> dict:
-    """Send a command to the daemon via WS and wait for a JSON response."""
-    async with _relay_lock:
-        if not _ws_rank0 or not _ws_response_queue:
-            return {"error": "No GPU node connected"}
+def _get_conn(node_id: str = None, user_id: str = None) -> Optional[DaemonConnection]:
+    """Resolve which DaemonConnection to relay to."""
+    if node_id and node_id in _daemon_connections:
+        return _daemon_connections[node_id]
+    if user_id:
+        active = _active_node.get(user_id)
+        if active and active in _daemon_connections:
+            return _daemon_connections[active]
+        for dc in _daemon_connections.values():
+            if dc.user_id == user_id:
+                return dc
+    # Legacy fallback: any connection
+    if _daemon_connections:
+        return next(iter(_daemon_connections.values()))
+    return None
 
-        # Drain stale
-        while not _ws_response_queue.empty():
+
+async def _relay_to_daemon(
+    payload: dict, timeout_s: float = 30.0,
+    node_id: str = None, user_id: str = None,
+) -> dict:
+    """Send a command to a daemon via WS and wait for a JSON response."""
+    conn = _get_conn(node_id, user_id)
+    if not conn:
+        return {"error": "No GPU node connected"}
+
+    async with conn.lock:
+        while not conn.queue.empty():
             try:
-                _ws_response_queue.get_nowait()
+                conn.queue.get_nowait()
             except asyncio.QueueEmpty:
                 break
 
         try:
-            await _ws_rank0.send_text(json.dumps(payload))
+            await conn.ws.send_text(json.dumps(payload))
         except Exception as e:
             return {"error": f"Failed to reach GPU node: {e}"}
 
         try:
-            # Read responses, skip SSE lines from in-flight chat
             for _ in range(10):
-                msg = await asyncio.wait_for(_ws_response_queue.get(), timeout=timeout_s)
+                msg = await asyncio.wait_for(conn.queue.get(), timeout=timeout_s)
                 if msg is None:
                     return {"error": "GPU node disconnected"}
                 if msg.startswith('data:'):
-                    continue  # Skip SSE chat data
+                    continue
                 return json.loads(msg)
             return {"error": "No valid response from GPU node"}
         except asyncio.TimeoutError:
@@ -154,115 +238,177 @@ async def _relay_to_daemon(payload: dict, timeout_s: float = 30.0) -> dict:
             return {"error": "Invalid response from GPU node"}
 
 
+async def _resolve_target(request: Request) -> tuple[Optional[str], Optional[str]]:
+    """Determine target node_id and user_id from request context."""
+    user = await get_current_user(request)
+    user_id = str(user["id"]) if user else None
+    gpu_mode = request.headers.get("X-GPU-Mode", "1gpu")
+    node_id = None
+
+    if gpu_mode == "tp2":
+        session = get_session()
+        if session.get("status") == "matched":
+            node_id = session["rank0"]["node_id"]
+    elif user_id:
+        node_id = _active_node.get(user_id)
+
+    return node_id, user_id
+
+
 # -- Model management (relay to daemon) --------------------------------------
 
 @router.get("/api/models")
-async def api_models():
+async def api_models(request: Request):
     """Get model list from daemon."""
-    result = await _relay_to_daemon({"type": "models"})
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "models"}, node_id=node_id, user_id=user_id)
 
 
 @router.post("/api/models/{model_id}/pull")
-async def api_pull_model(model_id: str):
+async def api_pull_model(model_id: str, request: Request):
     """Tell daemon to pull a model."""
-    result = await _relay_to_daemon({"type": "pull", "model_id": model_id})
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "pull", "model_id": model_id}, node_id=node_id, user_id=user_id)
 
 
 @router.post("/api/models/{model_id}/pause")
-async def api_pause_pull(model_id: str):
+async def api_pause_pull(model_id: str, request: Request):
     """Tell daemon to pause a model download."""
-    result = await _relay_to_daemon({"type": "pause", "model_id": model_id})
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "pause", "model_id": model_id}, node_id=node_id, user_id=user_id)
 
 
 @router.post("/api/models/{model_id}/cancel")
-async def api_cancel_pull(model_id: str):
+async def api_cancel_pull(model_id: str, request: Request):
     """Tell daemon to cancel a model download and delete partial files."""
-    result = await _relay_to_daemon({"type": "cancel", "model_id": model_id})
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "cancel", "model_id": model_id}, node_id=node_id, user_id=user_id)
 
 
 @router.post("/api/models/{model_id}/build")
-async def api_build_model(model_id: str):
+async def api_build_model(model_id: str, request: Request):
     """Tell daemon to build engine for a model."""
-    result = await _relay_to_daemon({"type": "build", "model_id": model_id}, timeout_s=60.0)
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "build", "model_id": model_id}, timeout_s=60.0, node_id=node_id, user_id=user_id)
 
 
 @router.get("/api/models/{model_id}/status")
-async def api_model_status(model_id: str):
+async def api_model_status(model_id: str, request: Request):
     """Get pull/build progress from daemon."""
-    result = await _relay_to_daemon({"type": "model_status", "model_id": model_id})
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "model_status", "model_id": model_id}, node_id=node_id, user_id=user_id)
 
 
 @router.post("/api/models/{model_id}/load")
-async def api_load_model(model_id: str):
+async def api_load_model(model_id: str, request: Request):
     """Tell daemon to switch to a different model."""
-    result = await _relay_to_daemon({"type": "load", "model_id": model_id}, timeout_s=120.0)
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "load", "model_id": model_id}, timeout_s=120.0, node_id=node_id, user_id=user_id)
 
 
 @router.post("/api/models/{model_id}/delete")
-async def api_delete_model(model_id: str):
+async def api_delete_model(model_id: str, request: Request):
     """Tell daemon to delete a downloaded model and its engine."""
-    result = await _relay_to_daemon({"type": "delete_model", "model_id": model_id}, timeout_s=30.0)
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "delete_model", "model_id": model_id}, timeout_s=30.0, node_id=node_id, user_id=user_id)
 
 
 @router.post("/api/unload")
-async def api_unload():
+async def api_unload(request: Request):
     """Tell daemon to unload current model and free VRAM."""
-    result = await _relay_to_daemon({"type": "unload"})
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "unload"}, node_id=node_id, user_id=user_id)
 
 
 @router.post("/api/daemon/restart")
-async def api_daemon_restart():
+async def api_daemon_restart(request: Request):
     """Tell daemon to git pull and restart."""
-    result = await _relay_to_daemon({"type": "restart"})
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "restart"}, node_id=node_id, user_id=user_id)
 
 
 @router.post("/api/daemon/shutdown")
-async def api_daemon_shutdown():
+async def api_daemon_shutdown(request: Request):
     """Tell daemon to shut down."""
-    result = await _relay_to_daemon({"type": "shutdown"})
-    return result
+    node_id, user_id = await _resolve_target(request)
+    return await _relay_to_daemon({"type": "shutdown"}, node_id=node_id, user_id=user_id)
 
 
-# -- Chat (SSE streaming) ----------------------------------------------------
+# -- TP=2 coordinated build ---------------------------------------------------
+
+@router.post("/api/tp2/build/{model_id}")
+async def tp2_build(model_id: str, request: Request):
+    """Coordinate TP=2 engine build across both matched daemons."""
+    await require_auth(request)
+    session = get_session()
+    if session.get("status") != "matched":
+        return JSONResponse(status_code=400, content={"error": "Need matched 2-GPU session. Both GPUs must be online."})
+
+    rank0_id = session["rank0"]["node_id"]
+    rank1_id = session["rank1"]["node_id"]
+    rank0_ip = session["rank0"]["ip"]
+    rank1_ip = session["rank1"]["ip"]
+
+    if rank0_id not in _daemon_connections:
+        return JSONResponse(status_code=503, content={"error": f"Rank 0 ({session['rank0'].get('hostname', rank0_id)}) not connected via WS"})
+    if rank1_id not in _daemon_connections:
+        return JSONResponse(status_code=503, content={"error": f"Rank 1 ({session['rank1'].get('hostname', rank1_id)}) not connected via WS"})
+
+    r0, r1 = await asyncio.gather(
+        _relay_to_daemon(
+            {"type": "build", "model_id": model_id, "tp": 2, "rank": 0, "peer_ip": rank1_ip},
+            timeout_s=60.0, node_id=rank0_id,
+        ),
+        _relay_to_daemon(
+            {"type": "build", "model_id": model_id, "tp": 2, "rank": 1, "peer_ip": rank0_ip},
+            timeout_s=60.0, node_id=rank1_id,
+        ),
+    )
+    return {"rank0": r0, "rank1": r1}
+
+
+# -- Chat (SSE streaming) -----------------------------------------------------
 
 @router.post("/api/chat")
 async def proxy_chat(request: Request):
-    """Forward chat request to rank-0 via WebSocket bridge."""
+    """Forward chat request to target daemon via WebSocket bridge."""
     cleanup_stale()
+
+    user = await get_current_user(request)
+    user_id = str(user["id"]) if user else None
+    gpu_mode = request.headers.get("X-GPU-Mode", "1gpu")
+
+    if gpu_mode == "tp2":
+        session = get_session()
+        if session.get("status") != "matched":
+            return JSONResponse(status_code=503, content={"error": "No matched 2-GPU session"})
+        target_node_id = session["rank0"]["node_id"]
+    else:
+        target_node_id = _active_node.get(user_id) if user_id else None
+
+    conn = _get_conn(target_node_id, user_id)
+    if not conn:
+        return JSONResponse(status_code=503, content={"error": "No GPU node connected"})
+
     body = await request.body()
 
-    if not _ws_rank0 or not _ws_response_queue:
-        return JSONResponse(status_code=503,
-                            content={"error": "No GPU node connected"})
+    async with conn.lock:
+        while not conn.queue.empty():
+            try:
+                conn.queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
 
-    # Drain stale messages
-    while not _ws_response_queue.empty():
         try:
-            _ws_response_queue.get_nowait()
-        except asyncio.QueueEmpty:
-            break
-
-    try:
-        await _ws_rank0.send_text(body.decode())
-    except Exception as e:
-        return JSONResponse(status_code=503,
-                            content={"error": f"Failed to reach GPU node: {e}"})
+            await conn.ws.send_text(body.decode())
+        except Exception as e:
+            return JSONResponse(status_code=503, content={"error": f"Failed to reach GPU node: {e}"})
 
     async def stream_from_ws():
         got_done = False
         try:
             while True:
-                msg = await asyncio.wait_for(_ws_response_queue.get(), timeout=300.0)
+                msg = await asyncio.wait_for(conn.queue.get(), timeout=300.0)
                 if msg is None:
                     yield f"data: {json.dumps({'error': 'GPU node disconnected'})}\n\n"
                     break
@@ -274,7 +420,6 @@ async def proxy_chat(request: Request):
                     break
         except asyncio.TimeoutError:
             yield f"data: {json.dumps({'error': 'Timeout waiting for GPU node'})}\n\n"
-        # Always send a done signal so the frontend knows streaming ended
         if not got_done:
             yield f"data: {json.dumps({'done': True, 'truncated': True})}\n\n"
 

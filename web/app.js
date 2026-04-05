@@ -7,6 +7,13 @@ let currentModel = null;
 let gpuConnected = false;
 let _lastGpuState = null; // track changes to avoid unnecessary rerenders
 
+// -- Multi-GPU state ----------------------------------------------------------
+let _gpuMode = '1gpu';       // '1gpu' or '2gpu'
+let _userDevices = [];        // [{node_id, hostname, gpu_name, gpu_vram_mb, ws_connected}]
+let _activeNodeId = null;
+let _deviceIdx = 0;
+let _tp2PollTimer = null;
+
 // -- Persistence (encoded localStorage — never sent to server) ---------------
 
 function _storageKey() {
@@ -139,6 +146,7 @@ async function checkAuth() {
       }
 
       if (isDemo) applyDemoRestrictions();
+      if (!isDemo) fetchDevices();
       checkNode();
       checkDaemonVersion();
       if (!isDemo) checkPendingClaims();
@@ -313,6 +321,21 @@ async function checkNode() {
   try {
     const r = await fetch('/api/gpu-status');
     const d = await r.json();
+
+    // Update active node from server
+    if (d.active_node_id) _activeNodeId = d.active_node_id;
+
+    // Show/hide GPU carousel
+    const carousel = document.getElementById('gpu-carousel');
+    if (carousel && _gpuMode === '1gpu' && _userDevices.length > 1) {
+      carousel.style.display = 'flex';
+      // Sync _deviceIdx to active node
+      const idx = _userDevices.findIndex(dev => dev.node_id === _activeNodeId);
+      if (idx >= 0) _deviceIdx = idx;
+      _updateCarouselLabel();
+    } else if (carousel) {
+      carousel.style.display = 'none';
+    }
 
     const badge = document.getElementById('header-status');
     const stateKey = d.connected ? 'on' : 'off';
@@ -576,7 +599,7 @@ async function chat() {
   try {
     const resp = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ..._apiHeaders() },
       body: JSON.stringify({
         message: msg,
         history: conversationHistory.slice(-10),
@@ -726,6 +749,141 @@ function resumeChat() {
 }
 
 // updateConversationCard removed — sidebar handles conversation history
+
+// -- GPU device carousel & mode switching -----------------------------------
+
+async function fetchDevices() {
+  try {
+    const r = await fetch('/api/devices');
+    const d = await r.json();
+    _userDevices = (d.devices || []).sort((a, b) => (b.gpu_vram_mb || 0) - (a.gpu_vram_mb || 0));
+  } catch(e) { console.error('fetchDevices:', e); }
+}
+
+function _updateCarouselLabel() {
+  const el = document.getElementById('gpu-carousel-label');
+  if (!el || _userDevices.length === 0) return;
+  const dev = _userDevices[_deviceIdx];
+  el.textContent = dev ? `${dev.gpu_name || dev.hostname} (${_deviceIdx + 1}/${_userDevices.length})` : '';
+}
+
+async function prevDevice() {
+  if (_userDevices.length < 2) return;
+  _deviceIdx = (_deviceIdx - 1 + _userDevices.length) % _userDevices.length;
+  await selectDevice(_userDevices[_deviceIdx].node_id);
+}
+
+async function nextDevice() {
+  if (_userDevices.length < 2) return;
+  _deviceIdx = (_deviceIdx + 1) % _userDevices.length;
+  await selectDevice(_userDevices[_deviceIdx].node_id);
+}
+
+async function selectDevice(nodeId) {
+  try {
+    await fetch(`/api/set-active-node/${nodeId}`, { method: 'POST' });
+    _activeNodeId = nodeId;
+    _lastGpuState = null;
+    _updateCarouselLabel();
+    await checkNode();
+    await refreshGpuCard();
+    loadModels();
+  } catch(e) { console.error('selectDevice:', e); }
+}
+
+function setGpuMode(mode) {
+  _gpuMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === (mode === '1gpu' ? '1gpu' : 'tp2'));
+  });
+  if (mode === '1gpu') {
+    show1GpuLayout();
+  } else {
+    show2GpuLayout();
+  }
+}
+
+function show1GpuLayout() {
+  document.getElementById('gpu-card').style.display = '';
+  const carousel = document.getElementById('gpu-carousel');
+  if (carousel) carousel.style.display = _userDevices.length > 1 ? 'flex' : 'none';
+  document.getElementById('tp2-panel').style.display = 'none';
+  if (_tp2PollTimer) { clearInterval(_tp2PollTimer); _tp2PollTimer = null; }
+  checkNode();
+}
+
+function show2GpuLayout() {
+  document.getElementById('gpu-card').style.display = 'none';
+  const carousel = document.getElementById('gpu-carousel');
+  if (carousel) carousel.style.display = 'none';
+  document.getElementById('tp2-panel').style.display = '';
+  _pollTp2Status();
+  _tp2PollTimer = setInterval(_pollTp2Status, 5000);
+}
+
+async function _pollTp2Status() {
+  try {
+    const [clusterR, sessionR] = await Promise.all([
+      fetch('/api/cluster'),
+      fetch('/api/session'),
+    ]);
+    const cluster = await clusterR.json();
+    const session = await sessionR.json();
+
+    // Find user's nodes from cluster data
+    const cnodes = cluster.nodes || [];
+
+    // Update rank 0 card
+    const r0 = session.status === 'matched' ? session.rank0 : cnodes.find(n => n.rank === 0);
+    const r1 = session.status === 'matched' ? session.rank1 : cnodes.find(n => n.rank === 1);
+
+    _updateTp2Card(0, r0, session.status);
+    _updateTp2Card(1, r1, session.status);
+
+    const statusEl = document.getElementById('tp2-session-status');
+    if (session.status === 'matched') {
+      statusEl.textContent = 'Session matched \u2014 ready for inference';
+      statusEl.className = 'tp2-session-status matched';
+    } else {
+      const online = cnodes.filter(n => n.status !== 'offline').length;
+      statusEl.textContent = online < 2 ? `Waiting for both GPUs... (${online}/2 online)` : 'Matching session...';
+      statusEl.className = 'tp2-session-status';
+    }
+  } catch(e) { console.error('_pollTp2Status:', e); }
+}
+
+function _updateTp2Card(rank, data, sessionStatus) {
+  const prefix = `tp2-gpu${rank}`;
+  const nameEl = document.getElementById(`${prefix}-name`);
+  const hostEl = document.getElementById(`${prefix}-host`);
+  const vramEl = document.getElementById(`${prefix}-vram`);
+  const statusEl = document.getElementById(`${prefix}-status`);
+
+  if (data) {
+    nameEl.textContent = data.gpu || data.gpu_name || '--';
+    hostEl.textContent = data.hostname || '';
+    vramEl.textContent = data.vram_mb ? `${Math.round(data.vram_mb / 1024)} GB VRAM` : '';
+    if (sessionStatus === 'matched') {
+      statusEl.textContent = 'MATCHED';
+      statusEl.className = 'gpu-mini-status matched';
+    } else {
+      statusEl.textContent = 'ONLINE';
+      statusEl.className = 'gpu-mini-status online';
+    }
+  } else {
+    nameEl.textContent = '--';
+    hostEl.textContent = '';
+    vramEl.textContent = '';
+    statusEl.textContent = 'OFFLINE';
+    statusEl.className = 'gpu-mini-status offline';
+  }
+}
+
+function _apiHeaders() {
+  const h = {};
+  if (_gpuMode === '2gpu') h['X-GPU-Mode'] = 'tp2';
+  return h;
+}
 
 // -- Family carousel --------------------------------------------------------
 let _allModels = [];
@@ -903,13 +1061,22 @@ async function cancelPull(id) {
 async function buildModel(id) {
   if (isDemo) { demoBlock(); return; }
   _setProgress(document.getElementById('prog-' + id), 'Building engine', null);
-  await fetch(`/api/models/${id}/build`, { method: 'POST' });
+  if (_gpuMode === '2gpu') {
+    await fetch(`/api/tp2/build/${id}`, { method: 'POST', headers: _apiHeaders() });
+  } else {
+    await fetch(`/api/models/${id}/build`, { method: 'POST', headers: _apiHeaders() });
+  }
   pollModelStatus(id);
 }
 
 function _updateGpuCard(md) {
   if (!md || md.error) return;
-  if (md.gpu_name && document.getElementById('gpu-status-text')) document.getElementById('gpu-status-text').textContent = md.gpu_name;
+  if (md.gpu_name && document.getElementById('gpu-status-text')) {
+    // Show hostname when multiple devices are linked
+    const activeDev = _userDevices.find(d => d.node_id === _activeNodeId);
+    const label = (_userDevices.length > 1 && activeDev) ? `${md.gpu_name} \u00b7 ${activeDev.hostname}` : md.gpu_name;
+    document.getElementById('gpu-status-text').textContent = label;
+  }
   if (md.gpu_vram_mb) document.getElementById('gpu-vram-display').textContent = Math.round(md.gpu_vram_mb / 1024) + 'GB VRAM';
   if (md.active_model) {
     document.getElementById('gpu-card').classList.add('active');

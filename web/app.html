@@ -35,7 +35,7 @@ if (document.cookie.includes('token=')) {
   <span class="spacer"></span>
   <div class="mode-switcher" id="mode-switcher" style="display:none;">
     <button class="mode-btn active" data-mode="1gpu" title="Single GPU inference mode">1 GPU</button>
-    <button class="mode-btn" onclick="window.location='/demo'" title="Two GPUs over TCP" data-mode="tp2">2 GPU</button>
+    <button class="mode-btn" onclick="setGpuMode('2gpu')" title="Two GPUs over TCP" data-mode="tp2">2 GPU</button>
     <button class="mode-btn disabled" onclick="showModeToast('TP \u00b7 Home Mesh coming soon', event)" title="Coming soon" data-mode="tp">TP &middot; Home</button>
     <button class="mode-btn disabled" onclick="showModeToast('MoE \u00b7 Internet Mesh coming soon', event)" title="Coming soon" data-mode="moe">MoE &middot; Mesh</button>
   </div>
@@ -166,6 +166,13 @@ if (document.cookie.includes('token=')) {
 <div class="main">
   <!-- Models view — default -->
   <div class="models-panel" id="models-panel">
+    <!-- GPU device carousel (visible when 2+ GPUs linked) -->
+    <div class="gpu-carousel" id="gpu-carousel" style="display:none;">
+      <button class="family-arrow" onclick="prevDevice()" title="Previous GPU">&larr;</button>
+      <span class="gpu-carousel-label" id="gpu-carousel-label">1 of 1</span>
+      <button class="family-arrow" onclick="nextDevice()" title="Next GPU">&rarr;</button>
+    </div>
+
     <!-- GPU status card with SVG -->
     <div class="gpu-card" id="gpu-card">
       <button class="model-btn" onclick="showModeToast('Share your GPU on the mesh and earn when others use it. Coming soon.', event)" title="Earn by sharing your idle GPU — coming soon" style="position:absolute; top:8px; left:50%; transform:translateX(-50%); opacity:0.4; font-size:9px; padding:4px 14px; z-index:1;">Mesh Mode</button>
@@ -216,6 +223,30 @@ if (document.cookie.includes('token=')) {
         </svg>
         <div class="gpu-metrics" id="gpu-metrics" style="margin-top:4px;"><div class="vram-text" style="animation:statusPulse 1.5s ease-in-out infinite;">Loading stats...</div></div>
       </div>
+    </div>
+
+    <!-- TP=2 panel (visible in 2-GPU mode) -->
+    <div class="tp2-panel" id="tp2-panel" style="display:none;">
+      <div class="tp2-gpu-row">
+        <div class="gpu-card-mini" id="gpu-card-0">
+          <div class="rank-label">RANK 0</div>
+          <div class="gpu-mini-name" id="tp2-gpu0-name">--</div>
+          <div class="gpu-mini-host" id="tp2-gpu0-host"></div>
+          <div class="gpu-mini-vram" id="tp2-gpu0-vram">--</div>
+          <div class="gpu-mini-status offline" id="tp2-gpu0-status">OFFLINE</div>
+        </div>
+        <div class="tp2-tcp-link" id="tp2-tcp-link">
+          <svg viewBox="0 0 80 40" width="80" height="40"><line x1="0" y1="20" x2="80" y2="20" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/><text x="40" y="14" text-anchor="middle" fill="#8b5cf6" font-size="9" font-family="'Space Grotesk',system-ui" opacity="0.7">TCP</text></svg>
+        </div>
+        <div class="gpu-card-mini" id="gpu-card-1">
+          <div class="rank-label">RANK 1</div>
+          <div class="gpu-mini-name" id="tp2-gpu1-name">--</div>
+          <div class="gpu-mini-host" id="tp2-gpu1-host"></div>
+          <div class="gpu-mini-vram" id="tp2-gpu1-vram">--</div>
+          <div class="gpu-mini-status offline" id="tp2-gpu1-status">OFFLINE</div>
+        </div>
+      </div>
+      <div class="tp2-session-status" id="tp2-session-status">Waiting for both GPUs...</div>
     </div>
 
     <div class="section-title">Available Models</div>

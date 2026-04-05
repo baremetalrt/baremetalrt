@@ -7,6 +7,7 @@ from server.auth.middleware import require_auth, require_non_demo
 from server.services.node_manager import (
     register_node, heartbeat, get_session, get_cluster,
 )
+from server.routes.chat import _daemon_connections
 from server.models import NodeRegisterRequest
 from server import db
 
@@ -73,6 +74,7 @@ async def list_devices(request: Request):
                 "gpu_vram_mb": r["gpu_vram_mb"],
                 "status": r["status"],
                 "last_seen": r["last_seen"].isoformat() if r["last_seen"] else None,
+                "ws_connected": r["node_id"] in _daemon_connections,
             }
             for r in rows
         ]

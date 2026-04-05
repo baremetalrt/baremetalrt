@@ -444,6 +444,55 @@ pre:hover .copy-btn { opacity: 1; }
   min-width: 80px; text-align: center;
 }
 
+/* GPU device carousel */
+.gpu-carousel {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin-bottom: 8px;
+}
+.gpu-carousel-label {
+  font-size: 12px; font-weight: 600; color: var(--silver); letter-spacing: 1px;
+  min-width: 100px; text-align: center; text-transform: uppercase;
+}
+
+/* TP=2 panel */
+.tp2-panel { margin-bottom: 20px; }
+.tp2-gpu-row {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  flex-wrap: wrap;
+}
+.gpu-card-mini {
+  background: linear-gradient(135deg, #14141a 0%, #1a1a24 50%, #14141a 100%);
+  border: 1px solid #2a2a50; border-radius: 8px;
+  padding: 16px 20px; min-width: 180px; text-align: center;
+  position: relative;
+}
+.gpu-card-mini .rank-label {
+  font-size: 9px; font-weight: 800; letter-spacing: 2px; color: #8b5cf6;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.gpu-mini-name {
+  font-size: 13px; font-weight: 600; color: var(--silver); margin-bottom: 2px;
+}
+.gpu-mini-host {
+  font-size: 10px; color: var(--silver-dark); margin-bottom: 4px;
+}
+.gpu-mini-vram {
+  font-size: 11px; color: var(--silver-dark); margin-bottom: 6px;
+}
+.gpu-mini-status {
+  font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 4px; display: inline-block;
+}
+.gpu-mini-status.online { color: #76e651; border: 1px solid #76e651; }
+.gpu-mini-status.offline { color: #9898a4; border: 1px solid #3a3a44; }
+.gpu-mini-status.matched { color: #8b5cf6; border: 1px solid #8b5cf6; }
+.tp2-tcp-link { flex-shrink: 0; }
+.tp2-session-status {
+  text-align: center; font-size: 11px; color: var(--silver-dark);
+  letter-spacing: 1px; margin-top: 12px; text-transform: uppercase;
+}
+.tp2-session-status.matched { color: #8b5cf6; }
+
 #model-list {
   display: flex; gap: 14px; justify-content: center; align-items: stretch;
 }

@@ -1082,7 +1082,7 @@ def _ws_bridge_worker(orchestrator_url: str):
     # Send API key as query param for WS auth
     bridge_url = f"{ws_url}/ws/chat_bridge"
     if state.api_key:
-        bridge_url += f"?token={state.api_key}"
+        bridge_url += f"?token={state.api_key}&node_id={state.node_id}"
 
     while True:
         try:

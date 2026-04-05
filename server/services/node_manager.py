@@ -178,3 +178,12 @@ def get_cluster() -> dict:
         "total_vram_gb": round(sum(n.gpu_vram_total_mb for n in nodes.values()
                                    if n.status != "offline") / 1024, 1),
     }
+
+
+def get_user_nodes(user_id: str) -> list[LiveNode]:
+    """Return a user's online nodes sorted by VRAM descending."""
+    cleanup_stale()
+    return sorted(
+        [n for n in nodes.values() if n.user_id == user_id and n.status != "offline"],
+        key=lambda n: n.gpu_vram_total_mb or 0, reverse=True,
+    )

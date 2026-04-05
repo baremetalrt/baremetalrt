@@ -873,6 +873,8 @@ function show1GpuLayout() {
   document.getElementById('gpu-card').style.display = '';
   _showGpuNav(_userDevices.length > 1);
   document.getElementById('tp2-panel').style.display = 'none';
+  document.getElementById('step-banner-1gpu').style.display = '';
+  document.getElementById('step-banner-tp').style.display = 'none';
   if (_tp2PollTimer) { clearInterval(_tp2PollTimer); _tp2PollTimer = null; }
 
   checkNode();
@@ -883,6 +885,8 @@ function show2GpuLayout() {
   document.getElementById('gpu-card').style.display = 'none';
   _showGpuNav(false);
   document.getElementById('tp2-panel').style.display = '';
+  document.getElementById('step-banner-1gpu').style.display = 'none';
+  document.getElementById('step-banner-tp').style.display = '';
 
   const hero = document.getElementById('tp-hero');
   const content = document.getElementById('tp-content');

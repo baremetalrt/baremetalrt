@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#08080a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app/static/app.css?v=__VERSION__&r=3">
+<link rel="stylesheet" href="/app/static/app.css?v=__VERSION__&r=4">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 </head>
@@ -286,7 +286,7 @@ if (document.cookie.includes('token=')) {
       <div class="tp2-session-status" id="tp2-session-status">Waiting for both GPUs...</div>
     </div>
 
-    <div class="section-title">Available Models</div>
+    <div class="section-title" id="models-section-title">Available Models</div>
     <div class="family-nav">
       <button class="family-arrow" onclick="prevFamily()">&larr;</button>
       <span class="family-name" id="family-name">All</span>

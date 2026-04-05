@@ -995,11 +995,23 @@ function nextFamily() {
 function renderModelCards() {
   const family = _families[_familyIdx];
   document.getElementById('family-name').textContent = family;
+  const titleEl = document.getElementById('models-section-title');
+  if (titleEl) titleEl.textContent = _gpuMode === '2gpu' ? 'TP Models' : 'Available Models';
   const list = document.getElementById('model-list');
   list.innerHTML = '';
 
   const filtered = family === 'All' ? _allModels : _allModels.filter(m => m.family === family);
-  const sorted = filtered.sort((a, b) => {
+
+  // In TP mode: only show models that DON'T fit on the smallest GPU
+  const isTP = _gpuMode === '2gpu';
+  const smallestVram = isTP && _userDevices.length > 0
+    ? Math.min(..._userDevices.map(d => d.gpu_vram_mb || 0)) : 0;
+
+  const tpFiltered = isTP
+    ? filtered.filter(m => m.vram_fp16_mb && m.vram_fp16_mb > smallestVram)
+    : filtered;
+
+  const sorted = tpFiltered.sort((a, b) => {
     if (a.fits === b.fits) return 0;
     if (a.fits === true) return -1;
     return 1;
@@ -1013,22 +1025,35 @@ function renderModelCards() {
 
     const card = document.createElement('div');
     card.className = 'model-card';
-    if (m.fits === false && !m.downloaded) card.style.opacity = '0.5';
-
-    const fitBadge = (m.fits === false) ? `<span class="fit-badge no-fit">TP \u00b7 MESH</span>` : '';
 
     let action = '';
-    if (m.fits === false && !m.downloaded) {
-      action = `<button class="model-btn disabled" title="${m.name} requires ${Math.round(m.vram_fp16_mb/1024)}GB VRAM. Enable TP · Home Mesh to split across multiple GPUs." style="opacity:0.5;">Run on Mesh</button>`;
-    } else if (!m.downloaded) {
-      action = `<button class="model-btn primary" onclick="pullModel('${m.id}')">Pull</button>`;
-    } else if (m.fits === false) {
-      action = `<button class="model-btn disabled" title="${m.name} requires ${Math.round(m.vram_fp16_mb/1024)}GB VRAM. Enable TP · Home Mesh to split across multiple GPUs." style="opacity:0.5;">Run on Mesh</button>`;
-    } else if (!m.engine_built) {
-      action = `<button class="model-btn primary" onclick="buildModel('${m.id}')">Build</button>`;
+    let fitBadge = '';
+    if (isTP) {
+      // TP mode: Pull → Build TP=2 → Load
+      if (!m.downloaded) {
+        action = `<button class="model-btn primary" onclick="pullModel('${m.id}')">Pull</button>`;
+      } else if (!m.engine_built) {
+        action = `<button class="model-btn primary" onclick="buildModel('${m.id}')">Build TP=2</button>`;
+      } else {
+        action = `<button class="model-btn primary" onclick="loadModel('${m.id}')">Load</button>`;
+      }
     } else {
-      const btnLabel = _allModels._activeModel ? 'Hot Swap' : 'Load';
-      action = `<button class="model-btn primary" onclick="loadModel('${m.id}')">${btnLabel}</button>`;
+      // 1-GPU mode: original logic
+      if (m.fits === false && !m.downloaded) {
+        card.style.opacity = '0.5';
+        fitBadge = `<span class="fit-badge no-fit">TP \u00b7 HOME</span>`;
+        action = `<button class="model-btn disabled" title="${m.name} requires ${Math.round(m.vram_fp16_mb/1024)}GB VRAM. Switch to TP · Home to split across multiple GPUs." style="opacity:0.5;">Run on TP</button>`;
+      } else if (!m.downloaded) {
+        action = `<button class="model-btn primary" onclick="pullModel('${m.id}')">Pull</button>`;
+      } else if (m.fits === false) {
+        fitBadge = `<span class="fit-badge no-fit">TP \u00b7 HOME</span>`;
+        action = `<button class="model-btn disabled" title="${m.name} requires ${Math.round(m.vram_fp16_mb/1024)}GB VRAM. Switch to TP · Home to split across multiple GPUs." style="opacity:0.5;">Run on TP</button>`;
+      } else if (!m.engine_built) {
+        action = `<button class="model-btn primary" onclick="buildModel('${m.id}')">Build</button>`;
+      } else {
+        const btnLabel = _allModels._activeModel ? 'Hot Swap' : 'Load';
+        action = `<button class="model-btn primary" onclick="loadModel('${m.id}')">${btnLabel}</button>`;
+      }
     }
 
     const vramGb = m.vram_fp16_mb ? Math.round(m.vram_fp16_mb / 1024) : 0;

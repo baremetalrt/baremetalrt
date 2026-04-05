@@ -458,8 +458,12 @@ pre:hover .copy-btn { opacity: 1; }
   transition: all 0.5s ease;
 }
 .tp-node.active {
-  border-color: var(--border-hi);
-  box-shadow: inset 0 0 30px rgba(200,200,220,0.02), 0 0 30px rgba(139,92,246,0.06);
+  border-color: #8b5cf6;
+  animation: tpNodeGlow 2s ease-in-out infinite;
+}
+@keyframes tpNodeGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(139,92,246,0.15), inset 0 0 20px rgba(139,92,246,0.03); }
+  50% { box-shadow: 0 0 30px rgba(139,92,246,0.35), inset 0 0 40px rgba(139,92,246,0.06); }
 }
 .tp-node-info { padding: 14px 14px 10px; text-align: center; }
 .tp-rank {

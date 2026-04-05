@@ -856,30 +856,51 @@ function show2GpuLayout() {
 
 async function _pollTp2Status() {
   try {
-    const [clusterR, sessionR] = await Promise.all([
-      fetch('/api/cluster'),
+    // Use devices (DB) + gpu-status (WS connections) for reliable state
+    const [devR, statusR, sessionR] = await Promise.all([
+      fetch('/api/devices'),
+      fetch('/api/gpu-status'),
       fetch('/api/session'),
     ]);
-    const cluster = await clusterR.json();
+    const devs = (await devR.json()).devices || [];
+    const gpuStatus = await statusR.json();
     const session = await sessionR.json();
 
-    // Find user's nodes from cluster data
-    const cnodes = cluster.nodes || [];
+    // Sort by VRAM desc — rank 0 = highest VRAM
+    const sorted = devs.sort((a, b) => (b.gpu_vram_mb || 0) - (a.gpu_vram_mb || 0));
+    const wsNodes = (gpuStatus.nodes || []).map(n => n.node_id);
 
-    // Update rank 0 card
-    const r0 = session.status === 'matched' ? session.rank0 : cnodes.find(n => n.rank === 0);
-    const r1 = session.status === 'matched' ? session.rank1 : cnodes.find(n => n.rank === 1);
+    // Map to rank 0 and rank 1
+    const r0data = sorted[0] ? {
+      hostname: sorted[0].hostname, gpu: sorted[0].gpu_name,
+      vram_mb: sorted[0].gpu_vram_mb, node_id: sorted[0].node_id,
+      online: wsNodes.includes(sorted[0].node_id),
+    } : null;
+    const r1data = sorted[1] ? {
+      hostname: sorted[1].hostname, gpu: sorted[1].gpu_name,
+      vram_mb: sorted[1].gpu_vram_mb, node_id: sorted[1].node_id,
+      online: wsNodes.includes(sorted[1].node_id),
+    } : null;
 
-    _updateTp2Card(0, r0, session.status);
-    _updateTp2Card(1, r1, session.status);
+    // If session matched, use session data (has IPs, confirmed ranks)
+    if (session.status === 'matched') {
+      _updateTp2Card(0, session.rank0, 'matched');
+      _updateTp2Card(1, session.rank1, 'matched');
+    } else {
+      _updateTp2Card(0, r0data && r0data.online ? r0data : null, 'waiting');
+      _updateTp2Card(1, r1data && r1data.online ? r1data : null, 'waiting');
+    }
 
     const statusEl = document.getElementById('tp2-session-status');
+    const onlineCount = [r0data, r1data].filter(d => d && d.online).length;
     if (session.status === 'matched') {
       statusEl.textContent = 'Session matched \u2014 ready for inference';
       statusEl.className = 'tp2-session-status matched';
+    } else if (onlineCount >= 2) {
+      statusEl.textContent = 'Both GPUs online \u2014 matching session...';
+      statusEl.className = 'tp2-session-status';
     } else {
-      const online = cnodes.filter(n => n.status !== 'offline').length;
-      statusEl.textContent = online < 2 ? `Waiting for both GPUs... (${online}/2 online)` : 'Matching session...';
+      statusEl.textContent = `Waiting for GPUs... (${onlineCount}/2 online)`;
       statusEl.className = 'tp2-session-status';
     }
   } catch(e) { console.error('_pollTp2Status:', e); }

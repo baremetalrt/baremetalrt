@@ -741,16 +741,15 @@ class TRTEngine:
     def generate_step(self, token_id: int, temperature: float = 0.0,
                       top_k: int = 0, repetition_penalty: float = 1.0,
                       penalize_ids: list[int] | None = None) -> tuple[int, float]:
-        """Generate one token using KV cache (incremental, O(1) per step)."""
+        """Generate one token via context-recompute (re-runs full sequence each step).
+        TRT-LLM KV-cache generation requires the engine to be built with
+        specific generation-mode support; until then, context-recompute is the
+        safe path that works with all engine builds."""
         self._all_ids.append(token_id)
-        logits_cpu, ms = self._run_step([token_id], is_context=False)
+        self.reset_kv_cache()
+        logits_cpu, ms = self._run_step(self._all_ids, is_context=True)
         if logits_cpu is None:
-            # Fallback: context-recompute if KV-cache generation fails
-            log.warning("KV-cache generation failed, falling back to context-recompute")
-            self.reset_kv_cache()
-            logits_cpu, ms = self._run_step(self._all_ids, is_context=True)
-            if logits_cpu is None:
-                return -1, ms
+            return -1, ms
         return self._sample(logits_cpu, temperature, top_k, repetition_penalty, penalize_ids), ms
 
     @staticmethod
@@ -1544,6 +1543,7 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
     cur_token = first_token
     hit_eos = False
     stop_reason = "max_tokens"
+    consecutive_bad = 0
     for i in range(max_tokens - 1):
         notify_peer("generate", token_id=cur_token)
         token_id, ms = state.engine.generate_step(
@@ -1578,11 +1578,17 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
             break
 
         # Detect degenerate output: control characters, replacement chars, etc.
+        # Skip isolated bad tokens; only stop after 3 consecutive bad tokens
         if all(c in _BAD_CHARS for c in new_text):
-            log.warning(f"Degenerate token detected (id={token_id}, text={repr(new_text)}), stopping after {len(generated)} tokens")
-            generated.pop()
-            stop_reason = "degenerate"
-            break
+            consecutive_bad += 1
+            log.warning(f"Degenerate token (id={token_id}, text={repr(new_text)}), run={consecutive_bad}/3")
+            generated.pop()  # don't include bad token in output
+            if consecutive_bad >= 3:
+                stop_reason = "degenerate"
+                break
+            continue  # skip this token, keep generating
+        else:
+            consecutive_bad = 0
 
         prev_text = full_text
         yield f"data: {json.dumps({'token': new_text, 'token_id': token_id, 'time_ms': round(ms, 1)})}\n\n"

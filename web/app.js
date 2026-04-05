@@ -1215,9 +1215,7 @@ function renderModelCards() {
 
   let tpFiltered = filtered;
   if (isTP && smallestVram > 0) {
-    const big = filtered.filter(m => m.vram_fp16_mb && m.vram_fp16_mb > smallestVram);
-    if (big.length > 0) tpFiltered = big;
-    // If no models exceed smallest GPU, show all (user may still want to build TP engines)
+    tpFiltered = filtered.filter(m => m.vram_fp16_mb && m.vram_fp16_mb > smallestVram);
   }
 
   const sorted = tpFiltered.sort((a, b) => {

@@ -893,14 +893,15 @@ async function _pollTp2Status() {
 
     const statusEl = document.getElementById('tp2-session-status');
     const onlineCount = [r0data, r1data].filter(d => d && d.online).length;
+    const totalGpus = [r0data, r1data].filter(Boolean).length;
     if (session.status === 'matched') {
-      statusEl.textContent = 'Session matched \u2014 ready for inference';
+      statusEl.textContent = 'SESSION MATCHED \u2014 READY FOR INFERENCE';
       statusEl.className = 'tp2-session-status matched';
     } else if (onlineCount >= 2) {
-      statusEl.textContent = 'Both GPUs online \u2014 matching session...';
-      statusEl.className = 'tp2-session-status';
+      statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 MATCHING SESSION...`;
+      statusEl.className = 'tp2-session-status matching';
     } else {
-      statusEl.textContent = `Waiting for GPUs... (${onlineCount}/2 online)`;
+      statusEl.textContent = `${onlineCount}/${totalGpus} GPUS ONLINE`;
       statusEl.className = 'tp2-session-status';
     }
   } catch(e) { console.error('_pollTp2Status:', e); }

@@ -516,7 +516,8 @@ pre:hover .copy-btn { opacity: 1; }
   text-align: center; font-size: 11px; color: var(--silver-dark);
   letter-spacing: 1px; margin-top: 12px; text-transform: uppercase;
 }
-.tp2-session-status.matched { color: #8b5cf6; }
+.tp2-session-status.matching { color: #a78bfa; animation: tcpPulse 2s ease-in-out infinite; }
+.tp2-session-status.matched { color: #8b5cf6; font-weight: 700; }
 
 /* TP mobile */
 @media (max-width: 768px) {

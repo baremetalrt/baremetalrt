@@ -481,7 +481,6 @@ pre:hover .copy-btn { opacity: 1; }
 }
 .tp-node-gpu {
   padding: 0 10px 6px; display: flex; justify-content: center;
-  background: #0e0e12; overflow: hidden;
 }
 .tp-node-gpu svg { width: 100%; max-width: 140px; height: auto; }
 .tp-node-model {

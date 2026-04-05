@@ -1050,12 +1050,16 @@ function renderModelCards() {
 
   // In TP mode: only show models that DON'T fit on the smallest GPU
   const isTP = _gpuMode === '2gpu';
+  // In TP mode: show models that DON'T fit on the smallest GPU
   const smallestVram = isTP && _userDevices.length > 0
     ? Math.min(..._userDevices.map(d => d.gpu_vram_mb || 0)) : 0;
 
-  const tpFiltered = isTP
-    ? filtered.filter(m => m.vram_fp16_mb && m.vram_fp16_mb > smallestVram)
-    : filtered;
+  let tpFiltered = filtered;
+  if (isTP && smallestVram > 0) {
+    const big = filtered.filter(m => m.vram_fp16_mb && m.vram_fp16_mb > smallestVram);
+    if (big.length > 0) tpFiltered = big;
+    // If no models exceed smallest GPU, show all (user may still want to build TP engines)
+  }
 
   const sorted = tpFiltered.sort((a, b) => {
     if (a.fits === b.fits) return 0;

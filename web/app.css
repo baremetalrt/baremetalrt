@@ -478,6 +478,13 @@ pre:hover .copy-btn { opacity: 1; }
   font-size: 14px; line-height: 1; padding: 2px 4px;
 }
 .tp-stepper-hide:hover { color: var(--silver); }
+.tp-stepper-show {
+  position: absolute; left: 0; top: 0; z-index: 5;
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--silver-dark); background: var(--surface); border: 1px solid var(--border);
+  padding: 6px 12px; cursor: pointer; font-family: inherit; border-radius: 2px;
+}
+.tp-stepper-show:hover { color: var(--silver); border-color: var(--border-hi); }
 .tp-step {
   display: flex; align-items: flex-start; gap: 12px;
   padding: 8px 0; transition: opacity 0.3s;

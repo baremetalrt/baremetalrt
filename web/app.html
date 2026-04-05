@@ -249,8 +249,9 @@ if (document.cookie.includes('token=')) {
     <div class="tp2-panel" id="tp2-panel" style="display:none;">
       <div class="tp-layout">
       <!-- Setup stepper -->
+      <button class="tp-stepper-show" id="tp-stepper-show" onclick="document.getElementById('tp-stepper').style.display='';this.style.display='none'" style="display:none;" title="Show setup guide">Setup</button>
       <div class="tp-stepper" id="tp-stepper">
-        <button class="tp-stepper-hide" onclick="document.getElementById('tp-stepper').style.display='none'" title="Hide">&times;</button>
+        <button class="tp-stepper-hide" onclick="document.getElementById('tp-stepper').style.display='none';document.getElementById('tp-stepper-show').style.display=''" title="Hide">&times;</button>
         <div class="tp-stepper-title">TP &middot; HOME SETUP</div>
         <div class="tp-stepper-model" id="tp-stepper-model" style="display:none;"></div>
         <div class="tp-step" id="tp-step-1" data-step="1">

@@ -1268,17 +1268,23 @@ def _ws_bridge_worker(orchestrator_url: str):
                             def _do_build(mid=model_id, m=model):
                                 try:
                                     import subprocess, shutil
+                                    # Unload engine to free VRAM for build
+                                    if state.engine:
+                                        log.info("Unloading engine before build to free VRAM")
+                                        del state.engine
+                                        state.engine = None
+                                        state.tokenizer = None
+                                        state.engine_name = None
+                                        state.engine_dir = None
+                                        state.active_model_id = None
+                                        import torch
+                                        torch.cuda.empty_cache()
                                     engine_dir = str(PROJECT_ROOT / "engine_cache" / f"{mid}-tp1")
                                     ckpt_dir = os.path.join(engine_dir, "checkpoint")
                                     python = shutil.which("python") or shutil.which("py")
                                     build_script = _find_build_script()
                                     env = _engine_env()
-                                    try:
-                                        import torch
-                                        _vram = torch.cuda.get_device_properties(0).total_mem // (1024*1024)
-                                    except Exception:
-                                        _vram = 8000
-                                    _mseq = 4096 if _vram > 14000 else 2048
+                                    _mseq = min(m.get("context_length", 4096), 4096)
                                     _minp = min(_mseq // 2, 1024)
                                     result = subprocess.run([python, build_script, "--convert",
                                         "--model_dir", m["hf_dir"], "--checkpoint_dir", ckpt_dir,
@@ -1831,6 +1837,20 @@ async def api_build_model(model_id: str):
     def _do_build():
         try:
             import subprocess, shutil
+
+            # Unload current engine to free VRAM for the build
+            if state.engine:
+                _build_tasks[model_id]["progress"] = "Unloading current model to free VRAM..."
+                log.info("Unloading engine before build to free VRAM")
+                del state.engine
+                state.engine = None
+                state.tokenizer = None
+                state.engine_name = None
+                state.engine_dir = None
+                state.active_model_id = None
+                import torch
+                torch.cuda.empty_cache()
+
             hf_dir = model["hf_dir"]
             engine_dir = str(PROJECT_ROOT / "engine_cache" / f"{model_id}-tp1")
             ckpt_dir = os.path.join(engine_dir, "checkpoint")
@@ -1839,16 +1859,11 @@ async def api_build_model(model_id: str):
             env = _engine_env()
 
             _build_tasks[model_id]["progress"] = "Converting checkpoint + building engine..."
-            # Scale context window based on available VRAM
-            # 4096 needs ~12.5GB build memory; use 2048 for <=12GB GPUs
-            try:
-                import torch
-                vram_mb = torch.cuda.get_device_properties(0).total_mem // (1024 * 1024)
-            except Exception:
-                vram_mb = 8000
-            max_seq = 4096 if vram_mb > 14000 else 2048
+            # Use model's max context length (from HF config), capped at 4096
+            # Full VRAM is available since we unloaded the engine above
+            max_seq = min(model.get("context_length", 4096), 4096)
             max_input = min(max_seq // 2, 1024)
-            log.info(f"Building engine: max_seq={max_seq}, max_input={max_input} (VRAM={vram_mb}MB)")
+            log.info(f"Building engine: max_seq={max_seq}, max_input={max_input}")
 
             cmd = [python, build_script,
                    "--convert",

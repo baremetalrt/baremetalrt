@@ -786,6 +786,17 @@ async function selectDevice(nodeId) {
     _activeNodeId = nodeId;
     _lastGpuState = null;
     _showGpuNav(_userDevices.length > 1);
+
+    // Immediately update card with device info we already have
+    const dev = _userDevices.find(d => d.node_id === nodeId);
+    if (dev) {
+      const st = document.getElementById('gpu-status-text');
+      if (st) st.textContent = dev.gpu_name || '';
+      const vr = document.getElementById('gpu-vram-display');
+      if (vr && dev.gpu_vram_mb) vr.textContent = Math.round(dev.gpu_vram_mb / 1024) + 'GB VRAM';
+      document.getElementById('gpu-display-name').textContent = 'Switching...';
+    }
+
     await checkNode();
     await refreshGpuCard();
     loadModels();

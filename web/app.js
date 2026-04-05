@@ -13,6 +13,7 @@ let _userDevices = [];        // [{node_id, hostname, gpu_name, gpu_vram_mb, ws_
 let _activeNodeId = null;
 let _deviceIdx = 0;
 let _tp2PollTimer = null;
+let _tpSelectedModel = null; // model id currently in the TP pipeline
 
 // -- Persistence (encoded localStorage — never sent to server) ---------------
 
@@ -908,9 +909,10 @@ async function _pollTp2Status() {
       _updateTpStepper(3);
       if (chatBtn) chatBtn.style.display = '';
     } else if (onlineCount >= 2) {
-      statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 WAITING FOR MODEL`;
+      statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 SELECT A MODEL`;
       statusEl.className = 'tp2-session-status matching';
-      _updateTpStepper(1);
+      // Only advance stepper if a model is in the pipeline
+      if (!_tpSelectedModel) _updateTpStepper(0);
       if (chatBtn) chatBtn.style.display = 'none';
     } else {
       statusEl.textContent = `${onlineCount}/${totalGpus} GPUS ONLINE`;
@@ -1023,6 +1025,19 @@ function _swapGpuSvg(gpuName) {
   const laptop = document.getElementById('gpu-svg-laptop');
   if (desktop) desktop.style.display = isLaptop ? 'none' : '';
   if (laptop) laptop.style.display = isLaptop ? '' : 'none';
+}
+
+function _updateTpStepperTitle(modelId) {
+  const el = document.getElementById('tp-stepper-model');
+  if (!el) return;
+  if (modelId) {
+    const m = (_allModels || []).find(x => x.id === modelId);
+    el.textContent = m ? m.name : modelId;
+    el.style.display = '';
+  } else {
+    el.textContent = '';
+    el.style.display = 'none';
+  }
 }
 
 function _updateTpStepper(step) {
@@ -1217,6 +1232,7 @@ function _setProgress(el, text, pct, modelId, status) {
 
 async function pullModel(id) {
   if (isDemo) { demoBlock(); return; }
+  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _updateTpStepper(1); _updateTpStepperTitle(id); }
   _setProgress(document.getElementById('prog-' + id), 'Downloading', null, id, 'downloading');
   const pullUrl = _gpuMode === '2gpu' ? `/api/tp2/pull/${id}` : `/api/models/${id}/pull`;
   const r = await fetch(pullUrl, { method: 'POST', headers: _apiHeaders() });
@@ -1246,6 +1262,7 @@ async function cancelPull(id) {
 
 async function buildModel(id) {
   if (isDemo) { demoBlock(); return; }
+  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _updateTpStepper(2); _updateTpStepperTitle(id); }
   _setProgress(document.getElementById('prog-' + id), 'Building engine', null);
   if (_gpuMode === '2gpu') {
     await fetch(`/api/tp2/build/${id}`, { method: 'POST', headers: _apiHeaders() });

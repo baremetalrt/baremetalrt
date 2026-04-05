@@ -783,25 +783,30 @@ async function nextDevice() {
 
 async function selectDevice(nodeId) {
   try {
-    await fetch(`/api/set-active-node/${nodeId}`, { method: 'POST' });
     _activeNodeId = nodeId;
     _lastGpuState = null;
     _showGpuNav(_userDevices.length > 1);
 
-    // Immediately update card with device info we already have
+    // Instantly update card from cached device data
     const dev = _userDevices.find(d => d.node_id === nodeId);
     if (dev) {
       const st = document.getElementById('gpu-status-text');
       if (st) st.textContent = _cleanGpuName(dev.gpu_name);
       const vr = document.getElementById('gpu-vram-display');
       if (vr && dev.gpu_vram_mb) vr.textContent = Math.round(dev.gpu_vram_mb / 1024) + 'GB VRAM';
-      document.getElementById('gpu-display-name').textContent = 'Switching...';
+      document.getElementById('gpu-display-name').textContent = 'No model loaded';
+      document.getElementById('gpu-card').classList.remove('active');
+      document.getElementById('gpu-layers-wrap').style.display = 'none';
+      document.getElementById('unload-btn').style.display = 'none';
       _swapGpuSvg(dev.gpu_name);
     }
 
-    await checkNode();
-    await refreshGpuCard();
-    loadModels();
+    // Server calls in background — don't block the UI
+    fetch(`/api/set-active-node/${nodeId}`, { method: 'POST' }).then(() => {
+      checkNode();
+      refreshGpuCard();
+      loadModels();
+    });
   } catch(e) { console.error('selectDevice:', e); }
 }
 

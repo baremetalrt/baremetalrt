@@ -946,7 +946,7 @@ function _updateTp2Card(rank, data, sessionStatus) {
       statusEl.innerHTML = '<span class="tp-dot" style="background:#8b5cf6;"></span> MATCHED';
       if (nodeEl) nodeEl.classList.add('active');
     } else {
-      statusEl.innerHTML = '<span class="tp-dot" style="background:#76e651;"></span> ONLINE';
+      statusEl.innerHTML = '<span class="tp-dot" style="background:#8b5cf6; animation: dotPulse 2s ease-in-out infinite;"></span> ONLINE';
       if (nodeEl) nodeEl.classList.add('active');
     }
   } else {

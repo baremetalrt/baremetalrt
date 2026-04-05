@@ -253,6 +253,7 @@ if (document.cookie.includes('token=')) {
         <div class="tp-hero-line2">Heterogeneous tensor parallelism across consumer GPUs over TCP</div>
       </div>
       <div class="tp-content" id="tp-content">
+      <div class="tp2-session-status" id="tp2-session-status">Waiting for both GPUs...</div>
       <div class="tp-mesh" id="tp-mesh">
         <!-- TCP overlay -->
         <div class="tp-tcp-overlay" id="tp-tcp-overlay">
@@ -295,7 +296,6 @@ if (document.cookie.includes('token=')) {
           </div>
         </div>
       </div>
-      <div class="tp2-session-status" id="tp2-session-status">Waiting for both GPUs...</div>
       <button class="model-btn primary tp-chat-btn" id="tp-chat-btn" onclick="showChat()" style="display:none;">Chat</button>
       </div><!-- /tp-content -->
     </div>

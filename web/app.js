@@ -351,6 +351,13 @@ async function checkNode() {
       badge.textContent = 'READY';
       document.getElementById('status-dot').className = 'dot green';
       document.getElementById('model-info').textContent = 'GPU connected';
+      if (_gpuMode === '1gpu') {
+        if (currentModel && currentModel !== 'default') {
+          _setStepBanner('READY', 'Chat with ' + currentModel, 'matched', '1gpu');
+        } else {
+          _setStepBanner('GPU ONLINE', 'Select a model below', 'active', '1gpu');
+        }
+      }
       document.getElementById('vram-info').textContent = '';
       document.getElementById('prompt').disabled = false;
       document.getElementById('send-btn').disabled = false;
@@ -371,6 +378,7 @@ async function checkNode() {
       }
     } else {
       gpuConnected = false;
+      if (_gpuMode === '1gpu') _setStepBanner('OFFLINE', 'Connect a GPU to start', '', '1gpu');
       const bannerEl = document.getElementById('maintenance-banner');
       const inMaintenance = bannerEl && bannerEl.style.display !== 'none';
       badge.className = inMaintenance ? 'status-badge starting' : 'status-badge offline';
@@ -732,7 +740,7 @@ function showModels() {
   document.getElementById('model-bar').style.display = 'none';
   const stepper = document.getElementById('tp-stepper');
   if (stepper) stepper.style.display = '';
-  _renderStepper();
+
   loadModels();
 }
 
@@ -849,45 +857,13 @@ function setGpuMode(mode) {
   }
 }
 
-function _renderStepper() {
-  const stepper = document.getElementById('tp-stepper');
-  if (!stepper) return;
-  if (_gpuMode === '2gpu') {
-    stepper.innerHTML = `
-      <div class="tp-stepper-title">SETUP</div>
-      <div class="tp-stepper-model" id="tp-stepper-model" style="display:none;"></div>
-      <div class="tp-steps-row">
-        <div class="tp-step" id="tp-step-1"><div class="tp-step-dot">1</div><div class="tp-step-name">Pull</div></div>
-        <div class="tp-step-line-h"></div>
-        <div class="tp-step" id="tp-step-2"><div class="tp-step-dot">2</div><div class="tp-step-name">Split</div></div>
-        <div class="tp-step-line-h"></div>
-        <div class="tp-step" id="tp-step-3"><div class="tp-step-dot">3</div><div class="tp-step-name">Build</div></div>
-        <div class="tp-step-line-h"></div>
-        <div class="tp-step" id="tp-step-4"><div class="tp-step-dot">4</div><div class="tp-step-name">Load</div></div>
-        <div class="tp-step-line-h"></div>
-        <div class="tp-step" id="tp-step-5"><div class="tp-step-dot">5</div><div class="tp-step-name">Chat</div></div>
-      </div>`;
-  } else {
-    stepper.innerHTML = `
-      <div class="tp-stepper-title">SETUP</div>
-      <div class="tp-steps-row">
-        <div class="tp-step" id="tp-step-1"><div class="tp-step-dot">1</div><div class="tp-step-name">Pull</div></div>
-        <div class="tp-step-line-h"></div>
-        <div class="tp-step" id="tp-step-2"><div class="tp-step-dot">2</div><div class="tp-step-name">Build</div></div>
-        <div class="tp-step-line-h"></div>
-        <div class="tp-step" id="tp-step-3"><div class="tp-step-dot">3</div><div class="tp-step-name">Load</div></div>
-        <div class="tp-step-line-h"></div>
-        <div class="tp-step" id="tp-step-4"><div class="tp-step-dot">4</div><div class="tp-step-name">Chat</div></div>
-      </div>`;
-  }
-}
 
 function show1GpuLayout() {
   document.getElementById('gpu-card').style.display = '';
   _showGpuNav(_userDevices.length > 1);
   document.getElementById('tp2-panel').style.display = 'none';
   if (_tp2PollTimer) { clearInterval(_tp2PollTimer); _tp2PollTimer = null; }
-  _renderStepper();
+
   checkNode();
   loadModels();
 }
@@ -905,9 +881,8 @@ function show2GpuLayout() {
   const modelsTitle = document.getElementById('models-section-title');
   const familyNav = document.querySelector('.family-nav');
   const modelList = document.getElementById('model-list');
-  const stepper = document.getElementById('tp-stepper');
   const hideModels = (hide) => {
-    [modelsTitle, familyNav, modelList, stepper].forEach(el => { if (el) el.style.display = hide ? 'none' : ''; });
+    [modelsTitle, familyNav, modelList].forEach(el => { if (el) el.style.display = hide ? 'none' : ''; });
   };
 
   if (showHero && hero && content) {
@@ -923,7 +898,7 @@ function show2GpuLayout() {
         content.style.display = '';
         content.classList.add('reveal');
         hideModels(false);
-        _renderStepper();
+      
         _pollTp2Status();
         _tp2PollTimer = setInterval(_pollTp2Status, 5000);
         loadModels();
@@ -932,7 +907,7 @@ function show2GpuLayout() {
   } else {
     if (hero) hero.style.display = 'none';
     content.style.display = '';
-    _renderStepper();
+  
     _pollTp2Status();
     _tp2PollTimer = setInterval(_pollTp2Status, 5000);
     loadModels();
@@ -981,20 +956,18 @@ async function _pollTp2Status() {
     const totalGpus = [r0data, r1data].filter(Boolean).length;
     const chatBtn = document.getElementById('tp-chat-btn');
     if (session.status === 'matched') {
-      statusEl.textContent = 'SESSION MATCHED \u2014 READY FOR INFERENCE';
-      statusEl.className = 'tp2-session-status matched';
-      _updateTpStepper(5);
+      _setStepBanner('5 \u00b7 CHAT', 'Session matched \u2014 ready for inference', 'matched', 'tp');
       if (chatBtn) chatBtn.style.display = '';
     } else if (onlineCount >= 2) {
-      statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 SELECT A MODEL`;
-      statusEl.className = 'tp2-session-status matching';
-      // Only advance stepper if a model is in the pipeline
-      if (!_tpSelectedModel) _updateTpStepper(0);
+      if (_tpSelectedModel) {
+        // TODO: detect actual step from model status (pulling/building/loading)
+        _setStepBanner('STEP 1 \u00b7 PULL', 'Downloading on both machines...', 'active', 'tp');
+      } else {
+        _setStepBanner(`${onlineCount} GPUS ONLINE`, 'Select a model below', 'active', 'tp');
+      }
       if (chatBtn) chatBtn.style.display = 'none';
     } else {
-      statusEl.textContent = `${onlineCount}/${totalGpus} GPUS ONLINE`;
-      statusEl.className = 'tp2-session-status';
-      _updateTpStepper(0);
+      _setStepBanner(`${onlineCount}/${totalGpus} GPUS ONLINE`, 'Waiting for GPUs...', '', 'tp');
       if (chatBtn) chatBtn.style.display = 'none';
     }
 
@@ -1104,86 +1077,14 @@ function _swapGpuSvg(gpuName) {
   if (laptop) laptop.style.display = isLaptop ? '' : 'none';
 }
 
-function _updateTpStepperTitle(modelId) {
-  const el = document.getElementById('tp-stepper-model');
+function _setStepBanner(step, detail, state, mode) {
+  const id = mode === 'tp' ? 'step-banner-tp' : 'step-banner-1gpu';
+  const el = document.getElementById(id);
   if (!el) return;
-  if (modelId) {
-    const m = (_allModels || []).find(x => x.id === modelId);
-    el.textContent = m ? m.name : modelId;
-    el.style.display = '';
-  } else {
-    el.textContent = '';
-    el.style.display = 'none';
-  }
+  el.innerHTML = `<span class="step-label">${step}</span>${detail ? ` \u2014 ${detail}` : ''}`;
+  el.className = 'step-banner' + (state ? ' ' + state : '');
 }
 
-function _updateTpStepper(step) {
-  // step: 0 = waiting, 1 = pull, 2 = split(tp)/build(1gpu), 3 = build(tp)/load(1gpu), 4 = load(tp)/chat(1gpu), 5 = chat(tp)
-  const maxStep = _gpuMode === '2gpu' ? 5 : 4;
-  for (let i = 1; i <= maxStep; i++) {
-    const el = document.getElementById(`tp-step-${i}`);
-    if (!el) continue;
-    el.classList.remove('active', 'done');
-    if (i < step) el.classList.add('done');
-    else if (i === step) el.classList.add('active');
-  }
-}
-
-function _playTpConnectSound() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const t = ctx.currentTime;
-
-    // Deep impact boom
-    const boom = ctx.createOscillator();
-    const boomGain = ctx.createGain();
-    boom.type = 'sine';
-    boom.frequency.setValueAtTime(60, t);
-    boom.frequency.exponentialRampToValueAtTime(20, t + 0.6);
-    boomGain.gain.setValueAtTime(0.4, t);
-    boomGain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-    boom.connect(boomGain).connect(ctx.destination);
-    boom.start(t); boom.stop(t + 0.8);
-
-    // Metallic slam
-    const slam = ctx.createOscillator();
-    const slamGain = ctx.createGain();
-    slam.type = 'sawtooth';
-    slam.frequency.setValueAtTime(1200, t);
-    slam.frequency.exponentialRampToValueAtTime(80, t + 0.15);
-    slamGain.gain.setValueAtTime(0.25, t);
-    slamGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-    slam.connect(slamGain).connect(ctx.destination);
-    slam.start(t); slam.stop(t + 0.2);
-
-    // Electric surge
-    const surge = ctx.createOscillator();
-    const surgeGain = ctx.createGain();
-    surge.type = 'sawtooth';
-    surge.frequency.setValueAtTime(100, t + 0.1);
-    surge.frequency.exponentialRampToValueAtTime(400, t + 0.5);
-    surge.frequency.exponentialRampToValueAtTime(150, t + 1.0);
-    surgeGain.gain.setValueAtTime(0, t + 0.1);
-    surgeGain.gain.linearRampToValueAtTime(0.12, t + 0.3);
-    surgeGain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
-    surge.connect(surgeGain).connect(ctx.destination);
-    surge.start(t + 0.1); surge.stop(t + 1.2);
-
-    // Noise burst for texture
-    const bufSize = ctx.sampleRate * 0.15;
-    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const data = noiseBuf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
-    const noise = ctx.createBufferSource();
-    const noiseGain = ctx.createGain();
-    noise.buffer = noiseBuf;
-    noiseGain.gain.setValueAtTime(0.2, t);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-    noise.connect(noiseGain).connect(ctx.destination);
-    noise.start(t); noise.stop(t + 0.15);
-
-  } catch(e) {}
-}
 
 function _apiHeaders() {
   const h = {};
@@ -1364,7 +1265,7 @@ function _setProgress(el, text, pct, modelId, status) {
 
 async function pullModel(id) {
   if (isDemo) { demoBlock(); return; }
-  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _updateTpStepper(1); _updateTpStepperTitle(id); }
+  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _setStepBanner('STEP 1 \u00b7 PULL', 'Downloading on both machines...', 'active', 'tp'); }
   _setProgress(document.getElementById('prog-' + id), 'Downloading', null, id, 'downloading');
   const pullUrl = _gpuMode === '2gpu' ? `/api/tp2/pull/${id}` : `/api/models/${id}/pull`;
   const r = await fetch(pullUrl, { method: 'POST', headers: _apiHeaders() });
@@ -1394,7 +1295,7 @@ async function cancelPull(id) {
 
 async function buildModel(id) {
   if (isDemo) { demoBlock(); return; }
-  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _updateTpStepper(3); _updateTpStepperTitle(id); }
+  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _setStepBanner('STEP 3 \u00b7 BUILD', 'Splitting & compiling engines...', 'active', 'tp'); }
   _setProgress(document.getElementById('prog-' + id), 'Building engine', null);
   if (_gpuMode === '2gpu') {
     await fetch(`/api/tp2/build/${id}`, { method: 'POST', headers: _apiHeaders() });

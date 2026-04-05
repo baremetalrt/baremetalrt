@@ -165,6 +165,7 @@ if (document.cookie.includes('token=')) {
 <div class="main">
   <!-- Models view — default -->
   <div class="models-panel" id="models-panel">
+    <div class="step-banner" id="step-banner-1gpu"></div>
     <div class="section-title" id="gpu-nav-title" style="display:none;">Linked GPUs</div>
     <div class="family-nav" id="gpu-nav" style="display:none;">
       <button class="family-arrow" id="gpu-arrow-left" onclick="prevDevice()">&larr;</button>
@@ -253,7 +254,7 @@ if (document.cookie.includes('token=')) {
         <div class="tp-hero-line2">Heterogeneous tensor parallelism across consumer GPUs over TCP</div>
       </div>
       <div class="tp-content" id="tp-content">
-      <div class="tp2-session-status" id="tp2-session-status">Waiting for both GPUs...</div>
+      <div class="step-banner" id="step-banner-tp"></div>
       <div class="tp-mesh" id="tp-mesh">
         <!-- TCP overlay -->
         <div class="tp-tcp-overlay" id="tp-tcp-overlay">
@@ -308,8 +309,6 @@ if (document.cookie.includes('token=')) {
     </div>
     <div id="model-list">Loading...</div>
 
-    <!-- Setup stepper — shows workflow steps for current mode -->
-    <div class="tp-stepper" id="tp-stepper"></div>
   </div>
 
   <!-- Chat messages — full page when active -->

@@ -500,50 +500,16 @@ pre:hover .copy-btn { opacity: 1; }
   animation: fadeIn 0.6s ease-out 0.2s both;
 }
 
-/* Stepper — horizontal bar below model list */
-.tp-stepper {
-  max-width: 520px; margin: 20px auto 0; text-align: center;
-  padding: 16px 20px;
-  border-top: 1px solid var(--border);
-  animation: cardReveal 0.4s ease-out 0.3s both;
+/* Step banner */
+/* Dynamic step banner */
+.step-banner {
+  text-align: center; font-size: 11px; color: var(--silver-dark);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px;
+  min-height: 18px;
 }
-.tp-stepper-title {
-  font-size: 9px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
-  color: var(--silver-dim); margin-bottom: 12px;
-}
-.tp-stepper-model {
-  font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 10px;
-}
-.tp-steps-row {
-  display: flex; align-items: center; justify-content: center; gap: 0;
-}
-.tp-step {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 0 14px; transition: opacity 0.3s; opacity: 0.4;
-}
-.tp-step.active { opacity: 1; }
-.tp-step.done { opacity: 0.7; }
-.tp-step-dot {
-  width: 24px; height: 24px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; color: var(--silver-dark);
-  border: 1.5px solid var(--border); background: var(--bg);
-  transition: all 0.3s;
-}
-.tp-step.active .tp-step-dot {
-  border-color: #8b5cf6; color: #8b5cf6;
-  box-shadow: 0 0 10px rgba(139,92,246,0.3);
-}
-.tp-step.done .tp-step-dot {
-  border-color: #76e651; color: #76e651; background: rgba(118,230,81,0.08);
-}
-.tp-step-name {
-  font-size: 11px; font-weight: 700; color: #fff; letter-spacing: 0.5px;
-}
-.tp-step-line-h {
-  width: 30px; height: 1.5px; background: var(--border); flex-shrink: 0;
-  margin-bottom: 18px;
-}
+.step-banner.active { color: #a78bfa; animation: tcpPulse 2s ease-in-out infinite; }
+.step-banner.matched { color: #8b5cf6; font-weight: 700; }
+.step-banner .step-label { font-weight: 800; }
 .tp-mesh {
   display: flex; align-items: stretch; justify-content: center;
   gap: 80px; padding: 16px 0; position: relative;
@@ -674,12 +640,6 @@ pre:hover .copy-btn { opacity: 1; }
 }
 @keyframes tcpPulse { 0%,100% { opacity: 0.3; } 50% { opacity: 0.8; } }
 
-.tp2-session-status {
-  text-align: center; font-size: 11px; color: var(--silver-dark);
-  letter-spacing: 1px; margin-bottom: 12px; text-transform: uppercase;
-}
-.tp2-session-status.matching { color: #a78bfa; animation: tcpPulse 2s ease-in-out infinite; }
-.tp2-session-status.matched { color: #8b5cf6; font-weight: 700; }
 .tp-chat-btn {
   display: block; margin: 12px auto 0; width: 140px; text-align: center;
   font-size: 13px; padding: 8px 0;

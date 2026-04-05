@@ -447,58 +447,61 @@ pre:hover .copy-btn { opacity: 1; }
 
 /* TP=2 panel */
 .tp2-panel { margin-bottom: 20px; }
-/* Stepper — model card style, sits in model list flow */
-.tp-stepper {
-  background: linear-gradient(135deg, #0c0c0e 0%, #16161a 50%, #0c0c0e 100%);
-  border: 1px solid #22222a; padding: 14px 16px;
-  min-width: 160px; max-width: 220px;
-  display: flex; flex-direction: column; text-align: center;
-  position: relative;
+/* TP tagline */
+.tp-tagline {
+  text-align: center; margin-bottom: 16px;
 }
-.tp-stepper:hover { border-color: var(--border-hi); }
+.tp-tagline-main {
+  font-size: 14px; font-weight: 700; color: var(--silver); letter-spacing: 1px;
+  animation: fadeIn 0.6s ease-out;
+}
+.tp-tagline-sub {
+  font-size: 11px; color: var(--silver-dark); margin-top: 4px;
+  animation: fadeIn 0.6s ease-out 0.2s both;
+}
+
+/* Stepper — horizontal bar below model list */
+.tp-stepper {
+  max-width: 520px; margin: 20px auto 0; text-align: center;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
 .tp-stepper-title {
-  font-size: 7px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: #8b5cf6; margin-bottom: 10px; opacity: 0.7;
+  font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--silver-dark); margin-bottom: 10px;
 }
 .tp-stepper-model {
-  font-size: 14px; font-weight: 600; color: var(--silver); margin-bottom: 10px;
+  font-size: 12px; font-weight: 600; color: var(--silver); margin-bottom: 8px;
 }
-.tp-stepper-hide {
-  position: absolute; top: 6px; right: 8px;
-  background: none; border: none; color: var(--silver-dark); cursor: pointer;
-  font-size: 13px; line-height: 1; padding: 2px;
+.tp-steps-row {
+  display: flex; align-items: center; justify-content: center; gap: 0;
 }
-.tp-stepper-hide:hover { color: var(--silver); }
-.tp-stepper-show { display: none; }
 .tp-step {
-  display: flex; align-items: center; gap: 8px;
-  padding: 5px 0; transition: opacity 0.3s; opacity: 0.3;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 0 12px; transition: opacity 0.3s; opacity: 0.3;
 }
 .tp-step.active { opacity: 1; }
 .tp-step.done { opacity: 0.6; }
 .tp-step-dot {
-  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 9px; font-weight: 700; color: var(--silver-dark);
+  font-size: 10px; font-weight: 700; color: var(--silver-dark);
   border: 1.5px solid var(--border); background: var(--bg);
   transition: all 0.3s;
 }
 .tp-step.active .tp-step-dot {
   border-color: #8b5cf6; color: #8b5cf6;
-  box-shadow: 0 0 8px rgba(139,92,246,0.3);
+  box-shadow: 0 0 10px rgba(139,92,246,0.3);
 }
 .tp-step.done .tp-step-dot {
   border-color: #76e651; color: #76e651; background: rgba(118,230,81,0.08);
 }
 .tp-step-name {
-  font-size: 11px; font-weight: 600; color: #fff; text-align: left;
+  font-size: 10px; font-weight: 600; color: var(--silver); letter-spacing: 0.5px;
 }
-.tp-step-desc {
-  font-size: 9px; color: var(--silver-dark); text-align: left; line-height: 1.3;
-}
-.tp-step-line {
-  width: 1.5px; height: 8px; background: var(--border);
-  margin-left: 9px;
+.tp-step-line-h {
+  width: 30px; height: 1.5px; background: var(--border); flex-shrink: 0;
+  margin-bottom: 18px;
 }
 .tp-mesh {
   display: flex; align-items: stretch; justify-content: center;

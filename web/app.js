@@ -740,6 +740,8 @@ function showChat() {
   document.getElementById('input-area').style.display = '';
   document.getElementById('model-bar').style.display = '';
   document.getElementById('header-back').style.display = '';
+  const stepper = document.getElementById('tp-stepper');
+  if (stepper) stepper.style.display = 'none';
   if (gpuConnected) {
     document.getElementById('prompt').disabled = false;
     document.getElementById('send-btn').disabled = false;
@@ -848,6 +850,8 @@ function show1GpuLayout() {
   document.getElementById('gpu-card').style.display = '';
   _showGpuNav(_userDevices.length > 1);
   document.getElementById('tp2-panel').style.display = 'none';
+  const stepper = document.getElementById('tp-stepper');
+  if (stepper) stepper.style.display = 'none';
   if (_tp2PollTimer) { clearInterval(_tp2PollTimer); _tp2PollTimer = null; }
   checkNode();
   loadModels();
@@ -857,6 +861,8 @@ function show2GpuLayout() {
   document.getElementById('gpu-card').style.display = 'none';
   _showGpuNav(false);
   document.getElementById('tp2-panel').style.display = '';
+  const stepper = document.getElementById('tp-stepper');
+  if (stepper) stepper.style.display = '';
   _pollTp2Status();
   _tp2PollTimer = setInterval(_pollTp2Status, 5000);
   loadModels();
@@ -1100,24 +1106,6 @@ function renderModelCards() {
     if (a.fits === true) return -1;
     return 1;
   });
-
-  // In TP mode: insert stepper card as first item
-  if (isTP) {
-    const sc = document.createElement('div');
-    sc.className = 'tp-stepper';
-    sc.id = 'tp-stepper';
-    sc.innerHTML = `
-      <div class="tp-stepper-title">TP &middot; HOME SETUP</div>
-      <div class="tp-stepper-model" id="tp-stepper-model" style="display:none;"></div>
-      <div class="tp-step" id="tp-step-1"><div class="tp-step-dot">1</div><div class="tp-step-info"><div class="tp-step-name">Pull Weights</div><div class="tp-step-desc">Both machines</div></div></div>
-      <div class="tp-step-line"></div>
-      <div class="tp-step" id="tp-step-2"><div class="tp-step-dot">2</div><div class="tp-step-info"><div class="tp-step-name">Build Engines</div><div class="tp-step-desc">Split &amp; compile</div></div></div>
-      <div class="tp-step-line"></div>
-      <div class="tp-step" id="tp-step-3"><div class="tp-step-dot">3</div><div class="tp-step-info"><div class="tp-step-name">Load &amp; Connect</div><div class="tp-step-desc">Init TCP</div></div></div>
-    `;
-    list.appendChild(sc);
-    if (_tpSelectedModel) _updateTpStepperTitle(_tpSelectedModel);
-  }
 
   for (const m of sorted) {
     const _se = s => s.replace(/-tp\d.*/, '').replace(/-/g, '');

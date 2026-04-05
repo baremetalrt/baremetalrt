@@ -8,7 +8,7 @@ let gpuConnected = false;
 let _lastGpuState = null; // track changes to avoid unnecessary rerenders
 
 // -- Multi-GPU state ----------------------------------------------------------
-let _gpuMode = '1gpu';       // '1gpu' or '2gpu'
+let _gpuMode = localStorage.getItem('bmrt_gpu_mode') || '1gpu';
 let _userDevices = [];        // [{node_id, hostname, gpu_name, gpu_vram_mb, ws_connected}]
 let _activeNodeId = null;
 let _deviceIdx = 0;
@@ -131,6 +131,7 @@ async function checkAuth() {
       document.getElementById('app-layout').style.display = 'flex';
       closeAuth();
       showModels();
+      if (_gpuMode !== '1gpu') setGpuMode(_gpuMode);
       document.getElementById('user-initials').textContent = user.first_name || user.name || user.email.split('@')[0];
       document.getElementById('prompt').placeholder = 'Send a message...';
       // Hide demo link when signed in
@@ -827,6 +828,7 @@ async function selectDevice(nodeId) {
 
 function setGpuMode(mode) {
   _gpuMode = mode;
+  localStorage.setItem('bmrt_gpu_mode', mode);
   document.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === (mode === '1gpu' ? '1gpu' : 'tp'));
   });

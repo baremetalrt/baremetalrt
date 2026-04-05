@@ -351,6 +351,35 @@ begin
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  FindRec: TFindRec;
+  TempDir, Path: String;
+begin
+  Result := '';
+  NeedsRestart := False;
+
+  // Kill running BareMetalRT process
+  Exec('taskkill.exe', '/F /IM baremetalrt.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(1000);
+
+  // Clean up stale _MEI* dirs from PyInstaller
+  TempDir := ExpandConstant('{localappdata}\Temp\');
+  if FindFirst(TempDir + '_MEI*', FindRec) then
+  begin
+    try
+      repeat
+        Path := TempDir + FindRec.Name;
+        if FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0 then
+          DelTree(Path, True, True, True);
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then

@@ -491,7 +491,7 @@ pre:hover .copy-btn { opacity: 1; }
   border-color: #76e651; color: #76e651; background: rgba(118,230,81,0.08);
 }
 .tp-step-name {
-  font-size: 11px; font-weight: 600; color: var(--silver); text-align: left;
+  font-size: 11px; font-weight: 600; color: #fff; text-align: left;
 }
 .tp-step-desc {
   font-size: 9px; color: var(--silver-dark); text-align: left; line-height: 1.3;
@@ -509,7 +509,10 @@ pre:hover .copy-btn { opacity: 1; }
   display: flex; flex-direction: column;
   background: linear-gradient(135deg, #101014 0%, #1e1e24 20%, #181820 40%, #24242c 60%, #1c1c22 80%, #101014 100%);
   transition: all 0.5s ease;
+  animation: cardReveal 0.5s ease-out;
 }
+.tp-node:nth-child(2) { animation-delay: 0.15s; animation-fill-mode: both; }
+.tp-node:nth-child(3) { animation-delay: 0.3s; animation-fill-mode: both; }
 .tp-node.active {
   border-color: #8b5cf6;
   animation: tpNodeGlow 2s ease-in-out infinite;
@@ -526,12 +529,14 @@ pre:hover .copy-btn { opacity: 1; }
 .tp-host {
   font-size: 15px; font-weight: 700; color: var(--silver);
   text-shadow: 0 0 20px rgba(200,200,220,0.2);
+  animation: fadeIn 0.4s ease-out;
 }
 .tp-gpu {
   font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
   color: var(--silver-dim); margin-top: 2px; white-space: pre-line;
   background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  animation: fadeIn 0.4s ease-out 0.1s both;
 }
 .tp-vram-bar { margin-top: 6px; }
 .tp-vram {

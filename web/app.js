@@ -799,6 +799,20 @@ async function selectDevice(nodeId) {
       document.getElementById('gpu-layers-wrap').style.display = 'none';
       document.getElementById('unload-btn').style.display = 'none';
       _swapGpuSvg(dev.gpu_name);
+
+      // Flash the card to indicate switch
+      const card = document.getElementById('gpu-card');
+      card.style.opacity = '0.5';
+      setTimeout(() => { card.style.opacity = '1'; }, 150);
+
+      // Reset stats to show loading state
+      const tempEl = document.getElementById('gpu-stat-temp');
+      const utilEl = document.getElementById('gpu-stat-util');
+      const powerEl = document.getElementById('gpu-stat-power');
+      if (tempEl) tempEl.querySelector('.stat-value').textContent = '—°';
+      if (utilEl) utilEl.querySelector('.stat-value').textContent = '—%';
+      if (powerEl) powerEl.querySelector('.stat-value').textContent = '—W';
+      document.getElementById('vram-fill').style.width = '0%';
     }
 
     // Server calls in background — don't block the UI
@@ -806,6 +820,7 @@ async function selectDevice(nodeId) {
       checkNode();
       refreshGpuCard();
       loadModels();
+      updateGpuMetrics();
     });
   } catch(e) { console.error('selectDevice:', e); }
 }

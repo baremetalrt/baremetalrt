@@ -730,6 +730,11 @@ function showModels() {
   document.getElementById('input-area').style.display = 'none';
   document.getElementById('header-back').style.display = 'none';
   document.getElementById('model-bar').style.display = 'none';
+  // Restore TP stepper if in TP mode
+  if (_gpuMode === '2gpu') {
+    const stepper = document.getElementById('tp-stepper');
+    if (stepper) stepper.style.display = '';
+  }
   loadModels();
 }
 
@@ -740,6 +745,11 @@ function showChat() {
   document.getElementById('input-area').style.display = '';
   document.getElementById('model-bar').style.display = '';
   document.getElementById('header-back').style.display = '';
+  // Hide TP stepper in chat view
+  const stepper = document.getElementById('tp-stepper');
+  const stepperShow = document.getElementById('tp-stepper-show');
+  if (stepper) stepper.style.display = 'none';
+  if (stepperShow) stepperShow.style.display = 'none';
   if (gpuConnected) {
     document.getElementById('prompt').disabled = false;
     document.getElementById('send-btn').disabled = false;

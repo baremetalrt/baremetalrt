@@ -894,7 +894,7 @@ function _updateTp2Card(rank, data, sessionStatus) {
 
 function _cleanGpuName(name) {
   if (!name) return '';
-  return name.replace(/^NVIDIA\s+GeForce\s+/i, '').replace(/\s+GPU$/i, '').trim();
+  return name.replace(/\s+GPU$/i, '').trim();
 }
 
 function _swapGpuSvg(gpuName) {

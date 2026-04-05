@@ -492,8 +492,8 @@ pre:hover .copy-btn { opacity: 1; }
   display: flex; justify-content: center; gap: 4px; padding: 4px 10px;
 }
 .tp-node-stats .tp-stat {
-  flex: 1; text-align: center; font-size: 8px; color: var(--silver-dark); letter-spacing: 1px;
-  text-transform: uppercase; padding: 4px 2px;
+  text-align: center; font-size: 8px; color: var(--silver-dark); letter-spacing: 1px;
+  text-transform: uppercase; padding: 4px 8px;
   background: var(--bg); border: 1px solid var(--border); border-radius: 2px;
 }
 .tp-node-stats .tp-stat-val {

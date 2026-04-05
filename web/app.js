@@ -864,6 +864,8 @@ function _renderStepper() {
         <div class="tp-step" id="tp-step-3"><div class="tp-step-dot">3</div><div class="tp-step-name">Build</div></div>
         <div class="tp-step-line-h"></div>
         <div class="tp-step" id="tp-step-4"><div class="tp-step-dot">4</div><div class="tp-step-name">Load</div></div>
+        <div class="tp-step-line-h"></div>
+        <div class="tp-step" id="tp-step-5"><div class="tp-step-dot">5</div><div class="tp-step-name">Chat</div></div>
       </div>`;
   } else {
     stepper.innerHTML = `
@@ -874,6 +876,8 @@ function _renderStepper() {
         <div class="tp-step" id="tp-step-2"><div class="tp-step-dot">2</div><div class="tp-step-name">Build</div></div>
         <div class="tp-step-line-h"></div>
         <div class="tp-step" id="tp-step-3"><div class="tp-step-dot">3</div><div class="tp-step-name">Load</div></div>
+        <div class="tp-step-line-h"></div>
+        <div class="tp-step" id="tp-step-4"><div class="tp-step-dot">4</div><div class="tp-step-name">Chat</div></div>
       </div>`;
   }
 }
@@ -896,6 +900,7 @@ function show2GpuLayout() {
   _pollTp2Status();
   _tp2PollTimer = setInterval(_pollTp2Status, 5000);
   loadModels();
+  setTimeout(_playTpConnectSound, 600); // play after cards slide in
 }
 
 async function _pollTp2Status() {
@@ -942,7 +947,7 @@ async function _pollTp2Status() {
     if (session.status === 'matched') {
       statusEl.textContent = 'SESSION MATCHED \u2014 READY FOR INFERENCE';
       statusEl.className = 'tp2-session-status matched';
-      _updateTpStepper(4);
+      _updateTpStepper(5);
       if (chatBtn) chatBtn.style.display = '';
     } else if (onlineCount >= 2) {
       statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 SELECT A MODEL`;
@@ -1077,14 +1082,42 @@ function _updateTpStepperTitle(modelId) {
 }
 
 function _updateTpStepper(step) {
-  // step: 0 = waiting, 1 = pull, 2 = split, 3 = build, 4 = loaded
-  for (let i = 1; i <= 4; i++) {
+  // step: 0 = waiting, 1 = pull, 2 = split(tp)/build(1gpu), 3 = build(tp)/load(1gpu), 4 = load(tp)/chat(1gpu), 5 = chat(tp)
+  const maxStep = _gpuMode === '2gpu' ? 5 : 4;
+  for (let i = 1; i <= maxStep; i++) {
     const el = document.getElementById(`tp-step-${i}`);
     if (!el) continue;
     el.classList.remove('active', 'done');
     if (i < step) el.classList.add('done');
     else if (i === step) el.classList.add('active');
   }
+}
+
+function _playTpConnectSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Metallic click
+    const click = ctx.createOscillator();
+    const clickGain = ctx.createGain();
+    click.type = 'square';
+    click.frequency.setValueAtTime(800, ctx.currentTime);
+    click.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.08);
+    clickGain.gain.setValueAtTime(0.15, ctx.currentTime);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+    click.connect(clickGain).connect(ctx.destination);
+    click.start(); click.stop(ctx.currentTime + 0.1);
+    // Power-up hum
+    const hum = ctx.createOscillator();
+    const humGain = ctx.createGain();
+    hum.type = 'sine';
+    hum.frequency.setValueAtTime(80, ctx.currentTime + 0.05);
+    hum.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.4);
+    humGain.gain.setValueAtTime(0, ctx.currentTime);
+    humGain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.1);
+    humGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    hum.connect(humGain).connect(ctx.destination);
+    hum.start(ctx.currentTime + 0.05); hum.stop(ctx.currentTime + 0.5);
+  } catch(e) {}
 }
 
 function _apiHeaders() {

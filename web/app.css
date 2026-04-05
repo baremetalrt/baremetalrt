@@ -512,10 +512,22 @@ pre:hover .copy-btn { opacity: 1; }
   display: flex; flex-direction: column;
   background: linear-gradient(135deg, #101014 0%, #1e1e24 20%, #181820 40%, #24242c 60%, #1c1c22 80%, #101014 100%);
   transition: all 0.5s ease;
-  animation: cardReveal 0.5s ease-out;
 }
-.tp-node:nth-child(2) { animation-delay: 0.15s; animation-fill-mode: both; }
-.tp-node:nth-child(3) { animation-delay: 0.3s; animation-fill-mode: both; }
+#tp-node0 { animation: tpSlideFromLeft 0.6s ease-out both; }
+#tp-node1 { animation: tpSlideFromRight 0.6s ease-out both; }
+.tp-tcp-overlay { animation: tpTcpAppear 0.4s ease-out 0.6s both; }
+@keyframes tpSlideFromLeft {
+  from { opacity: 0; transform: translateX(-60px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes tpSlideFromRight {
+  from { opacity: 0; transform: translateX(60px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes tpTcpAppear {
+  from { opacity: 0; transform: translate(-50%, -50%) scaleX(0); }
+  to { opacity: 1; transform: translate(-50%, -50%) scaleX(1); }
+}
 .tp-node.active {
   border-color: #8b5cf6;
   animation: tpNodeGlow 2s ease-in-out infinite;

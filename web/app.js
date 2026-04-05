@@ -898,7 +898,7 @@ async function _pollTp2Status() {
       statusEl.textContent = 'SESSION MATCHED \u2014 READY FOR INFERENCE';
       statusEl.className = 'tp2-session-status matched';
     } else if (onlineCount >= 2) {
-      statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 MATCHING SESSION...`;
+      statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 WAITING FOR MODEL`;
       statusEl.className = 'tp2-session-status matching';
     } else {
       statusEl.textContent = `${onlineCount}/${totalGpus} GPUS ONLINE`;

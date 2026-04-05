@@ -901,12 +901,20 @@ function show2GpuLayout() {
   const content = document.getElementById('tp-content');
   const showHero = true;
 
+  // Elements outside tp-content that also need hiding during hero
+  const modelsTitle = document.getElementById('models-section-title');
+  const familyNav = document.querySelector('.family-nav');
+  const modelList = document.getElementById('model-list');
+  const stepper = document.getElementById('tp-stepper');
+  const hideModels = (hide) => {
+    [modelsTitle, familyNav, modelList, stepper].forEach(el => { if (el) el.style.display = hide ? 'none' : ''; });
+  };
+
   if (showHero && hero && content) {
-    // Hide content completely during hero
     content.style.display = 'none';
+    hideModels(true);
     hero.style.display = '';
     hero.style.opacity = '1';
-    // Hold hero 3.5s (lines animate in by ~2.3s, read for ~1.2s), fade out 0.6s
     setTimeout(() => {
       hero.style.transition = 'opacity 0.6s ease-out';
       hero.style.opacity = '0';
@@ -914,6 +922,7 @@ function show2GpuLayout() {
         hero.style.display = 'none';
         content.style.display = '';
         content.classList.add('reveal');
+        hideModels(false);
         _renderStepper();
         _pollTp2Status();
         _tp2PollTimer = setInterval(_pollTp2Status, 5000);

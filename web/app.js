@@ -901,18 +901,22 @@ async function _pollTp2Status() {
     const statusEl = document.getElementById('tp2-session-status');
     const onlineCount = [r0data, r1data].filter(d => d && d.online).length;
     const totalGpus = [r0data, r1data].filter(Boolean).length;
+    const chatBtn = document.getElementById('tp-chat-btn');
     if (session.status === 'matched') {
       statusEl.textContent = 'SESSION MATCHED \u2014 READY FOR INFERENCE';
       statusEl.className = 'tp2-session-status matched';
       _updateTpStepper(3);
+      if (chatBtn) chatBtn.style.display = '';
     } else if (onlineCount >= 2) {
       statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 WAITING FOR MODEL`;
       statusEl.className = 'tp2-session-status matching';
       _updateTpStepper(1);
+      if (chatBtn) chatBtn.style.display = 'none';
     } else {
       statusEl.textContent = `${onlineCount}/${totalGpus} GPUS ONLINE`;
       statusEl.className = 'tp2-session-status';
       _updateTpStepper(0);
+      if (chatBtn) chatBtn.style.display = 'none';
     }
 
     // Poll per-node GPU metrics for VRAM bars

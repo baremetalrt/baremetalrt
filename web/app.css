@@ -620,6 +620,10 @@ pre:hover .copy-btn { opacity: 1; }
 }
 .tp2-session-status.matching { color: #a78bfa; animation: tcpPulse 2s ease-in-out infinite; }
 .tp2-session-status.matched { color: #8b5cf6; font-weight: 700; }
+.tp-chat-btn {
+  display: block; margin: 12px auto 0; width: 140px; text-align: center;
+  font-size: 13px; padding: 8px 0;
+}
 
 /* TP mobile */
 @media (max-width: 768px) {

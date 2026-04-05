@@ -498,7 +498,7 @@ pre:hover .copy-btn { opacity: 1; }
   text-shadow: 0 0 20px rgba(200,200,220,0.2);
 }
 .tp-node-status {
-  padding: 6px 14px; border-top: 1px solid var(--border);
+  padding: 6px 14px;
   text-align: center; font-size: 10px; font-weight: 600;
   letter-spacing: 1px; text-transform: uppercase; color: var(--silver-dark);
 }

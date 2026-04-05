@@ -510,6 +510,15 @@ pre:hover .copy-btn { opacity: 1; }
 .step-banner.active { color: #a78bfa; animation: tcpPulse 2s ease-in-out infinite; }
 .step-banner.matched { color: #8b5cf6; font-weight: 700; }
 .step-banner .step-label { font-weight: 800; }
+
+/* Pulsing CTA button */
+.model-btn.pulse {
+  animation: btnPulse 1.5s ease-in-out infinite;
+}
+@keyframes btnPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(139,92,246,0); }
+  50% { box-shadow: 0 0 12px rgba(139,92,246,0.5); }
+}
 .tp-mesh {
   display: flex; align-items: stretch; justify-content: center;
   gap: 80px; padding: 16px 0; position: relative;

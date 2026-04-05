@@ -355,7 +355,15 @@ async function checkNode() {
         if (currentModel && currentModel !== 'default') {
           _setStepBanner('READY', 'Chat with ' + currentModel, 'matched', '1gpu');
         } else {
-          _setStepBanner('GPU ONLINE', 'Select a model below', 'active', '1gpu');
+          const hasBuilt = (_allModels || []).some(m => m.engine_built && m.fits !== false);
+          const hasDownloaded = (_allModels || []).some(m => m.downloaded && m.fits !== false);
+          if (hasBuilt) {
+            _setStepBanner('GPU ONLINE', 'Load a model', 'active', '1gpu');
+          } else if (hasDownloaded) {
+            _setStepBanner('GPU ONLINE', 'Build an engine', 'active', '1gpu');
+          } else {
+            _setStepBanner('GPU ONLINE', 'Pull a model', 'active', '1gpu');
+          }
         }
       }
       document.getElementById('vram-info').textContent = '';
@@ -963,10 +971,18 @@ async function _pollTp2Status() {
       if (chatBtn) chatBtn.style.display = '';
     } else if (onlineCount >= 2) {
       if (_tpSelectedModel) {
-        // TODO: detect actual step from model status (pulling/building/loading)
         _setStepBanner('STEP 1 \u00b7 PULL', 'Downloading on both machines...', 'active', 'tp');
       } else {
-        _setStepBanner(`${onlineCount} GPUS ONLINE`, 'Select a model below', 'active', 'tp');
+        // Check what the user needs to do next based on model state
+        const hasDownloaded = (_allModels || []).some(m => m.downloaded && m.vram_fp16_mb > smallestVram);
+        const hasBuilt = (_allModels || []).some(m => m.engine_built && m.vram_fp16_mb > smallestVram);
+        if (hasBuilt) {
+          _setStepBanner(`${onlineCount} GPUS ONLINE`, 'Load a model', 'active', 'tp');
+        } else if (hasDownloaded) {
+          _setStepBanner(`${onlineCount} GPUS ONLINE`, 'Build an engine', 'active', 'tp');
+        } else {
+          _setStepBanner(`${onlineCount} GPUS ONLINE`, 'Pull a model', 'active', 'tp');
+        }
       }
       if (chatBtn) chatBtn.style.display = 'none';
     } else {
@@ -1137,6 +1153,7 @@ function renderModelCards() {
     return 1;
   });
 
+  let _pulsed = false;
   for (const m of sorted) {
     const _se = s => s.replace(/-tp\d.*/, '').replace(/-/g, '');
     const _si = s => s.replace(/-[\d.]+[a-z]*$/, '').replace(/-/g, '');
@@ -1149,12 +1166,16 @@ function renderModelCards() {
     let action = '';
     let fitBadge = '';
     if (isTP) {
+      const p = !_pulsed ? ' pulse' : '';
       if (!m.downloaded) {
-        action = `<button class="model-btn primary" onclick="pullModel('${m.id}')">Pull</button>`;
+        action = `<button class="model-btn primary${p}" onclick="pullModel('${m.id}')">Pull</button>`;
+        if (!_pulsed) _pulsed = true;
       } else if (!m.engine_built) {
-        action = `<button class="model-btn primary" onclick="buildModel('${m.id}')">Build TP Home</button>`;
+        action = `<button class="model-btn primary${p}" onclick="buildModel('${m.id}')">Build TP Home</button>`;
+        if (!_pulsed) _pulsed = true;
       } else {
-        action = `<button class="model-btn primary" onclick="loadModel('${m.id}')">Load Model</button>`;
+        action = `<button class="model-btn primary${p}" onclick="loadModel('${m.id}')">Load Model</button>`;
+        if (!_pulsed) _pulsed = true;
       }
     } else {
       // 1-GPU mode: original logic
@@ -1163,15 +1184,21 @@ function renderModelCards() {
         fitBadge = `<span class="fit-badge no-fit">TP \u00b7 HOME</span>`;
         action = `<button class="model-btn disabled" title="${m.name} requires ${Math.round(m.vram_fp16_mb/1024)}GB VRAM. Switch to TP · Home to split across multiple GPUs." style="opacity:0.5;">Run on TP</button>`;
       } else if (!m.downloaded) {
-        action = `<button class="model-btn primary" onclick="pullModel('${m.id}')">Pull</button>`;
+        const p = !_pulsed ? ' pulse' : '';
+        action = `<button class="model-btn primary${p}" onclick="pullModel('${m.id}')">Pull</button>`;
+        if (!_pulsed) _pulsed = true;
       } else if (m.fits === false) {
         fitBadge = `<span class="fit-badge no-fit">TP \u00b7 HOME</span>`;
         action = `<button class="model-btn disabled" title="${m.name} requires ${Math.round(m.vram_fp16_mb/1024)}GB VRAM. Switch to TP · Home to split across multiple GPUs." style="opacity:0.5;">Run on TP</button>`;
       } else if (!m.engine_built) {
-        action = `<button class="model-btn primary" onclick="buildModel('${m.id}')">Build</button>`;
+        const p = !_pulsed ? ' pulse' : '';
+        action = `<button class="model-btn primary${p}" onclick="buildModel('${m.id}')">Build</button>`;
+        if (!_pulsed) _pulsed = true;
       } else {
+        const p = !_pulsed ? ' pulse' : '';
         const btnLabel = _allModels._activeModel ? 'Hot Swap' : 'Load';
-        action = `<button class="model-btn primary" onclick="loadModel('${m.id}')">${btnLabel}</button>`;
+        action = `<button class="model-btn primary${p}" onclick="loadModel('${m.id}')">${btnLabel}</button>`;
+        if (!_pulsed) _pulsed = true;
       }
     }
 

@@ -447,24 +447,33 @@ pre:hover .copy-btn { opacity: 1; }
 
 /* TP=2 panel */
 .tp2-panel { margin-bottom: 20px; }
-/* TP hero reveal (first time only) */
+/* TP hero reveal */
 .tp-hero {
   position: absolute; inset: 0; z-index: 10;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: var(--bg);
 }
 .tp-hero-line1 {
-  font-size: 28px; font-weight: 300; color: var(--silver);
-  letter-spacing: 2px; opacity: 0;
-  animation: heroFadeIn 1s ease-out 0.3s both;
+  font-size: 32px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+  text-align: center;
+  background: linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  filter: drop-shadow(0 0 20px rgba(192,192,208,0.4)) drop-shadow(0 0 60px rgba(192,192,208,0.15));
+  animation: tpHeroGlow 2s ease-out 0.3s both;
 }
 .tp-hero-line2 {
-  font-size: 13px; color: var(--silver-dim); margin-top: 12px;
-  letter-spacing: 1px; opacity: 0;
-  animation: heroFadeIn 1s ease-out 0.8s both;
+  font-size: 14px; color: #8b5cf6; font-weight: 500; letter-spacing: 1px;
+  text-align: center; margin-top: 14px;
+  animation: tpHeroFadeUp 1s ease-out 1.2s both;
 }
-@keyframes heroFadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+@keyframes tpHeroGlow {
+  from { opacity: 0; filter: drop-shadow(0 0 60px rgba(192,192,208,0.8)) drop-shadow(0 0 120px rgba(192,192,208,0.3)); }
+  50% { opacity: 1; filter: drop-shadow(0 0 40px rgba(192,192,208,0.6)) drop-shadow(0 0 80px rgba(192,192,208,0.2)); }
+  to { opacity: 1; filter: drop-shadow(0 0 20px rgba(192,192,208,0.4)) drop-shadow(0 0 60px rgba(192,192,208,0.15)); }
+}
+@keyframes tpHeroFadeUp {
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

@@ -765,7 +765,7 @@ function _showGpuNav(show) {
   if (show) {
     const dev = _userDevices[_deviceIdx];
     const label = document.getElementById('gpu-nav-label');
-    if (label && dev) label.textContent = dev.gpu_name || dev.hostname;
+    if (label && dev) label.textContent = _cleanGpuName(dev.gpu_name) || dev.hostname;
   }
 }
 
@@ -792,7 +792,7 @@ async function selectDevice(nodeId) {
     const dev = _userDevices.find(d => d.node_id === nodeId);
     if (dev) {
       const st = document.getElementById('gpu-status-text');
-      if (st) st.textContent = dev.gpu_name || '';
+      if (st) st.textContent = _cleanGpuName(dev.gpu_name);
       const vr = document.getElementById('gpu-vram-display');
       if (vr && dev.gpu_vram_mb) vr.textContent = Math.round(dev.gpu_vram_mb / 1024) + 'GB VRAM';
       document.getElementById('gpu-display-name').textContent = 'Switching...';
@@ -890,6 +890,11 @@ function _updateTp2Card(rank, data, sessionStatus) {
     statusEl.textContent = 'OFFLINE';
     statusEl.className = 'gpu-mini-status offline';
   }
+}
+
+function _cleanGpuName(name) {
+  if (!name) return '';
+  return name.replace(/^NVIDIA\s+GeForce\s+/i, '').replace(/\s+GPU$/i, '').trim();
 }
 
 function _swapGpuSvg(gpuName) {
@@ -1095,7 +1100,8 @@ function _updateGpuCard(md) {
   if (md.gpu_name && document.getElementById('gpu-status-text')) {
     // Show hostname when multiple devices are linked
     const activeDev = _userDevices.find(d => d.node_id === _activeNodeId);
-    const label = (_userDevices.length > 1 && activeDev) ? `${md.gpu_name} \u00b7 ${activeDev.hostname}` : md.gpu_name;
+    const clean = _cleanGpuName(md.gpu_name);
+    const label = (_userDevices.length > 1 && activeDev) ? `${clean} \u00b7 ${activeDev.hostname}` : clean;
     document.getElementById('gpu-status-text').textContent = label;
     _swapGpuSvg(md.gpu_name);
   }

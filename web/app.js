@@ -906,6 +906,29 @@ async function _pollTp2Status() {
       statusEl.textContent = `${onlineCount}/${totalGpus} GPUS ONLINE`;
       statusEl.className = 'tp2-session-status';
     }
+
+    // Poll per-node GPU metrics for VRAM bars
+    try {
+      const metricsR = await fetch('/api/gpu-metrics/all');
+      const metricsD = await metricsR.json();
+      const nodeMetrics = metricsD.nodes || {};
+      // Map metrics to rank by node_id
+      const ranks = [r0data, r1data];
+      for (let i = 0; i < ranks.length; i++) {
+        const rd = ranks[i];
+        if (!rd || !rd.node_id) continue;
+        const m = nodeMetrics[rd.node_id];
+        if (!m || m.error) continue;
+        const fillEl = document.getElementById(`tp2-gpu${i}-vram-fill`);
+        const vramEl = document.getElementById(`tp2-gpu${i}-vram`);
+        if (m.vram_total_mb && m.vram_used_mb != null) {
+          const pct = Math.round((m.vram_used_mb / m.vram_total_mb) * 100);
+          if (fillEl) fillEl.style.width = pct + '%';
+          if (vramEl) vramEl.textContent = `${(m.vram_used_mb/1024).toFixed(1)}/${(m.vram_total_mb/1024).toFixed(1)} GB`;
+        }
+      }
+    } catch(e) {}
+
   } catch(e) { console.error('_pollTp2Status:', e); }
 }
 
@@ -922,7 +945,7 @@ function _updateTp2Card(rank, data, sessionStatus) {
     const gpuName = data.gpu || data.gpu_name || '';
     nameEl.textContent = _formatGpuTitle(gpuName);
     hostEl.textContent = data.hostname || '';
-    vramEl.textContent = data.vram_mb ? `${Math.round(data.vram_mb / 1024)} GB` : '';
+    vramEl.textContent = data.vram_mb ? `${(data.vram_mb / 1024).toFixed(1)} GB` : '';
 
     // Set GPU SVG based on laptop vs desktop
     const isLaptop = /laptop|mobile|notebook/i.test(gpuName);

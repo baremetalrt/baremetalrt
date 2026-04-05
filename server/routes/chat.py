@@ -103,6 +103,22 @@ async def gpu_metrics(request: Request):
     return result
 
 
+@router.get("/api/gpu-metrics/all")
+async def gpu_metrics_all(request: Request):
+    """Get GPU metrics from ALL connected daemons for this user."""
+    user = await get_current_user(request)
+    if not user:
+        return {"nodes": []}
+    user_id = str(user["id"])
+    user_conns = {nid: dc for nid, dc in _daemon_connections.items() if dc.user_id == user_id}
+    results = {}
+    for nid in user_conns:
+        r = await _relay_to_daemon({"type": "gpu_metrics"}, timeout_s=5.0, node_id=nid)
+        r["node_id"] = nid
+        results[nid] = r
+    return {"nodes": results}
+
+
 async def _ws_reader(ws: WebSocket, q: asyncio.Queue):
     """Single reader coroutine — all messages from a daemon flow through here."""
     try:

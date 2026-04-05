@@ -1075,13 +1075,14 @@ function renderModelCards() {
     let action = '';
     let fitBadge = '';
     if (isTP) {
-      // TP mode: Pull → Build TP=2 → Load
+      // TP mode: same button labels as 1-GPU — routing handles the rest
       if (!m.downloaded) {
         action = `<button class="model-btn primary" onclick="pullModel('${m.id}')">Pull</button>`;
       } else if (!m.engine_built) {
-        action = `<button class="model-btn primary" onclick="buildModel('${m.id}')">Build TP=2</button>`;
+        action = `<button class="model-btn primary" onclick="buildModel('${m.id}')">Build</button>`;
       } else {
-        action = `<button class="model-btn primary" onclick="loadModel('${m.id}')">Load</button>`;
+        const btnLabel = _allModels._activeModel ? 'Hot Swap' : 'Load';
+        action = `<button class="model-btn primary" onclick="loadModel('${m.id}')">${btnLabel}</button>`;
       }
     } else {
       // 1-GPU mode: original logic

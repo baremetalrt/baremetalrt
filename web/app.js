@@ -928,7 +928,14 @@ function _updateTp2Card(rank, data, sessionStatus) {
     const laptopSvg = document.getElementById('gpu-svg-laptop');
     if (svgEl && desktopSvg && laptopSvg) {
       const src = isLaptop ? laptopSvg : desktopSvg;
-      if (!svgEl.querySelector('svg')) svgEl.innerHTML = src.outerHTML;
+      if (!svgEl.querySelector('svg')) {
+        // Clone and remap gradient IDs to avoid conflicts
+        let html = src.outerHTML;
+        const prefix = `tp${rank}-`;
+        html = html.replace(/id="(g[blspmg]|gg|gb|gs|gp|gm|gl-[a-z]+)"/g, `id="${prefix}$1"`);
+        html = html.replace(/url\(#(g[blspmg]|gg|gb|gs|gp|gm|gl-[a-z]+)\)/g, `url(#${prefix}$1)`);
+        svgEl.innerHTML = html;
+      }
       const inner = svgEl.querySelector('svg');
       if (inner) { inner.removeAttribute('id'); inner.style.display = ''; }
     }

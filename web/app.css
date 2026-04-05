@@ -480,6 +480,10 @@ pre:hover .copy-btn { opacity: 1; }
   padding: 0 10px 6px; display: flex; justify-content: center;
 }
 .tp-node-gpu svg { width: 100%; max-width: 140px; height: auto; }
+.tp-node-model {
+  padding: 4px 14px; text-align: center;
+  font-size: 11px; color: var(--silver-dark); letter-spacing: 0.5px;
+}
 .tp-node-status {
   padding: 6px 14px; border-top: 1px solid var(--border);
   text-align: center; font-size: 10px; font-weight: 600;

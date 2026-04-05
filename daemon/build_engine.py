@@ -257,8 +257,8 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--tp_size", type=int, default=2)
     parser.add_argument("--max_batch_size", type=int, default=1)
-    parser.add_argument("--max_input_len", type=int, default=256)
-    parser.add_argument("--max_seq_len", type=int, default=512)
+    parser.add_argument("--max_input_len", type=int, default=1024)
+    parser.add_argument("--max_seq_len", type=int, default=4096)
     # Cross-machine build: init TCP transport so AllReduce is real during profiling
     parser.add_argument("--dtype", type=str, default="float32", help="Data type: float32, float16, bfloat16")
     parser.add_argument("--rank", type=int, default=None, help="This machine's rank (0 or 1)")

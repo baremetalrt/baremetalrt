@@ -1837,7 +1837,9 @@ async def api_build_model(model_id: str):
                    "--checkpoint_dir", ckpt_dir,
                    "--output_dir", engine_dir,
                    "--tp_size", "1",
-                   "--dtype", "float16"]
+                   "--dtype", "float16",
+                   "--max_input_len", "1024",
+                   "--max_seq_len", "4096"]
             result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=3600)
 
             if result.returncode != 0:

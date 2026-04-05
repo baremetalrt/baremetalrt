@@ -445,8 +445,64 @@ pre:hover .copy-btn { opacity: 1; }
 }
 
 
-/* TP=2 panel — ported from demo page */
+/* TP=2 panel */
 .tp2-panel { margin-bottom: 20px; }
+.tp-layout {
+  display: flex; gap: 24px; align-items: flex-start;
+}
+.tp-mesh-wrap { flex: 1; min-width: 0; }
+
+/* Setup stepper */
+.tp-stepper {
+  width: 180px; flex-shrink: 0;
+  background: linear-gradient(135deg, #101014 0%, #1a1a20 50%, #101014 100%);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 16px 14px;
+}
+.tp-stepper-title {
+  font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--silver-dim); margin-bottom: 16px; text-align: center;
+}
+.tp-step {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 6px 0; transition: opacity 0.3s;
+  opacity: 0.4;
+}
+.tp-step.active { opacity: 1; }
+.tp-step.done { opacity: 0.7; }
+.tp-step-dot {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--silver-dark);
+  border: 1.5px solid var(--border); background: var(--bg);
+  transition: all 0.3s;
+}
+.tp-step.active .tp-step-dot {
+  border-color: #8b5cf6; color: #8b5cf6;
+  box-shadow: 0 0 10px rgba(139,92,246,0.3);
+}
+.tp-step.done .tp-step-dot {
+  border-color: #76e651; color: #76e651; background: rgba(118,230,81,0.08);
+}
+.tp-step-name {
+  font-size: 11px; font-weight: 600; color: var(--silver); letter-spacing: 0.3px;
+}
+.tp-step-desc {
+  font-size: 9px; color: var(--silver-dark); margin-top: 1px; line-height: 1.3;
+}
+.tp-step-line {
+  width: 1.5px; height: 12px; background: var(--border);
+  margin-left: 10px;
+}
+.tp-step.done + .tp-step-line { background: #76e651; opacity: 0.4; }
+
+@media (max-width: 768px) {
+  .tp-layout { flex-direction: column; }
+  .tp-stepper { width: 100%; display: flex; gap: 8px; padding: 10px; align-items: center; }
+  .tp-stepper-title { margin-bottom: 0; }
+  .tp-step-line { display: none; }
+  .tp-step-desc { display: none; }
+}
 .tp-mesh {
   display: flex; align-items: stretch; justify-content: center;
   gap: 80px; padding: 16px 0; position: relative;

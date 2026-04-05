@@ -904,12 +904,15 @@ async function _pollTp2Status() {
     if (session.status === 'matched') {
       statusEl.textContent = 'SESSION MATCHED \u2014 READY FOR INFERENCE';
       statusEl.className = 'tp2-session-status matched';
+      _updateTpStepper(3);
     } else if (onlineCount >= 2) {
       statusEl.textContent = `${onlineCount} GPUS ONLINE \u2014 WAITING FOR MODEL`;
       statusEl.className = 'tp2-session-status matching';
+      _updateTpStepper(1);
     } else {
       statusEl.textContent = `${onlineCount}/${totalGpus} GPUS ONLINE`;
       statusEl.className = 'tp2-session-status';
+      _updateTpStepper(0);
     }
 
     // Poll per-node GPU metrics for VRAM bars
@@ -1016,6 +1019,17 @@ function _swapGpuSvg(gpuName) {
   const laptop = document.getElementById('gpu-svg-laptop');
   if (desktop) desktop.style.display = isLaptop ? 'none' : '';
   if (laptop) laptop.style.display = isLaptop ? '' : 'none';
+}
+
+function _updateTpStepper(step) {
+  // step: 0 = waiting for GPUs, 1 = pull, 2 = build, 3 = loaded
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`tp-step-${i}`);
+    if (!el) continue;
+    el.classList.remove('active', 'done');
+    if (i < step) el.classList.add('done');
+    else if (i === step) el.classList.add('active');
+  }
 }
 
 function _apiHeaders() {

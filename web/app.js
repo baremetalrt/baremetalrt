@@ -795,6 +795,7 @@ async function selectDevice(nodeId) {
       const vr = document.getElementById('gpu-vram-display');
       if (vr && dev.gpu_vram_mb) vr.textContent = Math.round(dev.gpu_vram_mb / 1024) + 'GB VRAM';
       document.getElementById('gpu-display-name').textContent = 'Switching...';
+      _swapGpuSvg(dev.gpu_name);
     }
 
     await checkNode();
@@ -888,6 +889,14 @@ function _updateTp2Card(rank, data, sessionStatus) {
     statusEl.textContent = 'OFFLINE';
     statusEl.className = 'gpu-mini-status offline';
   }
+}
+
+function _swapGpuSvg(gpuName) {
+  const isLaptop = /laptop|mobile|notebook/i.test(gpuName || '');
+  const desktop = document.getElementById('gpu-svg-desktop');
+  const laptop = document.getElementById('gpu-svg-laptop');
+  if (desktop) desktop.style.display = isLaptop ? 'none' : '';
+  if (laptop) laptop.style.display = isLaptop ? '' : 'none';
 }
 
 function _apiHeaders() {
@@ -1087,6 +1096,7 @@ function _updateGpuCard(md) {
     const activeDev = _userDevices.find(d => d.node_id === _activeNodeId);
     const label = (_userDevices.length > 1 && activeDev) ? `${md.gpu_name} \u00b7 ${activeDev.hostname}` : md.gpu_name;
     document.getElementById('gpu-status-text').textContent = label;
+    _swapGpuSvg(md.gpu_name);
   }
   if (md.gpu_vram_mb) document.getElementById('gpu-vram-display').textContent = Math.round(md.gpu_vram_mb / 1024) + 'GB VRAM';
   if (md.active_model) {

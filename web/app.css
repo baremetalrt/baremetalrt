@@ -447,6 +447,37 @@ pre:hover .copy-btn { opacity: 1; }
 
 /* TP=2 panel */
 .tp2-panel { margin-bottom: 20px; }
+/* TP hero reveal (first time only) */
+.tp-hero {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--bg);
+}
+.tp-hero-line1 {
+  font-size: 28px; font-weight: 300; color: var(--silver);
+  letter-spacing: 2px; opacity: 0;
+  animation: heroFadeIn 1s ease-out 0.3s both;
+}
+.tp-hero-line2 {
+  font-size: 13px; color: var(--silver-dim); margin-top: 12px;
+  letter-spacing: 1px; opacity: 0;
+  animation: heroFadeIn 1s ease-out 0.8s both;
+}
+@keyframes heroFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* TP content (hidden during hero, fades in after) */
+.tp-content { position: relative; }
+.tp-content.reveal {
+  animation: heroContentIn 0.8s ease-out both;
+}
+@keyframes heroContentIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* TP tagline */
 .tp-tagline {
   text-align: center; margin-bottom: 16px;

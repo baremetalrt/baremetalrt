@@ -896,11 +896,36 @@ function show2GpuLayout() {
   document.getElementById('gpu-card').style.display = 'none';
   _showGpuNav(false);
   document.getElementById('tp2-panel').style.display = '';
+
+  const hero = document.getElementById('tp-hero');
+  const content = document.getElementById('tp-content');
+  const seenKey = 'bmrt_tp_hero_seen';
+  const showHero = isDemo && !localStorage.getItem(seenKey);
+
+  if (showHero && hero && content) {
+    // First time: hero statement, then reveal content
+    content.style.opacity = '0';
+    hero.style.display = '';
+    localStorage.setItem(seenKey, '1');
+    setTimeout(() => {
+      hero.style.transition = 'opacity 0.6s ease-out';
+      hero.style.opacity = '0';
+      setTimeout(() => {
+        hero.style.display = 'none';
+        content.style.opacity = '';
+        content.classList.add('reveal');
+        _playTpConnectSound();
+      }, 600);
+    }, 3000);
+  } else {
+    if (hero) hero.style.display = 'none';
+    setTimeout(_playTpConnectSound, 600);
+  }
+
   _renderStepper();
   _pollTp2Status();
   _tp2PollTimer = setInterval(_pollTp2Status, 5000);
   loadModels();
-  setTimeout(_playTpConnectSound, 600); // play after cards slide in
 }
 
 async function _pollTp2Status() {

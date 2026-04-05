@@ -247,6 +247,12 @@ if (document.cookie.includes('token=')) {
 
     <!-- TP=2 panel (visible in 2-GPU mode) -->
     <div class="tp2-panel" id="tp2-panel" style="display:none;">
+      <!-- First-time hero reveal -->
+      <div class="tp-hero" id="tp-hero" style="display:none;">
+        <div class="tp-hero-line1">For the first time ever</div>
+        <div class="tp-hero-line2">Heterogeneous tensor parallelism across consumer GPUs over TCP</div>
+      </div>
+      <div class="tp-content" id="tp-content">
       <div class="tp-tagline">
         <div class="tp-tagline-main">Heterogeneous Tensor Parallelism</div>
         <div class="tp-tagline-sub">Split large models across your GPUs over TCP. No NVLink required.</div>
@@ -295,6 +301,7 @@ if (document.cookie.includes('token=')) {
       </div>
       <div class="tp2-session-status" id="tp2-session-status">Waiting for both GPUs...</div>
       <button class="model-btn primary tp-chat-btn" id="tp-chat-btn" onclick="showChat()" style="display:none;">Chat</button>
+      </div><!-- /tp-content -->
     </div>
 
     <div class="section-title" id="models-section-title">Available Models</div>

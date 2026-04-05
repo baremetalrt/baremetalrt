@@ -918,7 +918,7 @@ function _updateTp2Card(rank, data, sessionStatus) {
 
   if (data) {
     const gpuName = data.gpu || data.gpu_name || '';
-    nameEl.textContent = _cleanGpuName(gpuName);
+    nameEl.textContent = _formatGpuTitle(gpuName);
     hostEl.textContent = data.hostname || '';
     vramEl.textContent = data.vram_mb ? `${Math.round(data.vram_mb / 1024)} GB` : '';
 
@@ -1255,7 +1255,8 @@ async function loadModel(id) {
   const btns = document.querySelectorAll('.model-btn');
   btns.forEach(b => { if (b.textContent === 'Load') b.classList.add('loading'); });
   if (el) { el.style.display = ''; el.textContent = 'Loading engine...'; }
-  const r = await fetch(`/api/models/${id}/load`, { method: 'POST' });
+  const loadUrl = _gpuMode === '2gpu' ? `/api/tp2/load/${id}` : `/api/models/${id}/load`;
+  const r = await fetch(loadUrl, { method: 'POST', headers: _apiHeaders() });
   const d = await r.json();
   if (d.error) {
     if (el) el.textContent = d.error;

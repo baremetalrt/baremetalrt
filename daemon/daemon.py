@@ -947,8 +947,9 @@ async def api_chat(req: ChatRequest):
 
 # -- Model hot-swap -----------------------------------------------------------
 
-def _load_model(model_id: str) -> dict:
-    """Unload current engine, load a new one. Returns status dict."""
+def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = None) -> dict:
+    """Unload current engine, load a new one. Returns status dict.
+    For TP=2: pass rank (0 or 1) and peer_ip. Inits transport + signal socket."""
     from model_registry import get_model
     model = get_model(model_id)
     if not model:
@@ -957,11 +958,16 @@ def _load_model(model_id: str) -> dict:
         return {"error": "Engine not built for this model"}
 
     engine_dir = model["engine_dir"]
-    rank_file = os.path.join(engine_dir, "rank0.engine")
-    if not os.path.isfile(rank_file):
-        return {"error": f"rank0.engine not found in {engine_dir}"}
 
-    log.info(f"Loading model: {model_id}...")
+    # Determine rank file
+    if tp >= 2 and rank is not None:
+        rank_file = os.path.join(engine_dir, f"rank{rank}.engine")
+    else:
+        rank_file = os.path.join(engine_dir, "rank0.engine")
+    if not os.path.isfile(rank_file):
+        return {"error": f"{os.path.basename(rank_file)} not found in {engine_dir}"}
+
+    log.info(f"Loading model: {model_id} (tp={tp}, rank={rank})...")
 
     # Unload current engine (free GPU memory)
     if state.engine:
@@ -971,10 +977,20 @@ def _load_model(model_id: str) -> dict:
         import torch
         torch.cuda.empty_cache()
 
-    # Load new engine
+    # For TP=2: init TCP transport before loading engine
+    if tp >= 2 and rank is not None and peer_ip:
+        log.info(f"TP={tp} load: initializing transport (rank={rank}, peer={peer_ip})")
+        state.rank = rank
+        coord_ip = peer_ip if rank == 1 else "0.0.0.0"
+        ok = init_transport(rank, peer_ip, coord_ip)
+        if not ok:
+            return {"error": "TCP transport init failed — peer may not be ready"}
+        init_signal_socket(rank, peer_ip)
+
+    # Load engine
     try:
         state.engine = TRTEngine(rank_file)
-        log.info(f"Engine loaded: {model_id}")
+        log.info(f"Engine loaded: {os.path.basename(rank_file)}")
         # Warmup
         for i in range(3):
             _, ms = state.engine.infer([1, 450, 7483])
@@ -987,35 +1003,44 @@ def _load_model(model_id: str) -> dict:
         log.error(state.error)
         return {"error": state.error}
 
-    # Load tokenizer for the new model
-    engine_name = Path(engine_dir).name.lower()
-    models_dir = PROJECT_ROOT / "models"
-    tokenizer_dirs = [Path(engine_dir)]
-    if models_dir.is_dir():
-        for d in sorted(models_dir.iterdir()):
-            if d.is_dir() and any(kw in d.name.lower() for kw in engine_name.split("-")[:2] if len(kw) > 2):
-                tokenizer_dirs.append(d)
-        for d in sorted(models_dir.iterdir()):
-            if d.is_dir() and (d / "tokenizer.json").exists() and d not in tokenizer_dirs:
-                tokenizer_dirs.append(d)
-    for d in tokenizer_dirs:
-        if (d / "tokenizer.json").exists() or (d / "tokenizer.model").exists():
-            try:
-                from transformers import AutoTokenizer
-                state.tokenizer = AutoTokenizer.from_pretrained(str(d))
-                log.info(f"Tokenizer: {d.name}")
-                break
-            except Exception as e:
-                log.warning(f"Tokenizer load failed from {d}: {e}")
-                continue
+    # Load tokenizer (rank 0 only for TP, or always for single GPU)
+    if rank is None or rank == 0:
+        engine_name = Path(engine_dir).name.lower()
+        models_dir = PROJECT_ROOT / "models"
+        tokenizer_dirs = [Path(engine_dir)]
+        if models_dir.is_dir():
+            for d in sorted(models_dir.iterdir()):
+                if d.is_dir() and any(kw in d.name.lower() for kw in engine_name.split("-")[:2] if len(kw) > 2):
+                    tokenizer_dirs.append(d)
+            for d in sorted(models_dir.iterdir()):
+                if d.is_dir() and (d / "tokenizer.json").exists() and d not in tokenizer_dirs:
+                    tokenizer_dirs.append(d)
+        for d in tokenizer_dirs:
+            if (d / "tokenizer.json").exists() or (d / "tokenizer.model").exists():
+                try:
+                    from transformers import AutoTokenizer
+                    state.tokenizer = AutoTokenizer.from_pretrained(str(d))
+                    log.info(f"Tokenizer: {d.name}")
+                    break
+                except Exception as e:
+                    log.warning(f"Tokenizer load failed from {d}: {e}")
+                    continue
+
+    # Start rank 1 follower thread if this is rank 1
+    if rank == 1:
+        if hasattr(state, '_signal_sock') and _signal_sock:
+            threading.Thread(target=_rank1_signal_worker, daemon=True).start()
+        else:
+            threading.Thread(target=_rank1_worker, daemon=True).start()
+        log.info("Rank 1 follower started — waiting for rank 0 commands")
 
     state.engine_name = Path(engine_dir).name
     state.engine_dir = engine_dir
     state.active_model_id = model_id
     state.status = "ready"
     state.error = ""
-    log.info(f"Model switched to {model_id}")
-    return {"status": "ok", "model": model_id}
+    log.info(f"Model loaded: {model_id} (tp={tp}, rank={rank})")
+    return {"status": "ok", "model": model_id, "rank": rank}
 
 
 # -- WebSocket chat bridge (rank 0 only) -------------------------------------
@@ -1371,7 +1396,10 @@ def _ws_bridge_worker(orchestrator_url: str):
 
                     elif msg_type == "load":
                         model_id = req_data.get("model_id", "")
-                        result = _load_model(model_id)
+                        tp = req_data.get("tp", 1)
+                        rank = req_data.get("rank")
+                        peer_ip = req_data.get("peer_ip")
+                        result = _load_model(model_id, tp=tp, rank=rank, peer_ip=peer_ip)
                         ws.send(json.dumps(result))
 
                     elif msg_type == "delete_model":

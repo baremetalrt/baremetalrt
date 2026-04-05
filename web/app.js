@@ -759,8 +759,9 @@ async function fetchDevices() {
 
 function _showGpuNav(show) {
   const nav = document.getElementById('gpu-nav');
-  if (!nav) return;
-  nav.style.display = show ? 'flex' : 'none';
+  const title = document.getElementById('gpu-nav-title');
+  if (nav) nav.style.display = show ? 'flex' : 'none';
+  if (title) title.style.display = show ? '' : 'none';
   if (show) {
     const dev = _userDevices[_deviceIdx];
     const label = document.getElementById('gpu-nav-label');

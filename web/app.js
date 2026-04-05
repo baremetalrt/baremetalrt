@@ -899,14 +899,12 @@ function show2GpuLayout() {
 
   const hero = document.getElementById('tp-hero');
   const content = document.getElementById('tp-content');
-  const seenKey = 'bmrt_tp_hero_seen';
-  const showHero = isDemo && !localStorage.getItem(seenKey);
+  const showHero = isDemo;
 
   if (showHero && hero && content) {
     // First time: hero statement, then reveal content
     content.style.opacity = '0';
     hero.style.display = '';
-    localStorage.setItem(seenKey, '1');
     setTimeout(() => {
       hero.style.transition = 'opacity 0.6s ease-out';
       hero.style.opacity = '0';

@@ -1286,11 +1286,12 @@ def _ws_bridge_worker(orchestrator_url: str):
                                     env = _engine_env()
                                     _mseq = min(m.get("context_length", 4096), 4096)
                                     _minp = min(_mseq // 2, 1024)
+                                    os.makedirs(engine_dir, exist_ok=True)
                                     result = subprocess.run([python, build_script, "--convert",
                                         "--model_dir", m["hf_dir"], "--checkpoint_dir", ckpt_dir,
                                         "--output_dir", engine_dir, "--tp_size", "1", "--dtype", "float16",
                                         "--max_input_len", str(_minp), "--max_seq_len", str(_mseq)],
-                                        env=env, capture_output=True, text=True, timeout=3600)
+                                        env=env, capture_output=True, text=True, timeout=3600, cwd=engine_dir)
                                     if result.returncode == 0:
                                         mark_engine_built(mid, engine_dir)
                                         _build_tasks[mid] = {"status": "done", "progress": "Complete"}
@@ -1865,6 +1866,7 @@ async def api_build_model(model_id: str):
             max_input = min(max_seq // 2, 1024)
             log.info(f"Building engine: max_seq={max_seq}, max_input={max_input}")
 
+            os.makedirs(engine_dir, exist_ok=True)
             cmd = [python, build_script,
                    "--convert",
                    "--model_dir", hf_dir,
@@ -1874,7 +1876,8 @@ async def api_build_model(model_id: str):
                    "--dtype", "float16",
                    "--max_input_len", str(max_input),
                    "--max_seq_len", str(max_seq)]
-            result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=3600)
+            # cwd=engine_dir so TRT timing cache writes to writable location
+            result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=3600, cwd=engine_dir)
 
             if result.returncode != 0:
                 _build_tasks[model_id] = {"status": "error", "progress": result.stderr[-500:] if result.stderr else "Build failed"}

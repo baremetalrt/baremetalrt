@@ -791,7 +791,7 @@ async function selectDevice(nodeId) {
     const dev = _userDevices.find(d => d.node_id === nodeId);
     if (dev) {
       const st = document.getElementById('gpu-status-text');
-      if (st) st.textContent = _cleanGpuName(dev.gpu_name);
+      if (st) st.textContent = _formatGpuTitle(dev.gpu_name);
       const vr = document.getElementById('gpu-vram-display');
       if (vr && dev.gpu_vram_mb) vr.textContent = Math.round(dev.gpu_vram_mb / 1024) + 'GB VRAM';
       document.getElementById('gpu-display-name').textContent = 'No model loaded';
@@ -915,6 +915,14 @@ function _updateTp2Card(rank, data, sessionStatus) {
 function _cleanGpuName(name) {
   if (!name) return '';
   return name.replace(/\s+GPU$/i, '').trim();
+}
+
+function _formatGpuTitle(name) {
+  const clean = _cleanGpuName(name);
+  // Split into "NVIDIA GeForce" + model for consistent two-line wrap
+  const match = clean.match(/^(NVIDIA\s+GeForce)\s+(.+)$/i);
+  if (match) return match[1] + '\n' + match[2];
+  return clean;
 }
 
 function _swapGpuSvg(gpuName) {
@@ -1120,8 +1128,8 @@ function _updateGpuCard(md) {
   if (md.gpu_name && document.getElementById('gpu-status-text')) {
     // Show hostname when multiple devices are linked
     const activeDev = _userDevices.find(d => d.node_id === _activeNodeId);
-    const clean = _cleanGpuName(md.gpu_name);
-    const label = (_userDevices.length > 1 && activeDev) ? `${clean} \u00b7 ${activeDev.hostname}` : clean;
+    const formatted = _formatGpuTitle(md.gpu_name);
+    const label = (_userDevices.length > 1 && activeDev) ? `${formatted}\n${activeDev.hostname}` : formatted;
     document.getElementById('gpu-status-text').textContent = label;
     _swapGpuSvg(md.gpu_name);
   }

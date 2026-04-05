@@ -464,7 +464,7 @@ pre:hover .copy-btn { opacity: 1; }
 .tp-node-info { padding: 14px 14px 10px; text-align: center; }
 .tp-rank {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 2px; margin-bottom: 10px; color: #8b5cf6;
+  letter-spacing: 2px; margin-bottom: 10px; color: var(--silver-dim);
 }
 .tp-host {
   font-size: 15px; font-weight: 700; color: var(--silver);
@@ -477,7 +477,7 @@ pre:hover .copy-btn { opacity: 1; }
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
 .tp-vram {
-  font-size: 11px; color: #8b5cf6; font-weight: 600; margin-top: 2px;
+  font-size: 11px; color: var(--silver-dim); font-weight: 600; margin-top: 2px;
 }
 .tp-node-gpu {
   padding: 0 10px 6px; display: flex; justify-content: center;
@@ -485,7 +485,7 @@ pre:hover .copy-btn { opacity: 1; }
 .tp-node-gpu svg { width: 100%; max-width: 140px; height: auto; }
 .tp-node-model {
   padding: 6px 14px; text-align: center;
-  font-size: 13px; font-weight: 700; color: #8b5cf6;
+  font-size: 13px; font-weight: 700; color: var(--silver-dark);
   letter-spacing: -0.3px;
   animation: statusPulse 1.5s ease-in-out infinite;
 }

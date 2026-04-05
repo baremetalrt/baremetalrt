@@ -34,8 +34,8 @@ if (document.cookie.includes('token=')) {
   </div>
   <span class="spacer"></span>
   <div class="mode-switcher" id="mode-switcher" style="display:none;">
-    <button class="mode-btn active" data-mode="1gpu" onclick="setGpuMode('1gpu')" title="Single GPU inference mode">1 GPU</button>
-    <button class="mode-btn" onclick="setGpuMode('2gpu')" title="Tensor parallel across your home GPUs" data-mode="tp">TP &middot; Home</button>
+    <button class="mode-btn active" data-mode="1gpu" onclick="setGpuMode('1gpu')" title="Single GPU inference mode">Solo GPU</button>
+    <button class="mode-btn" onclick="setGpuMode('2gpu')" title="Tensor parallel across your home GPUs" data-mode="tp">Home TP</button>
     <button class="mode-btn disabled" onclick="showModeToast('MoE \u00b7 Internet Mesh coming soon', event)" title="Coming soon" data-mode="moe">MoE &middot; Mesh</button>
   </div>
   <span class="status-badge" id="header-status" style="display:none;" title="GPU daemon connection status">OFFLINE</span>

@@ -828,7 +828,7 @@ async function selectDevice(nodeId) {
 function setGpuMode(mode) {
   _gpuMode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.mode === (mode === '1gpu' ? '1gpu' : 'tp2'));
+    b.classList.toggle('active', b.dataset.mode === (mode === '1gpu' ? '1gpu' : 'tp'));
   });
   if (mode === '1gpu') {
     show1GpuLayout();

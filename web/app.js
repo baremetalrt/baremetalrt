@@ -1119,27 +1119,56 @@ function _updateTpStepper(step) {
 function _playTpConnectSound() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // Metallic click
-    const click = ctx.createOscillator();
-    const clickGain = ctx.createGain();
-    click.type = 'square';
-    click.frequency.setValueAtTime(800, ctx.currentTime);
-    click.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.08);
-    clickGain.gain.setValueAtTime(0.15, ctx.currentTime);
-    clickGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-    click.connect(clickGain).connect(ctx.destination);
-    click.start(); click.stop(ctx.currentTime + 0.1);
-    // Power-up hum
-    const hum = ctx.createOscillator();
-    const humGain = ctx.createGain();
-    hum.type = 'sine';
-    hum.frequency.setValueAtTime(80, ctx.currentTime + 0.05);
-    hum.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.4);
-    humGain.gain.setValueAtTime(0, ctx.currentTime);
-    humGain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.1);
-    humGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    hum.connect(humGain).connect(ctx.destination);
-    hum.start(ctx.currentTime + 0.05); hum.stop(ctx.currentTime + 0.5);
+    const t = ctx.currentTime;
+
+    // Deep impact boom
+    const boom = ctx.createOscillator();
+    const boomGain = ctx.createGain();
+    boom.type = 'sine';
+    boom.frequency.setValueAtTime(60, t);
+    boom.frequency.exponentialRampToValueAtTime(20, t + 0.6);
+    boomGain.gain.setValueAtTime(0.4, t);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+    boom.connect(boomGain).connect(ctx.destination);
+    boom.start(t); boom.stop(t + 0.8);
+
+    // Metallic slam
+    const slam = ctx.createOscillator();
+    const slamGain = ctx.createGain();
+    slam.type = 'sawtooth';
+    slam.frequency.setValueAtTime(1200, t);
+    slam.frequency.exponentialRampToValueAtTime(80, t + 0.15);
+    slamGain.gain.setValueAtTime(0.25, t);
+    slamGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    slam.connect(slamGain).connect(ctx.destination);
+    slam.start(t); slam.stop(t + 0.2);
+
+    // Electric surge
+    const surge = ctx.createOscillator();
+    const surgeGain = ctx.createGain();
+    surge.type = 'sawtooth';
+    surge.frequency.setValueAtTime(100, t + 0.1);
+    surge.frequency.exponentialRampToValueAtTime(400, t + 0.5);
+    surge.frequency.exponentialRampToValueAtTime(150, t + 1.0);
+    surgeGain.gain.setValueAtTime(0, t + 0.1);
+    surgeGain.gain.linearRampToValueAtTime(0.12, t + 0.3);
+    surgeGain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+    surge.connect(surgeGain).connect(ctx.destination);
+    surge.start(t + 0.1); surge.stop(t + 1.2);
+
+    // Noise burst for texture
+    const bufSize = ctx.sampleRate * 0.15;
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+    const noise = ctx.createBufferSource();
+    const noiseGain = ctx.createGain();
+    noise.buffer = noiseBuf;
+    noiseGain.gain.setValueAtTime(0.2, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    noise.connect(noiseGain).connect(ctx.destination);
+    noise.start(t); noise.stop(t + 0.15);
+
   } catch(e) {}
 }
 

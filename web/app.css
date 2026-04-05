@@ -484,6 +484,28 @@ pre:hover .copy-btn { opacity: 1; }
   padding: 0 10px 6px; display: flex; justify-content: center;
 }
 .tp-node-gpu svg { width: 100%; max-width: 140px; height: auto; }
+.tp-node-stats {
+  display: flex; justify-content: center; gap: 12px; padding: 4px 10px;
+}
+.tp-node-stats .tp-stat {
+  text-align: center; font-size: 9px; color: var(--silver-dark); letter-spacing: 0.5px;
+}
+.tp-node-stats .tp-stat-val {
+  font-size: 12px; font-weight: 600; color: var(--silver); letter-spacing: -0.3px;
+}
+.tp-node-stats .tp-stat.hot .tp-stat-val { color: #f43f5e; }
+.tp-node-stats .tp-stat.warm .tp-stat-val { color: #f59e0b; }
+.tp-node-layers {
+  padding: 4px 14px 6px; text-align: center;
+}
+.tp-node-layers .shard-label {
+  font-size: 7px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--silver-dark); margin-bottom: 3px;
+}
+.tp-node-layers .shard-layers { display: flex; gap: 1px; justify-content: center; flex-wrap: wrap; }
+.tp-node-layers .layer {
+  width: 4px; height: 3px; background: var(--silver-dark); opacity: 0.4;
+}
 .tp-node-model {
   padding: 6px 14px; text-align: center;
   font-size: 13px; font-weight: 700; color: var(--silver);

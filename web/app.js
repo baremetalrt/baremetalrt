@@ -926,6 +926,16 @@ async function _pollTp2Status() {
           if (fillEl) fillEl.style.width = pct + '%';
           if (vramEl) vramEl.textContent = `${(m.vram_used_mb/1024).toFixed(1)}/${(m.vram_total_mb/1024).toFixed(1)} GB`;
         }
+        // Render temp / util / power
+        const statsEl = document.getElementById(`tp2-gpu${i}-stats`);
+        if (statsEl) {
+          const tempClass = (m.temperature_c > 80) ? 'hot' : (m.temperature_c > 65) ? 'warm' : '';
+          statsEl.innerHTML = `
+            <div class="tp-stat ${tempClass}"><div class="tp-stat-val">${m.temperature_c || '\u2014'}\u00b0</div><div>Temp</div></div>
+            <div class="tp-stat"><div class="tp-stat-val">${m.gpu_util_pct !== undefined ? m.gpu_util_pct : '\u2014'}%</div><div>Util</div></div>
+            <div class="tp-stat"><div class="tp-stat-val">${m.power_w || '\u2014'}W</div><div>Power</div></div>
+          `;
+        }
       }
     } catch(e) {}
 

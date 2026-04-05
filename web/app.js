@@ -130,7 +130,6 @@ async function checkAuth() {
       document.getElementById('hamburger-wrap').style.display = '';
       document.getElementById('app-layout').style.display = 'flex';
       closeAuth();
-      showModels();
       document.getElementById('user-initials').textContent = user.first_name || user.name || user.email.split('@')[0];
       document.getElementById('prompt').placeholder = 'Send a message...';
       // Hide demo link when signed in
@@ -147,7 +146,12 @@ async function checkAuth() {
 
       if (isDemo) applyDemoRestrictions();
       if (!isDemo) await fetchDevices();
-      if (_gpuMode !== '1gpu') setGpuMode(_gpuMode);
+      // Now show models — devices loaded so TP filter works
+      if (_gpuMode !== '1gpu') {
+        setGpuMode(_gpuMode);
+      } else {
+        showModels();
+      }
       checkNode();
       checkDaemonVersion();
       if (!isDemo) checkPendingClaims();

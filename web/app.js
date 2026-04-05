@@ -1157,7 +1157,6 @@ function renderModelCards() {
     return 1;
   });
 
-  let _pulsed = false;
   for (const m of sorted) {
     const _se = s => s.replace(/-tp\d.*/, '').replace(/-/g, '');
     const _si = s => s.replace(/-[\d.]+[a-z]*$/, '').replace(/-/g, '');
@@ -1170,16 +1169,16 @@ function renderModelCards() {
     let action = '';
     let fitBadge = '';
     if (isTP) {
-      const p = !_pulsed ? ' pulse' : '';
+      const p = ' pulse';
       if (!m.downloaded) {
         action = `<button class="model-btn primary${p}" onclick="pullModel('${m.id}')">Pull</button>`;
-        if (!_pulsed) _pulsed = true;
+
       } else if (!m.engine_built) {
         action = `<button class="model-btn primary${p}" onclick="buildModel('${m.id}')">Build TP Home</button>`;
-        if (!_pulsed) _pulsed = true;
+
       } else {
         action = `<button class="model-btn primary${p}" onclick="loadModel('${m.id}')">Load Model</button>`;
-        if (!_pulsed) _pulsed = true;
+
       }
     } else {
       // 1-GPU mode: original logic
@@ -1188,21 +1187,21 @@ function renderModelCards() {
         fitBadge = `<span class="fit-badge no-fit">TP \u00b7 HOME</span>`;
         action = `<button class="model-btn disabled" title="${m.name} requires ${Math.round(m.vram_fp16_mb/1024)}GB VRAM. Switch to TP · Home to split across multiple GPUs." style="opacity:0.5;">Run on TP</button>`;
       } else if (!m.downloaded) {
-        const p = !_pulsed ? ' pulse' : '';
+        const p = ' pulse';
         action = `<button class="model-btn primary${p}" onclick="pullModel('${m.id}')">Pull</button>`;
-        if (!_pulsed) _pulsed = true;
+
       } else if (m.fits === false) {
         fitBadge = `<span class="fit-badge no-fit">TP \u00b7 HOME</span>`;
         action = `<button class="model-btn disabled" title="${m.name} requires ${Math.round(m.vram_fp16_mb/1024)}GB VRAM. Switch to TP · Home to split across multiple GPUs." style="opacity:0.5;">Run on TP</button>`;
       } else if (!m.engine_built) {
-        const p = !_pulsed ? ' pulse' : '';
+        const p = ' pulse';
         action = `<button class="model-btn primary${p}" onclick="buildModel('${m.id}')">Build</button>`;
-        if (!_pulsed) _pulsed = true;
+
       } else {
-        const p = !_pulsed ? ' pulse' : '';
+        const p = ' pulse';
         const btnLabel = _allModels._activeModel ? 'Hot Swap' : 'Load';
         action = `<button class="model-btn primary${p}" onclick="loadModel('${m.id}')">${btnLabel}</button>`;
-        if (!_pulsed) _pulsed = true;
+
       }
     }
 

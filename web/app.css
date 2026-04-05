@@ -485,12 +485,12 @@ pre:hover .copy-btn { opacity: 1; }
 .tp-node-gpu svg { width: 100%; max-width: 140px; height: auto; }
 .tp-node-model {
   padding: 6px 14px; text-align: center;
-  font-size: 13px; font-weight: 700; color: var(--silver-dark);
+  font-size: 13px; font-weight: 700; color: var(--silver);
   letter-spacing: -0.3px;
   animation: tpTextPulse 2s ease-in-out infinite;
 }
 @keyframes tpTextPulse {
-  0%, 100% { opacity: 0.4; }
+  0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
 }
 .tp-node-model.loaded {

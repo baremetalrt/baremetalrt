@@ -329,9 +329,9 @@ async function checkNode() {
     if (_gpuMode === '1gpu' && _userDevices.length > 1) {
       const idx = _userDevices.findIndex(dev => dev.node_id === _activeNodeId);
       if (idx >= 0) _deviceIdx = idx;
-      _showCarouselArrows(true);
+      _showGpuNav(true);
     } else {
-      _showCarouselArrows(false);
+      _showGpuNav(false);
     }
 
     const badge = document.getElementById('header-status');
@@ -757,11 +757,15 @@ async function fetchDevices() {
   } catch(e) { console.error('fetchDevices:', e); }
 }
 
-function _showCarouselArrows(show) {
-  const left = document.getElementById('gpu-arrow-left');
-  const right = document.getElementById('gpu-arrow-right');
-  if (left) left.style.display = show ? '' : 'none';
-  if (right) right.style.display = show ? '' : 'none';
+function _showGpuNav(show) {
+  const nav = document.getElementById('gpu-card-nav');
+  if (!nav) return;
+  nav.style.display = show ? 'flex' : 'none';
+  if (show) {
+    const dev = _userDevices[_deviceIdx];
+    const label = document.getElementById('gpu-nav-label');
+    if (label && dev) label.textContent = dev.gpu_name || dev.hostname;
+  }
 }
 
 async function prevDevice() {
@@ -781,6 +785,7 @@ async function selectDevice(nodeId) {
     await fetch(`/api/set-active-node/${nodeId}`, { method: 'POST' });
     _activeNodeId = nodeId;
     _lastGpuState = null;
+    _showGpuNav(_userDevices.length > 1);
     await checkNode();
     await refreshGpuCard();
     loadModels();
@@ -801,7 +806,7 @@ function setGpuMode(mode) {
 
 function show1GpuLayout() {
   document.getElementById('gpu-card').style.display = '';
-  _showCarouselArrows(_userDevices.length > 1);
+  _showGpuNav(_userDevices.length > 1);
   document.getElementById('tp2-panel').style.display = 'none';
   if (_tp2PollTimer) { clearInterval(_tp2PollTimer); _tp2PollTimer = null; }
   checkNode();
@@ -810,7 +815,7 @@ function show1GpuLayout() {
 
 function show2GpuLayout() {
   document.getElementById('gpu-card').style.display = 'none';
-  _showCarouselArrows(false);
+  _showGpuNav(false);
   document.getElementById('tp2-panel').style.display = '';
   _pollTp2Status();
   _tp2PollTimer = setInterval(_pollTp2Status, 5000);

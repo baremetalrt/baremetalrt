@@ -482,9 +482,13 @@ pre:hover .copy-btn { opacity: 1; }
 .tp-node-gpu svg { width: 100%; max-width: 140px; height: auto; }
 .tp-node-model {
   padding: 6px 14px; text-align: center;
-  font-size: 13px; font-weight: 700; color: #fff;
-  text-shadow: 0 0 20px rgba(200,200,220,0.2);
+  font-size: 13px; font-weight: 700; color: #8b5cf6;
   letter-spacing: -0.3px;
+  animation: statusPulse 1.5s ease-in-out infinite;
+}
+.tp-node-model.loaded {
+  color: #fff; animation: none;
+  text-shadow: 0 0 20px rgba(200,200,220,0.2);
 }
 .tp-node-status {
   padding: 6px 14px; border-top: 1px solid var(--border);

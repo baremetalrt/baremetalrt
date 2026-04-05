@@ -1488,6 +1488,11 @@ function pollModelStatus(id) {
   const el = document.getElementById('prog-' + id);
   _setProgress(el, 'Starting', null);
 
+  if (_gpuMode === '2gpu') {
+    _pollTpModelStatus(id, el);
+    return;
+  }
+
   const poll = setInterval(async () => {
     try {
       const r = await fetch(`/api/models/${id}/status`);
@@ -1497,25 +1502,75 @@ function pollModelStatus(id) {
         const pct = active.percent != null ? active.percent : null;
         const text = active.progress || active.status || '';
         _setProgress(el, text, pct, id, active.status);
-        // Update step banner with %
-        const mode = _gpuMode === '2gpu' ? 'tp' : '1gpu';
         const pctStr = pct != null ? ` ${Math.round(pct)}%` : '';
         if (active.status === 'downloading') {
-          const step = _gpuMode === '2gpu' ? 'STEP 1 \u00b7 PULL' : 'PULLING';
-          _setStepBanner(step, `Downloading${pctStr}`, 'active', mode);
+          _setStepBanner('PULLING', `Downloading${pctStr}`, 'active', '1gpu');
         } else if (active.status === 'building') {
-          const step = _gpuMode === '2gpu' ? 'STEP 3 \u00b7 BUILD' : 'BUILDING';
-          _setStepBanner(step, `Compiling engine${pctStr}`, 'active', mode);
+          _setStepBanner('BUILDING', `Compiling engine${pctStr}`, 'active', '1gpu');
         } else if (active.status === 'paused') {
-          _setStepBanner('PAUSED', 'Download paused', '', mode);
+          _setStepBanner('PAUSED', 'Download paused', '', '1gpu');
         }
       }
       if (!active || active.status === 'done' || active.status === 'error' || active.status === 'idle' || active.status === 'paused') {
         clearInterval(poll);
         if (el) { el.classList.remove('active'); }
         if (active?.status === 'done') {
-          const mode = _gpuMode === '2gpu' ? 'tp' : '1gpu';
-          _setStepBanner('DONE', 'Ready for next step', 'matched', mode);
+          _setStepBanner('DONE', 'Ready for next step', 'matched', '1gpu');
+        }
+        setTimeout(loadModels, 1000);
+      }
+    } catch(e) { clearInterval(poll); }
+  }, 2000);
+}
+
+function _pollTpModelStatus(id, el) {
+  const poll = setInterval(async () => {
+    try {
+      const r = await fetch(`/api/tp2/status/${id}`);
+      const d = await r.json();
+
+      const r0 = d.rank0?.pull?.status === 'downloading' || d.rank0?.pull?.status === 'paused' ? d.rank0.pull
+               : d.rank0?.build?.status === 'building' ? d.rank0.build : null;
+      const r1 = d.rank1?.pull?.status === 'downloading' || d.rank1?.pull?.status === 'paused' ? d.rank1.pull
+               : d.rank1?.build?.status === 'building' ? d.rank1.build : null;
+
+      const pct0 = r0?.percent != null ? Math.round(r0.percent) : null;
+      const pct1 = r1?.percent != null ? Math.round(r1.percent) : null;
+
+      // Show dual progress bar
+      if (el) {
+        const bar0 = pct0 != null ? pct0 + '%' : '—';
+        const bar1 = pct1 != null ? pct1 + '%' : '—';
+        const status = r0?.status || r1?.status || 'starting';
+        el.style.display = '';
+        el.classList.add('active');
+        el.innerHTML = `
+          <div class="tp-dual-progress">
+            <div class="tp-prog-row"><span>Rank 0</span><div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct0 || 0}%"></div></div><span>${bar0}</span></div>
+            <div class="tp-prog-row"><span>Rank 1</span><div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct1 || 0}%"></div></div><span>${bar1}</span></div>
+          </div>`;
+
+        // Update banner with average or min progress
+        const avgPct = (pct0 != null && pct1 != null) ? Math.round((pct0 + pct1) / 2) : (pct0 || pct1 || null);
+        const pctStr = avgPct != null ? ` ${avgPct}%` : '';
+        if (status === 'downloading') {
+          _setStepBanner('STEP 1 \u00b7 PULL', `Downloading${pctStr}`, 'active', 'tp');
+        } else if (status === 'building') {
+          _setStepBanner('STEP 3 \u00b7 BUILD', `Compiling${pctStr}`, 'active', 'tp');
+        }
+      }
+
+      // Check if both done
+      const bothDone = (!r0 || r0.status === 'done' || r0.status === 'idle') &&
+                       (!r1 || r1.status === 'done' || r1.status === 'idle');
+      const anyError = r0?.status === 'error' || r1?.status === 'error';
+      if (bothDone || anyError) {
+        clearInterval(poll);
+        if (el) el.classList.remove('active');
+        if (bothDone && !anyError) {
+          _setStepBanner('DONE', 'Ready for next step', 'matched', 'tp');
+        } else if (anyError) {
+          _setStepBanner('ERROR', r0?.progress || r1?.progress || 'Build failed', '', 'tp');
         }
         setTimeout(loadModels, 1000);
       }

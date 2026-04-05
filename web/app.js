@@ -899,7 +899,7 @@ function show2GpuLayout() {
 
   const hero = document.getElementById('tp-hero');
   const content = document.getElementById('tp-content');
-  const showHero = true;
+  const showHero = isDemo;
 
   // Elements outside tp-content that also need hiding during hero
   const modelsTitle = document.getElementById('models-section-title');

@@ -730,11 +730,6 @@ function showModels() {
   document.getElementById('input-area').style.display = 'none';
   document.getElementById('header-back').style.display = 'none';
   document.getElementById('model-bar').style.display = 'none';
-  // Restore TP stepper if in TP mode
-  if (_gpuMode === '2gpu') {
-    const stepper = document.getElementById('tp-stepper');
-    if (stepper) stepper.style.display = '';
-  }
   loadModels();
 }
 
@@ -745,11 +740,6 @@ function showChat() {
   document.getElementById('input-area').style.display = '';
   document.getElementById('model-bar').style.display = '';
   document.getElementById('header-back').style.display = '';
-  // Hide TP stepper in chat view
-  const stepper = document.getElementById('tp-stepper');
-  const stepperShow = document.getElementById('tp-stepper-show');
-  if (stepper) stepper.style.display = 'none';
-  if (stepperShow) stepperShow.style.display = 'none';
   if (gpuConnected) {
     document.getElementById('prompt').disabled = false;
     document.getElementById('send-btn').disabled = false;
@@ -1110,6 +1100,24 @@ function renderModelCards() {
     if (a.fits === true) return -1;
     return 1;
   });
+
+  // In TP mode: insert stepper card as first item
+  if (isTP) {
+    const sc = document.createElement('div');
+    sc.className = 'tp-stepper';
+    sc.id = 'tp-stepper';
+    sc.innerHTML = `
+      <div class="tp-stepper-title">TP &middot; HOME SETUP</div>
+      <div class="tp-stepper-model" id="tp-stepper-model" style="display:none;"></div>
+      <div class="tp-step" id="tp-step-1"><div class="tp-step-dot">1</div><div class="tp-step-info"><div class="tp-step-name">Pull Weights</div><div class="tp-step-desc">Both machines</div></div></div>
+      <div class="tp-step-line"></div>
+      <div class="tp-step" id="tp-step-2"><div class="tp-step-dot">2</div><div class="tp-step-info"><div class="tp-step-name">Build Engines</div><div class="tp-step-desc">Split &amp; compile</div></div></div>
+      <div class="tp-step-line"></div>
+      <div class="tp-step" id="tp-step-3"><div class="tp-step-dot">3</div><div class="tp-step-info"><div class="tp-step-name">Load &amp; Connect</div><div class="tp-step-desc">Init TCP</div></div></div>
+    `;
+    list.appendChild(sc);
+    if (_tpSelectedModel) _updateTpStepperTitle(_tpSelectedModel);
+  }
 
   for (const m of sorted) {
     const _se = s => s.replace(/-tp\d.*/, '').replace(/-/g, '');

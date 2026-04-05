@@ -447,77 +447,58 @@ pre:hover .copy-btn { opacity: 1; }
 
 /* TP=2 panel */
 .tp2-panel { margin-bottom: 20px; }
-/* Stepper — fixed to center-left of viewport, no layout impact */
+/* Stepper — model card style, sits in model list flow */
 .tp-stepper {
-  position: fixed; left: 16px; top: 50%; transform: translateY(-50%); z-index: 100;
-  width: 240px;
-  background: linear-gradient(135deg, #2a2a30 0%, #3a3a42 20%, #32323a 40%, #42424a 60%, #38383e 80%, #2a2a30 100%);
-  border: 1px solid #4a4a54; border-radius: 6px;
-  padding: 24px 20px;
+  background: linear-gradient(135deg, #0c0c0e 0%, #16161a 50%, #0c0c0e 100%);
+  border: 1px solid #22222a; padding: 14px 16px;
+  min-width: 160px; max-width: 220px;
+  display: flex; flex-direction: column; text-align: center;
+  position: relative;
 }
+.tp-stepper:hover { border-color: var(--border-hi); }
 .tp-stepper-title {
-  font-size: 10px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
-  color: #8b5cf6; margin-bottom: 20px; text-align: center;
+  font-size: 7px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: #8b5cf6; margin-bottom: 10px; opacity: 0.7;
 }
 .tp-stepper-model {
-  font-size: 12px; font-weight: 700; color: var(--silver); text-align: center;
-  margin-bottom: 14px; letter-spacing: 0.3px;
+  font-size: 14px; font-weight: 600; color: var(--silver); margin-bottom: 10px;
 }
 .tp-stepper-hide {
-  position: absolute; top: 10px; right: 12px;
+  position: absolute; top: 6px; right: 8px;
   background: none; border: none; color: var(--silver-dark); cursor: pointer;
-  font-size: 16px; line-height: 1; padding: 2px 4px;
+  font-size: 13px; line-height: 1; padding: 2px;
 }
 .tp-stepper-hide:hover { color: var(--silver); }
-.tp-stepper-show {
-  position: fixed; left: 16px; top: 50%; transform: translateY(-50%); z-index: 100;
-  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--silver-dim);
-  background: linear-gradient(135deg, #2a2a30 0%, #3a3a42 50%, #2a2a30 100%);
-  border: 1px solid #4a4a54;
-  padding: 8px 14px; cursor: pointer; font-family: inherit; border-radius: 4px;
-}
-.tp-stepper-show:hover { color: var(--silver); border-color: #8b5cf6; }
+.tp-stepper-show { display: none; }
 .tp-step {
-  display: flex; align-items: flex-start; gap: 14px;
-  padding: 10px 0; transition: opacity 0.3s;
-  opacity: 0.35;
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 0; transition: opacity 0.3s; opacity: 0.3;
 }
 .tp-step.active { opacity: 1; }
-.tp-step.done { opacity: 0.7; }
+.tp-step.done { opacity: 0.6; }
 .tp-step-dot {
-  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: var(--silver-dark);
-  border: 1.5px solid var(--border-hi); background: var(--bg);
+  font-size: 9px; font-weight: 700; color: var(--silver-dark);
+  border: 1.5px solid var(--border); background: var(--bg);
   transition: all 0.3s;
 }
 .tp-step.active .tp-step-dot {
   border-color: #8b5cf6; color: #8b5cf6;
-  box-shadow: 0 0 12px rgba(139,92,246,0.4);
+  box-shadow: 0 0 8px rgba(139,92,246,0.3);
 }
 .tp-step.done .tp-step-dot {
   border-color: #76e651; color: #76e651; background: rgba(118,230,81,0.08);
 }
 .tp-step-name {
-  font-size: 13px; font-weight: 600; color: var(--silver); letter-spacing: 0.3px;
+  font-size: 11px; font-weight: 600; color: var(--silver); text-align: left;
 }
 .tp-step-desc {
-  font-size: 10px; color: var(--silver-dim); margin-top: 3px; line-height: 1.4;
+  font-size: 9px; color: var(--silver-dark); text-align: left; line-height: 1.3;
 }
 .tp-step-line {
-  width: 1.5px; height: 14px; background: var(--border);
-  margin-left: 12px;
-}
-.tp-step.done + .tp-step-line { background: #76e651; opacity: 0.4; }
-
-@media (max-width: 768px) {
-  .tp-stepper { position: static; transform: none; width: 100%;
-    display: flex; gap: 8px; padding: 12px; align-items: center; margin-bottom: 12px; }
-  .tp-stepper-title { margin-bottom: 0; }
-  .tp-stepper-show { position: static; transform: none; }
-  .tp-step-line { display: none; }
-  .tp-step-desc { display: none; }
+  width: 1.5px; height: 8px; background: var(--border);
+  margin-left: 9px;
 }
 .tp-mesh {
   display: flex; align-items: stretch; justify-content: center;

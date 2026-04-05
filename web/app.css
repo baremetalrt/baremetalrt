@@ -447,12 +447,15 @@ pre:hover .copy-btn { opacity: 1; }
 /* GPU card carousel row: ← [GPU CARD] → */
 .gpu-card-row {
   display: flex; align-items: center; justify-content: center; gap: 12px;
-  max-width: 600px; margin: 0 auto;
+  max-width: 620px; margin: 0 auto 12px;
 }
-.gpu-card-row > .gpu-card { flex: 1; min-width: 0; }
+.gpu-card-row > .gpu-card {
+  flex: 0 1 520px; margin: 0; margin-bottom: 0;
+}
 .gpu-dev-arrow {
   flex-shrink: 0; z-index: 2;
   padding: 10px 16px; font-size: 18px;
+  align-self: center;
 }
 
 /* TP=2 panel */

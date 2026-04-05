@@ -465,6 +465,7 @@ pre:hover .copy-btn { opacity: 1; }
   max-width: 520px; margin: 20px auto 0; text-align: center;
   padding: 16px 20px;
   border-top: 1px solid var(--border);
+  animation: cardReveal 0.4s ease-out 0.3s both;
 }
 .tp-stepper-title {
   font-size: 9px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;

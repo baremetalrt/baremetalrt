@@ -730,6 +730,9 @@ function showModels() {
   document.getElementById('input-area').style.display = 'none';
   document.getElementById('header-back').style.display = 'none';
   document.getElementById('model-bar').style.display = 'none';
+  const stepper = document.getElementById('tp-stepper');
+  if (stepper) stepper.style.display = '';
+  _renderStepper();
   loadModels();
 }
 
@@ -846,13 +849,41 @@ function setGpuMode(mode) {
   }
 }
 
+function _renderStepper() {
+  const stepper = document.getElementById('tp-stepper');
+  if (!stepper) return;
+  if (_gpuMode === '2gpu') {
+    stepper.innerHTML = `
+      <div class="tp-stepper-title">SETUP</div>
+      <div class="tp-stepper-model" id="tp-stepper-model" style="display:none;"></div>
+      <div class="tp-steps-row">
+        <div class="tp-step" id="tp-step-1"><div class="tp-step-dot">1</div><div class="tp-step-name">Pull</div></div>
+        <div class="tp-step-line-h"></div>
+        <div class="tp-step" id="tp-step-2"><div class="tp-step-dot">2</div><div class="tp-step-name">Split</div></div>
+        <div class="tp-step-line-h"></div>
+        <div class="tp-step" id="tp-step-3"><div class="tp-step-dot">3</div><div class="tp-step-name">Build</div></div>
+        <div class="tp-step-line-h"></div>
+        <div class="tp-step" id="tp-step-4"><div class="tp-step-dot">4</div><div class="tp-step-name">Load</div></div>
+      </div>`;
+  } else {
+    stepper.innerHTML = `
+      <div class="tp-stepper-title">SETUP</div>
+      <div class="tp-steps-row">
+        <div class="tp-step" id="tp-step-1"><div class="tp-step-dot">1</div><div class="tp-step-name">Pull</div></div>
+        <div class="tp-step-line-h"></div>
+        <div class="tp-step" id="tp-step-2"><div class="tp-step-dot">2</div><div class="tp-step-name">Build</div></div>
+        <div class="tp-step-line-h"></div>
+        <div class="tp-step" id="tp-step-3"><div class="tp-step-dot">3</div><div class="tp-step-name">Load</div></div>
+      </div>`;
+  }
+}
+
 function show1GpuLayout() {
   document.getElementById('gpu-card').style.display = '';
   _showGpuNav(_userDevices.length > 1);
   document.getElementById('tp2-panel').style.display = 'none';
-  const stepper = document.getElementById('tp-stepper');
-  if (stepper) stepper.style.display = 'none';
   if (_tp2PollTimer) { clearInterval(_tp2PollTimer); _tp2PollTimer = null; }
+  _renderStepper();
   checkNode();
   loadModels();
 }
@@ -861,8 +892,7 @@ function show2GpuLayout() {
   document.getElementById('gpu-card').style.display = 'none';
   _showGpuNav(false);
   document.getElementById('tp2-panel').style.display = '';
-  const stepper = document.getElementById('tp-stepper');
-  if (stepper) stepper.style.display = '';
+  _renderStepper();
   _pollTp2Status();
   _tp2PollTimer = setInterval(_pollTp2Status, 5000);
   loadModels();

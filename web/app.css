@@ -501,7 +501,7 @@ pre:hover .copy-btn { opacity: 1; }
 }
 
 /* Step banner */
-/* Dynamic step banner */
+/* Status indicator */
 .step-banner {
   text-align: center; font-size: 11px; color: var(--silver-dark);
   letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px;

@@ -166,15 +166,10 @@ if (document.cookie.includes('token=')) {
 <div class="main">
   <!-- Models view — default -->
   <div class="models-panel" id="models-panel">
-    <!-- GPU device carousel (visible when 2+ GPUs linked) -->
-    <div class="gpu-carousel" id="gpu-carousel" style="display:none;">
-      <button class="family-arrow" onclick="prevDevice()" title="Previous GPU">&larr;</button>
-      <span class="gpu-carousel-label" id="gpu-carousel-label">1 of 1</span>
-      <button class="family-arrow" onclick="nextDevice()" title="Next GPU">&rarr;</button>
-    </div>
-
-    <!-- GPU status card with SVG -->
-    <div class="gpu-card" id="gpu-card">
+    <!-- GPU card with carousel arrows (arrows visible when 2+ GPUs linked) -->
+    <div class="gpu-card-carousel" id="gpu-card-carousel">
+      <button class="gpu-carousel-arrow left" id="gpu-arrow-left" onclick="prevDevice()" title="Previous GPU" style="display:none;">&larr;</button>
+      <div class="gpu-card" id="gpu-card">
       <button class="model-btn" onclick="showModeToast('Share your GPU on the mesh and earn when others use it. Coming soon.', event)" title="Earn by sharing your idle GPU — coming soon" style="position:absolute; top:8px; left:50%; transform:translateX(-50%); opacity:0.4; font-size:9px; padding:4px 14px; z-index:1;">Mesh Mode</button>
       <div class="gpu-card-info">
         <div class="gpu-status" id="gpu-status-text" style="font-size:10px; font-weight:800; letter-spacing:2px; text-transform:uppercase; margin-bottom:2px; margin-top:-4px; background:linear-gradient(180deg, #f0f0f0 0%, #a8a8b0 25%, #d0d0d8 50%, #808088 75%, #c0c0c8 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;"></div>
@@ -224,6 +219,8 @@ if (document.cookie.includes('token=')) {
         <div class="gpu-metrics" id="gpu-metrics" style="margin-top:4px;"><div class="vram-text" style="animation:statusPulse 1.5s ease-in-out infinite;">Loading stats...</div></div>
       </div>
     </div>
+      <button class="gpu-carousel-arrow right" id="gpu-arrow-right" onclick="nextDevice()" title="Next GPU" style="display:none;">&rarr;</button>
+    </div><!-- /gpu-card-carousel -->
 
     <!-- TP=2 panel (visible in 2-GPU mode) -->
     <div class="tp2-panel" id="tp2-panel" style="display:none;">

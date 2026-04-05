@@ -100,6 +100,19 @@ body { font-family: 'Space Grotesk', system-ui, sans-serif; background: var(--bg
 .avail-row .info { flex: 1; }
 .avail-row .name { font-size: 13px; font-weight: 600; color: var(--silver); }
 .avail-row .meta { font-size: 11px; color: var(--silver-dim); margin-top: 1px; }
+
+/* GPU switcher */
+.gpu-switcher {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  margin-bottom: 24px; padding: 10px 0;
+}
+.gpu-switcher-label {
+  font-size: 13px; font-weight: 600; color: var(--silver); letter-spacing: 1px;
+  min-width: 200px; text-align: center;
+}
+.gpu-badge {
+  font-size: 10px; color: var(--purple); font-weight: 600; letter-spacing: 0.5px;
+}
 </style>
 </head>
 <body>
@@ -111,6 +124,13 @@ body { font-family: 'Space Grotesk', system-ui, sans-serif; background: var(--bg
 </div>
 
 <div class="content">
+  <!-- GPU switcher (visible when 2+ GPUs linked) -->
+  <div class="gpu-switcher" id="gpu-switcher" style="display:none;">
+    <button class="btn" onclick="prevGpu()" id="gpu-prev">&larr;</button>
+    <span class="gpu-switcher-label" id="gpu-switcher-label">GPU</span>
+    <button class="btn" onclick="nextGpu()" id="gpu-next">&rarr;</button>
+  </div>
+
   <div class="section" id="active-section">
     <div class="section-title">Active Downloads <span class="section-count" id="active-count">0</span></div>
     <div id="active-list"></div>
@@ -125,14 +145,68 @@ body { font-family: 'Space Grotesk', system-ui, sans-serif; background: var(--bg
 <script>
 let _queueOrder = JSON.parse(localStorage.getItem('dl_queue_order') || '[]');
 let isDemo = false;
+let _devices = [];
+let _deviceIdx = 0;
+let _activeGpuName = '';
 
 async function init() {
   const r = await fetch('/auth/me');
   if (!r.ok) { window.location = '/app'; return; }
   const me = await r.json();
   isDemo = me.email === 'demo@baremetalrt.ai';
+
+  // Fetch linked GPUs
+  if (!isDemo) {
+    try {
+      const dr = await fetch('/api/devices');
+      const dd = await dr.json();
+      _devices = (dd.devices || []).sort((a, b) => (b.gpu_vram_mb || 0) - (a.gpu_vram_mb || 0));
+    } catch(e) {}
+
+    // Get active node from gpu-status
+    try {
+      const sr = await fetch('/api/gpu-status');
+      const sd = await sr.json();
+      if (sd.active_node_id) {
+        const idx = _devices.findIndex(d => d.node_id === sd.active_node_id);
+        if (idx >= 0) _deviceIdx = idx;
+      }
+    } catch(e) {}
+  }
+
+  _updateGpuSwitcher();
   await refresh();
   setInterval(refresh, 3000);
+}
+
+function _updateGpuSwitcher() {
+  const el = document.getElementById('gpu-switcher');
+  if (_devices.length < 2) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  const dev = _devices[_deviceIdx];
+  _activeGpuName = dev ? (dev.gpu_name || dev.hostname) : '';
+  document.getElementById('gpu-switcher-label').textContent =
+    `${_activeGpuName} (${_deviceIdx + 1}/${_devices.length})`;
+}
+
+async function prevGpu() {
+  if (_devices.length < 2) return;
+  _deviceIdx = (_deviceIdx - 1 + _devices.length) % _devices.length;
+  await _switchGpu();
+}
+
+async function nextGpu() {
+  if (_devices.length < 2) return;
+  _deviceIdx = (_deviceIdx + 1) % _devices.length;
+  await _switchGpu();
+}
+
+async function _switchGpu() {
+  const dev = _devices[_deviceIdx];
+  if (!dev) return;
+  await fetch(`/api/set-active-node/${dev.node_id}`, { method: 'POST' });
+  _updateGpuSwitcher();
+  await refresh();
 }
 
 async function refresh() {
@@ -211,7 +285,7 @@ async function refresh() {
           ${arrows}
           <div class="dl-info">
             <div class="dl-name" title="${m.name}">${m.name}</div>
-            <div class="dl-meta" title="${m.hf_repo}">${m.params_b}B params · ${m.hf_repo}</div>
+            <div class="dl-meta" title="${m.hf_repo}">${m.params_b}B params · ${m.hf_repo}${_activeGpuName ? ` · <span class="gpu-badge">${_activeGpuName}</span>` : ''}</div>
           </div>
           <div class="dl-pct-big">${pctDisplay}</div>
           <span class="dl-status ${status}">${status}</span>
@@ -243,7 +317,7 @@ async function refresh() {
       row.innerHTML = `
         <div class="info">
           <div class="name">${m.name}</div>
-          <div class="meta">${m.params_b}B · ${vramGb}GB VRAM · ${m.context_length} context</div>
+          <div class="meta">${m.params_b}B · ${vramGb}GB VRAM · ${m.context_length} context${_activeGpuName ? ` · <span class="gpu-badge">${_activeGpuName}</span>` : ''}</div>
         </div>
         ${pullBtn}
       `;

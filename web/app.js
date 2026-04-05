@@ -325,16 +325,13 @@ async function checkNode() {
     // Update active node from server
     if (d.active_node_id) _activeNodeId = d.active_node_id;
 
-    // Show/hide GPU carousel
-    const carousel = document.getElementById('gpu-carousel');
-    if (carousel && _gpuMode === '1gpu' && _userDevices.length > 1) {
-      carousel.style.display = 'flex';
-      // Sync _deviceIdx to active node
+    // Show/hide GPU carousel arrows flanking the card
+    if (_gpuMode === '1gpu' && _userDevices.length > 1) {
       const idx = _userDevices.findIndex(dev => dev.node_id === _activeNodeId);
       if (idx >= 0) _deviceIdx = idx;
-      _updateCarouselLabel();
-    } else if (carousel) {
-      carousel.style.display = 'none';
+      _showCarouselArrows(true);
+    } else {
+      _showCarouselArrows(false);
     }
 
     const badge = document.getElementById('header-status');
@@ -760,11 +757,11 @@ async function fetchDevices() {
   } catch(e) { console.error('fetchDevices:', e); }
 }
 
-function _updateCarouselLabel() {
-  const el = document.getElementById('gpu-carousel-label');
-  if (!el || _userDevices.length === 0) return;
-  const dev = _userDevices[_deviceIdx];
-  el.textContent = dev ? `${dev.gpu_name || dev.hostname} (${_deviceIdx + 1}/${_userDevices.length})` : '';
+function _showCarouselArrows(show) {
+  const left = document.getElementById('gpu-arrow-left');
+  const right = document.getElementById('gpu-arrow-right');
+  if (left) left.style.display = show ? '' : 'none';
+  if (right) right.style.display = show ? '' : 'none';
 }
 
 async function prevDevice() {
@@ -784,7 +781,6 @@ async function selectDevice(nodeId) {
     await fetch(`/api/set-active-node/${nodeId}`, { method: 'POST' });
     _activeNodeId = nodeId;
     _lastGpuState = null;
-    _updateCarouselLabel();
     await checkNode();
     await refreshGpuCard();
     loadModels();
@@ -805,17 +801,16 @@ function setGpuMode(mode) {
 
 function show1GpuLayout() {
   document.getElementById('gpu-card').style.display = '';
-  const carousel = document.getElementById('gpu-carousel');
-  if (carousel) carousel.style.display = _userDevices.length > 1 ? 'flex' : 'none';
+  _showCarouselArrows(_userDevices.length > 1);
   document.getElementById('tp2-panel').style.display = 'none';
   if (_tp2PollTimer) { clearInterval(_tp2PollTimer); _tp2PollTimer = null; }
   checkNode();
+  loadModels();
 }
 
 function show2GpuLayout() {
   document.getElementById('gpu-card').style.display = 'none';
-  const carousel = document.getElementById('gpu-carousel');
-  if (carousel) carousel.style.display = 'none';
+  _showCarouselArrows(false);
   document.getElementById('tp2-panel').style.display = '';
   _pollTp2Status();
   _tp2PollTimer = setInterval(_pollTp2Status, 5000);

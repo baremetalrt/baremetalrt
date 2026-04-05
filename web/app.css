@@ -444,11 +444,11 @@ pre:hover .copy-btn { opacity: 1; }
   min-width: 80px; text-align: center;
 }
 
-/* GPU card nav (reuses .family-arrow and .family-name from model carousel) */
-.gpu-card-nav {
-  display: flex; align-items: center; justify-content: center; gap: 16px;
-  margin-bottom: 8px;
+/* GPU card carousel row: ← [GPU CARD] → */
+.gpu-card-row {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
 }
+.gpu-dev-arrow { flex-shrink: 0; }
 
 /* TP=2 panel */
 .tp2-panel { margin-bottom: 20px; }

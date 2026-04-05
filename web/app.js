@@ -902,28 +902,35 @@ function show2GpuLayout() {
   const showHero = true;
 
   if (showHero && hero && content) {
-    // First time: hero statement, then reveal content
-    content.style.opacity = '0';
+    // Hide content completely during hero
+    content.style.display = 'none';
     hero.style.display = '';
+    hero.style.opacity = '1';
+    // Hold hero for 4.5s, then fade out
     setTimeout(() => {
-      hero.style.transition = 'opacity 0.6s ease-out';
+      hero.style.transition = 'opacity 0.8s ease-out';
       hero.style.opacity = '0';
       setTimeout(() => {
         hero.style.display = 'none';
-        content.style.opacity = '';
+        // Now show content — animations start fresh
+        content.style.display = '';
         content.classList.add('reveal');
         _playTpConnectSound();
-      }, 600);
-    }, 3000);
+        _renderStepper();
+        _pollTp2Status();
+        _tp2PollTimer = setInterval(_pollTp2Status, 5000);
+        loadModels();
+      }, 800);
+    }, 4500);
   } else {
     if (hero) hero.style.display = 'none';
+    content.style.display = '';
+    _renderStepper();
+    _pollTp2Status();
+    _tp2PollTimer = setInterval(_pollTp2Status, 5000);
+    loadModels();
     setTimeout(_playTpConnectSound, 600);
   }
-
-  _renderStepper();
-  _pollTp2Status();
-  _tp2PollTimer = setInterval(_pollTp2Status, 5000);
-  loadModels();
 }
 
 async function _pollTp2Status() {

@@ -858,6 +858,7 @@ function show2GpuLayout() {
   document.getElementById('tp2-panel').style.display = '';
   _pollTp2Status();
   _tp2PollTimer = setInterval(_pollTp2Status, 5000);
+  loadModels();
 }
 
 async function _pollTp2Status() {

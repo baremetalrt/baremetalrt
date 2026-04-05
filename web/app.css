@@ -511,32 +511,24 @@ pre:hover .copy-btn { opacity: 1; }
 .step-banner.matched { color: #8b5cf6; font-weight: 700; }
 .step-banner .step-label { font-weight: 800; }
 
-/* Rotating border glow for CTA buttons */
+/* Rotating border glow — wraps CTA buttons */
 @property --btn-angle {
   syntax: '<angle>';
   initial-value: 0deg;
   inherits: false;
 }
-.model-btn.pulse {
-  position: relative; overflow: visible; background: transparent; border-color: transparent;
+.btn-glow {
+  display: inline-block; position: relative;
   filter: drop-shadow(0 0 6px rgba(139,92,246,0.4)) drop-shadow(0 0 14px rgba(139,92,246,0.2));
 }
-.model-btn.pulse::before {
+.btn-glow::before {
   content: ''; position: absolute; inset: -2px;
   clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
   background: conic-gradient(from var(--btn-angle), transparent 40%, rgba(139,92,246,0.9) 50%, rgba(167,139,250,1) 55%, transparent 60%);
   animation: rotateBtnBorder 3s linear infinite;
   z-index: 0;
 }
-.model-btn.pulse::after {
-  content: ''; position: absolute; inset: 0;
-  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
-  background: #8b5cf6;
-  z-index: 0;
-}
-.model-btn.pulse span, .model-btn.pulse {
-  z-index: 1;
-}
+.btn-glow .model-btn { position: relative; z-index: 1; }
 @keyframes rotateBtnBorder {
   to { --btn-angle: 360deg; }
 }

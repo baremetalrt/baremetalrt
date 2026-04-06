@@ -1529,25 +1529,45 @@ function _pollTpModelStatus(id, el) {
       const r = await fetch(`/api/tp2/status/${id}`);
       const d = await r.json();
 
-      const r0 = d.rank0?.pull?.status === 'downloading' || d.rank0?.pull?.status === 'paused' ? d.rank0.pull
-               : d.rank0?.build?.status === 'building' ? d.rank0.build : null;
-      const r1 = d.rank1?.pull?.status === 'downloading' || d.rank1?.pull?.status === 'paused' ? d.rank1.pull
-               : d.rank1?.build?.status === 'building' ? d.rank1.build : null;
+      // Determine state for each rank
+      const pull0 = d.rank0?.pull || {};
+      const pull1 = d.rank1?.pull || {};
+      const build0 = d.rank0?.build || {};
+      const build1 = d.rank1?.build || {};
 
-      const pct0 = r0?.percent != null ? Math.round(r0.percent) : null;
-      const pct1 = r1?.percent != null ? Math.round(r1.percent) : null;
+      // Determine what phase we're in
+      const anyPulling = pull0.status === 'downloading' || pull1.status === 'downloading';
+      const anyPaused = pull0.status === 'paused' || pull1.status === 'paused';
+      const anyBuilding = build0.status === 'building' || build1.status === 'building';
+      const anyBuildError = build0.status === 'error' || build1.status === 'error';
+      const anyPullError = pull0.status === 'error' || pull1.status === 'error';
+      const bothPullDone = (pull0.status === 'done' || pull0.status === 'idle') && (pull1.status === 'done' || pull1.status === 'idle');
+      const bothBuildDone = (build0.status === 'done') && (build1.status === 'done');
 
-      // Show dual progress bar
-      if (el) {
-        const bar0 = pct0 != null ? pct0 + '%' : '—';
-        const bar1 = pct1 != null ? pct1 + '%' : '—';
-        const status = r0?.status || r1?.status || 'starting';
-        const isDownloading = status === 'downloading';
-        const isPaused = r0?.status === 'paused' || r1?.status === 'paused';
+      // Get progress for active phase
+      let phase = 'idle';
+      let pct0 = null, pct1 = null, status0 = '', status1 = '';
+      if (anyPulling || anyPaused) {
+        phase = 'pulling';
+        pct0 = pull0.percent != null ? Math.round(pull0.percent) : (pull0.status === 'done' ? 100 : null);
+        pct1 = pull1.percent != null ? Math.round(pull1.percent) : (pull1.status === 'done' ? 100 : null);
+        status0 = pull0.progress || pull0.status || '';
+        status1 = pull1.progress || pull1.status || '';
+      } else if (anyBuilding) {
+        phase = 'building';
+        pct0 = build0.percent != null ? Math.round(build0.percent) : null;
+        pct1 = build1.percent != null ? Math.round(build1.percent) : null;
+        status0 = build0.progress || build0.status || '';
+        status1 = build1.progress || build1.status || '';
+      }
+
+      if (el && phase !== 'idle') {
+        const bar0 = pct0 != null ? pct0 + '%' : (phase === 'building' ? status0.slice(-30) || 'Starting...' : '\u2014');
+        const bar1 = pct1 != null ? pct1 + '%' : (phase === 'building' ? status1.slice(-30) || 'Starting...' : '\u2014');
         let controls = '';
-        if (isDownloading) {
+        if (anyPulling) {
           controls = `<div class="tp-prog-controls"><button class="prog-ctrl" onclick="pausePull('${id}')" title="Pause">&#9646;&#9646;</button><button class="prog-ctrl cancel" onclick="cancelPull('${id}')" title="Cancel">&#10005;</button></div>`;
-        } else if (isPaused) {
+        } else if (anyPaused) {
           controls = `<div class="tp-prog-controls"><button class="prog-ctrl" onclick="pullModel('${id}')" title="Resume">&#9654;</button><button class="prog-ctrl cancel" onclick="cancelPull('${id}')" title="Cancel">&#10005;</button></div>`;
         }
         el.style.display = '';
@@ -1559,28 +1579,32 @@ function _pollTpModelStatus(id, el) {
             ${controls}
           </div>`;
 
-        // Update banner with average or min progress
         const avgPct = (pct0 != null && pct1 != null) ? Math.round((pct0 + pct1) / 2) : (pct0 || pct1 || null);
         const pctStr = avgPct != null ? ` ${avgPct}%` : '';
-        if (status === 'downloading') {
+        if (phase === 'pulling') {
           _setStepBanner('STEP 1 \u00b7 PULL', `Downloading${pctStr}`, 'active', 'tp');
-        } else if (status === 'building') {
-          _setStepBanner('STEP 2 \u00b7 BUILD', `Compiling${pctStr}`, 'active', 'tp');
+        } else if (phase === 'building') {
+          _setStepBanner('STEP 2 \u00b7 BUILD', `Building engines${pctStr}`, 'active', 'tp');
         }
       }
 
-      // Check if both done
-      const bothDone = (!r0 || r0.status === 'done' || r0.status === 'idle') &&
-                       (!r1 || r1.status === 'done' || r1.status === 'idle');
-      const anyError = r0?.status === 'error' || r1?.status === 'error';
-      if (bothDone || anyError) {
+      // Check completion
+      if (anyBuildError || anyPullError) {
         clearInterval(poll);
         if (el) el.classList.remove('active');
-        if (bothDone && !anyError) {
-          _setStepBanner('DONE', 'Ready for next step', 'matched', 'tp');
-        } else if (anyError) {
-          _setStepBanner('ERROR', r0?.progress || r1?.progress || 'Build failed', '', 'tp');
-        }
+        const errMsg = build0.progress || build1.progress || pull0.progress || pull1.progress || 'Failed';
+        _setStepBanner('ERROR', errMsg.slice(-60), '', 'tp');
+        setTimeout(loadModels, 1000);
+      } else if (bothBuildDone) {
+        clearInterval(poll);
+        if (el) el.classList.remove('active');
+        _setStepBanner('DONE', 'Engines built \u2014 ready to load', 'matched', 'tp');
+        setTimeout(loadModels, 1000);
+      } else if (bothPullDone && !anyBuilding && phase === 'idle') {
+        // Pull done, build not started — stop polling, show next step
+        clearInterval(poll);
+        if (el) el.classList.remove('active');
+        _setStepBanner('STEP 1 DONE', 'Ready to build engines', 'matched', 'tp');
         setTimeout(loadModels, 1000);
       }
     } catch(e) { clearInterval(poll); }

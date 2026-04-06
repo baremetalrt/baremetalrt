@@ -49,6 +49,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Clone TRT-LLM Windows port
+        run: |
+          git clone --depth 1 https://github.com/brianhabana/tensorrt-llm-windows.git engine/tensorrt-llm
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build executable with PyInstaller
         run: python -m PyInstaller baremetalrt.spec --noconfirm
 

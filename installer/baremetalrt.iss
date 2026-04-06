@@ -61,6 +61,16 @@ Source: "..\VERSION"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\daemon\build_engine.py"; DestDir: "{app}\daemon"; Flags: ignoreversion
 Source: "..\daemon\model_registry.py"; DestDir: "{app}\daemon"; Flags: ignoreversion
 Source: "..\daemon\convert_tp.py"; DestDir: "{app}\daemon"; Flags: ignoreversion
+; Custom TRT-LLM Windows port — Python source only (libs/ DLLs are in runtime)
+Source: "..\engine\tensorrt-llm\tensorrt_llm\*.py"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm"; Flags: ignoreversion recursesubdirs
+Source: "..\engine\tensorrt-llm\tensorrt_llm\commands\*"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm\commands"; Flags: ignoreversion recursesubdirs; Excludes: "__pycache__,*.pyc"
+Source: "..\engine\tensorrt-llm\tensorrt_llm\models\*"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm\models"; Flags: ignoreversion recursesubdirs; Excludes: "__pycache__,*.pyc"
+Source: "..\engine\tensorrt-llm\tensorrt_llm\plugin\*"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm\plugin"; Flags: ignoreversion recursesubdirs; Excludes: "__pycache__,*.pyc"
+Source: "..\engine\tensorrt-llm\tensorrt_llm\layers\*"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm\layers"; Flags: ignoreversion recursesubdirs; Excludes: "__pycache__,*.pyc"
+Source: "..\engine\tensorrt-llm\tensorrt_llm\quantization\*"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm\quantization"; Flags: ignoreversion recursesubdirs; Excludes: "__pycache__,*.pyc"
+Source: "..\engine\tensorrt-llm\tensorrt_llm\runtime\*"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm\runtime"; Flags: ignoreversion recursesubdirs; Excludes: "__pycache__,*.pyc"
+Source: "..\engine\tensorrt-llm\tensorrt_llm\builder.py"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm"; Flags: ignoreversion
+Source: "..\engine\tensorrt-llm\tensorrt_llm\functional.py"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm"; Flags: ignoreversion
 ; Runtime DLLs — installed to %APPDATA%\BareMetalRT\runtime (user-writable)
 Source: "..\runtime\bmrt_plugins_dll.dll"; DestDir: "{userappdata}\BareMetalRT\runtime"; Flags: ignoreversion
 Source: "..\runtime\nvinfer_plugin_tensorrt_llm.dll"; DestDir: "{userappdata}\BareMetalRT\runtime"; Flags: ignoreversion

@@ -85,20 +85,6 @@ if getattr(sys, 'frozen', False):
                 except Exception:
                     pass
 
-# If invoked with --run-build, run build_engine.py directly and exit.
-# This lets the daemon spawn the exe itself as a subprocess for engine builds,
-# using the exe's bundled Python + TRT-LLM instead of system Python.
-if '--run-build' in sys.argv:
-    idx = sys.argv.index('--run-build')
-    build_args = sys.argv[idx + 1:]  # everything after --run-build
-    build_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build_engine.py')
-    if getattr(sys, 'frozen', False):
-        # In frozen exe, build_engine.py is extracted to _MEIPASS
-        build_script = os.path.join(sys._MEIPASS, 'build_engine.py')
-    sys.argv = ['build_engine.py'] + build_args
-    exec(open(build_script).read(), {"__name__": "__main__", "__file__": build_script})
-    sys.exit(0)
-
 # Crash log for frozen exe (no console to see errors)
 _LOG_PATH = None
 if getattr(sys, 'frozen', False):

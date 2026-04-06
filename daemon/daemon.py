@@ -1309,21 +1309,22 @@ def _ws_bridge_worker(orchestrator_url: str):
                                         torch.cuda.empty_cache()
                                     engine_dir = str(PROJECT_ROOT / "engine_cache" / f"{mid}-tp{_tp}")
                                     ckpt_dir = os.path.join(engine_dir, "checkpoint")
+                                    python = shutil.which("python") or shutil.which("py")
+                                    build_script = _find_build_script()
+                                    env = _engine_env()
+                                    # Add our bundled TRT-LLM port to PYTHONPATH
+                                    trtllm_path = str(PROJECT_ROOT / "engine" / "tensorrt-llm")
+                                    env["PYTHONPATH"] = trtllm_path + os.pathsep + env.get("PYTHONPATH", "")
                                     _mseq = min(m.get("context_length", 4096), 4096)
                                     _minp = min(_mseq // 2, 1024)
                                     os.makedirs(engine_dir, exist_ok=True)
-                                    build_args = ["--convert",
+                                    cmd = [python, build_script, "--convert",
                                         "--model_dir", m["hf_dir"], "--checkpoint_dir", ckpt_dir,
                                         "--output_dir", engine_dir, "--tp_size", str(_tp), "--dtype", "float16",
                                         "--max_input_len", str(_minp), "--max_seq_len", str(_mseq)]
                                     if _rank is not None:
-                                        build_args += ["--rank", str(_rank)]
+                                        cmd += ["--rank", str(_rank)]
                                         log.info(f"TP={_tp} build: rank={_rank} (independent)")
-                                    # Spawn the exe itself with --run-build flag
-                                    # This uses the exe's bundled Python + TRT-LLM, not system Python
-                                    cmd = [sys.executable, "--run-build"] + build_args
-                                    log.info(f"Build cmd: {' '.join(cmd[:6])}...")
-                                    env = _engine_env()
                                     CREATE_NO_WINDOW = 0x08000000
                                     proc = subprocess.Popen(cmd,
                                         env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

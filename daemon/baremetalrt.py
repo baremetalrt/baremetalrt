@@ -65,6 +65,25 @@ if getattr(sys, 'frozen', False):
             os.add_dll_directory(p)
         except OSError:
             pass
+        # Process .pth files (needed for editable installs like our TRT-LLM port)
+        if os.path.isdir(p):
+            for pth in sorted(glob.glob(os.path.join(p, '*.pth'))):
+                try:
+                    for line in open(pth):
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        if line.startswith('import '):
+                            exec(line)
+                        elif os.path.isdir(line):
+                            if line not in sys.path:
+                                sys.path.append(line)
+                        elif os.path.isdir(os.path.join(p, line)):
+                            full = os.path.join(p, line)
+                            if full not in sys.path:
+                                sys.path.append(full)
+                except Exception:
+                    pass
 
 # If invoked with --run-build, run build_engine.py directly and exit.
 # This lets the daemon spawn the exe itself as a subprocess for engine builds,

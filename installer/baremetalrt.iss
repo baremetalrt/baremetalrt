@@ -60,6 +60,7 @@ Source: "assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\VERSION"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\daemon\build_engine.py"; DestDir: "{app}\daemon"; Flags: ignoreversion
 Source: "..\daemon\model_registry.py"; DestDir: "{app}\daemon"; Flags: ignoreversion
+Source: "..\daemon\convert_tp.py"; DestDir: "{app}\daemon"; Flags: ignoreversion
 ; Runtime DLLs — installed to %APPDATA%\BareMetalRT\runtime (user-writable)
 Source: "..\runtime\bmrt_plugins_dll.dll"; DestDir: "{userappdata}\BareMetalRT\runtime"; Flags: ignoreversion
 Source: "..\runtime\nvinfer_plugin_tensorrt_llm.dll"; DestDir: "{userappdata}\BareMetalRT\runtime"; Flags: ignoreversion

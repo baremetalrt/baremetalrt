@@ -312,7 +312,21 @@ if __name__ == "__main__":
                 exec(open(convert_script).read(), {"__name__": "__main__", "__file__": convert_script})
                 print("Checkpoint conversion done")
             else:
-                print(f"Convert script not found, will use TRT-LLM auto-convert from model_dir")
+                # Use standalone converter (bundled, no TRT-LLM source needed)
+                standalone = Path(__file__).parent / "convert_tp.py"
+                if standalone.exists():
+                    print(f"Using standalone TP converter: {standalone}")
+                    Path(args.checkpoint_dir).mkdir(parents=True, exist_ok=True)
+                    sys.argv = [
+                        "convert_tp",
+                        "--model_dir", args.model_dir,
+                        "--output_dir", args.checkpoint_dir,
+                        "--tp_size", str(args.tp_size),
+                    ]
+                    exec(open(str(standalone)).read(), {"__name__": "__main__", "__file__": str(standalone)})
+                    print("Standalone checkpoint conversion done")
+                else:
+                    print(f"No convert script found, will use TRT-LLM auto-convert")
         else:
             print(f"Checkpoint already exists at {args.checkpoint_dir}")
 

@@ -1322,13 +1322,25 @@ def _ws_bridge_worker(orchestrator_url: str):
                                     if _rank is not None and _peer:
                                         cmd += ["--rank", str(_rank), "--peer", _peer]
                                         log.info(f"TP={_tp} build: rank={_rank}, peer={_peer}")
-                                    result = subprocess.run(cmd,
-                                        env=env, capture_output=True, text=True, timeout=3600, cwd=engine_dir)
-                                    if result.returncode == 0:
+                                    proc = subprocess.Popen(cmd,
+                                        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                        text=True, cwd=engine_dir)
+                                    last_line = ""
+                                    while True:
+                                        line = proc.stdout.readline()
+                                        if not line and proc.poll() is not None:
+                                            break
+                                        if line:
+                                            line = line.strip()
+                                            if line:
+                                                last_line = line
+                                                _build_tasks[mid] = {"status": "building", "progress": line[-80:]}
+                                                log.info(f"Build [{mid}]: {line[:120]}")
+                                    if proc.returncode == 0:
                                         mark_engine_built(mid, engine_dir)
                                         _build_tasks[mid] = {"status": "done", "progress": "Complete"}
                                     else:
-                                        _build_tasks[mid] = {"status": "error", "progress": result.stderr[-500:]}
+                                        _build_tasks[mid] = {"status": "error", "progress": last_line[-500:]}
                                 except Exception as e:
                                     _build_tasks[mid] = {"status": "error", "progress": str(e)}
                             threading.Thread(target=_do_build, daemon=True).start()

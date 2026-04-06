@@ -361,9 +361,12 @@ begin
   Result := '';
   NeedsRestart := False;
 
-  // Kill running BareMetalRT process
-  Exec('taskkill.exe', '/F /IM baremetalrt.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Sleep(1000);
+  // Kill running BareMetalRT and any spawned processes
+  Exec('taskkill.exe', '/F /IM baremetalrt.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(500);
+  // Kill again in case tray respawned
+  Exec('taskkill.exe', '/F /IM baremetalrt.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(2000);
 
   // Clean up stale _MEI* dirs from PyInstaller
   TempDir := ExpandConstant('{localappdata}\Temp\');

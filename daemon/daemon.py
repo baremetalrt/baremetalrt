@@ -1322,9 +1322,10 @@ def _ws_bridge_worker(orchestrator_url: str):
                                     if _rank is not None and _peer:
                                         cmd += ["--rank", str(_rank), "--peer", _peer]
                                         log.info(f"TP={_tp} build: rank={_rank}, peer={_peer}")
+                                    CREATE_NO_WINDOW = 0x08000000
                                     proc = subprocess.Popen(cmd,
                                         env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                        text=True, cwd=engine_dir)
+                                        text=True, cwd=engine_dir, creationflags=CREATE_NO_WINDOW)
                                     last_line = ""
                                     while True:
                                         line = proc.stdout.readline()

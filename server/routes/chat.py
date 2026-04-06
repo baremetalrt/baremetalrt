@@ -408,11 +408,12 @@ async def tp2_build(model_id: str, request: Request):
     if not r0 or not r1:
         return JSONResponse(status_code=400, content={"error": "Need 2 GPUs online"})
 
-    # Get IPs from node_manager
-    rank0_node = nodes.get(r0)
-    rank1_node = nodes.get(r1)
-    rank0_ip = rank0_node.ip if rank0_node else "0.0.0.0"
-    rank1_ip = rank1_node.ip if rank1_node else "0.0.0.0"
+    # Get IPs from DB (node_manager in-memory can be stale)
+    r0_row = await db.fetch_one("SELECT ip FROM nodes WHERE node_id = $1", r0)
+    r1_row = await db.fetch_one("SELECT ip FROM nodes WHERE node_id = $1", r1)
+    rank0_ip = str(r0_row["ip"]) if r0_row else "0.0.0.0"
+    rank1_ip = str(r1_row["ip"]) if r1_row else "0.0.0.0"
+    log.info(f"TP2 build: rank0={r0} ({rank0_ip}), rank1={r1} ({rank1_ip})")
 
     rank0_id = r0
     rank1_id = r1
@@ -433,31 +434,24 @@ async def tp2_build(model_id: str, request: Request):
 @router.post("/api/tp2/load/{model_id}")
 async def tp2_load(model_id: str, request: Request):
     """Coordinate TP=2 engine load across both daemons — init transport + load engines."""
-    user = await require_auth(request)
-    user_id = str(user["id"])
+    r0_id, r1_id = await _get_tp_nodes(request)
+    if not r0_id or not r1_id:
+        return JSONResponse(status_code=400, content={"error": "Need 2 GPUs online"})
 
-    # Get user's devices sorted by VRAM (rank 0 = highest)
-    from server.services.node_manager import get_user_nodes
-    user_nodes = get_user_nodes(user_id)
-    if len(user_nodes) < 2:
-        return JSONResponse(status_code=400, content={"error": "Need 2+ GPUs online"})
+    # Get IPs from DB
+    r0_row = await db.fetch_one("SELECT ip FROM nodes WHERE node_id = $1", r0_id)
+    r1_row = await db.fetch_one("SELECT ip FROM nodes WHERE node_id = $1", r1_id)
+    rank0_ip = str(r0_row["ip"]) if r0_row else "0.0.0.0"
+    rank1_ip = str(r1_row["ip"]) if r1_row else "0.0.0.0"
 
-    rank0 = user_nodes[0]
-    rank1 = user_nodes[1]
-
-    if rank0.node_id not in _daemon_connections:
-        return JSONResponse(status_code=503, content={"error": f"Rank 0 ({rank0.hostname}) not connected via WS"})
-    if rank1.node_id not in _daemon_connections:
-        return JSONResponse(status_code=503, content={"error": f"Rank 1 ({rank1.hostname}) not connected via WS"})
-
-    # Load on both daemons concurrently — rank 1 first (it listens), then rank 0 (it connects)
+    # Load on both daemons — rank 1 first (it listens), then rank 0 (it connects)
     r1 = await _relay_to_daemon(
-        {"type": "load", "model_id": model_id, "tp": 2, "rank": 1, "peer_ip": rank0.ip},
-        timeout_s=120.0, node_id=rank1.node_id,
+        {"type": "load", "model_id": model_id, "tp": 2, "rank": 1, "peer_ip": rank0_ip},
+        timeout_s=120.0, node_id=r1_id,
     )
     r0 = await _relay_to_daemon(
-        {"type": "load", "model_id": model_id, "tp": 2, "rank": 0, "peer_ip": rank1.ip},
-        timeout_s=120.0, node_id=rank0.node_id,
+        {"type": "load", "model_id": model_id, "tp": 2, "rank": 0, "peer_ip": rank1_ip},
+        timeout_s=120.0, node_id=r0_id,
     )
     return {"rank0": r0, "rank1": r1}
 

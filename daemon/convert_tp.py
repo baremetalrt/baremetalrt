@@ -39,12 +39,25 @@ def convert(model_dir: str, output_dir: str, tp_size: int = 2):
     print(f"  hidden={hidden_size}, intermediate={intermediate_size}, vocab={vocab_size}")
     print(f"  TP={tp_size}")
 
-    # Load HF weights
+    # Load HF weights (supports single file and sharded)
     print("Loading weights...")
+    safetensor_shards = sorted(model_dir.glob("model-*.safetensors"))
     if (model_dir / "model.safetensors").exists():
         state = load_file(str(model_dir / "model.safetensors"))
+    elif safetensor_shards:
+        print(f"Loading {len(safetensor_shards)} safetensor shards...")
+        state = {}
+        for shard in safetensor_shards:
+            state.update(load_file(str(shard)))
     else:
-        state = torch.load(model_dir / "pytorch_model.bin", map_location="cpu")
+        pt_shards = sorted(model_dir.glob("pytorch_model-*.bin"))
+        if pt_shards:
+            print(f"Loading {len(pt_shards)} pytorch shards...")
+            state = {}
+            for shard in pt_shards:
+                state.update(torch.load(str(shard), map_location="cpu"))
+        else:
+            state = torch.load(model_dir / "pytorch_model.bin", map_location="cpu")
 
     # Write TRT-LLM config
     trtllm_config = {

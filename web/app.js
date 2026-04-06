@@ -1174,10 +1174,10 @@ function renderModelCards() {
         action = `<span class="btn-glow"><button class="model-btn primary" onclick="pullModel('${m.id}')">Pull</button></span>`;
 
       } else if (!m.engine_built) {
-        action = `<span class="btn-glow"><button class="model-btn primary" onclick="buildModel('${m.id}')">Build TP Home</button></span>`;
+        action = `<span class="btn-glow"><button class="model-btn primary" onclick="buildModel('${m.id}')">Build</button></span>`;
 
       } else {
-        action = `<span class="btn-glow"><button class="model-btn primary" onclick="loadModel('${m.id}')">Load Model</button></span>`;
+        action = `<span class="btn-glow"><button class="model-btn primary" onclick="loadModel('${m.id}')">Load</button></span>`;
 
       }
     } else {

@@ -971,7 +971,7 @@ async function _pollTp2Status() {
     const totalGpus = [r0data, r1data].filter(Boolean).length;
     const chatBtn = document.getElementById('tp-chat-btn');
     if (session.status === 'matched') {
-      _setStepBanner('5 \u00b7 CHAT', 'Session matched \u2014 ready for inference', 'matched', 'tp');
+      _setStepBanner('READY', 'Session matched \u2014 ready for inference', 'matched', 'tp');
       if (chatBtn) chatBtn.style.display = '';
     } else if (onlineCount >= 2) {
       if (_tpSelectedModel) {
@@ -1328,7 +1328,7 @@ async function cancelPull(id) {
 
 async function buildModel(id) {
   if (isDemo) { demoBlock(); return; }
-  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _setStepBanner('STEP 3 \u00b7 BUILD', 'Splitting & compiling engines...', 'active', 'tp'); }
+  if (_gpuMode === '2gpu') { _tpSelectedModel = id; _setStepBanner('STEP 2 \u00b7 BUILD', 'Splitting & compiling engines...', 'active', 'tp'); }
   _setProgress(document.getElementById('prog-' + id), 'Building engine', null);
   if (_gpuMode === '2gpu') {
     await fetch(`/api/tp2/build/${id}`, { method: 'POST', headers: _apiHeaders() });
@@ -1408,7 +1408,7 @@ async function loadModel(id) {
   btns.forEach(b => { if (b.textContent === 'Load') b.classList.add('loading'); });
   if (el) { el.style.display = ''; el.textContent = 'Loading engine...'; }
   const mode = _gpuMode === '2gpu' ? 'tp' : '1gpu';
-  const step = _gpuMode === '2gpu' ? 'STEP 4 \u00b7 LOAD' : 'LOADING';
+  const step = _gpuMode === '2gpu' ? 'STEP 3 \u00b7 LOAD' : 'LOADING';
   _setStepBanner(step, 'Initializing engine...', 'active', mode);
   const loadUrl = _gpuMode === '2gpu' ? `/api/tp2/load/${id}` : `/api/models/${id}/load`;
   const r = await fetch(loadUrl, { method: 'POST', headers: _apiHeaders() });
@@ -1565,7 +1565,7 @@ function _pollTpModelStatus(id, el) {
         if (status === 'downloading') {
           _setStepBanner('STEP 1 \u00b7 PULL', `Downloading${pctStr}`, 'active', 'tp');
         } else if (status === 'building') {
-          _setStepBanner('STEP 3 \u00b7 BUILD', `Compiling${pctStr}`, 'active', 'tp');
+          _setStepBanner('STEP 2 \u00b7 BUILD', `Compiling${pctStr}`, 'active', 'tp');
         }
       }
 

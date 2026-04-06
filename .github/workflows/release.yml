@@ -49,9 +49,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clone TRT-LLM Windows port
+      - name: Clone TRT-LLM Windows port (Python only)
         run: |
-          git clone --depth 1 https://github.com/brianhabana/tensorrt-llm-windows.git engine/tensorrt-llm
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/brianhabana/tensorrt-llm-windows.git engine/tensorrt-llm
+          cd engine/tensorrt-llm
+          git sparse-checkout set tensorrt_llm
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

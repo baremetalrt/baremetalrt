@@ -39,15 +39,28 @@ except Exception:
     pass
 
 # Pre-load TRT-LLM DLLs so they're in memory when TRT-LLM's plugin loader runs
-_libs_dir = _root / 'engine' / 'tensorrt-llm' / 'tensorrt_llm' / 'libs'
-if _libs_dir.is_dir():
-    for _dll_name in ['tensorrt_llm.dll', 'nvinfer_plugin_tensorrt_llm.dll']:
-        _dll_path = _libs_dir / _dll_name
-        if _dll_path.exists():
-            try:
-                ctypes.CDLL(str(_dll_path))
-            except Exception:
-                pass
+_appdata_rt = _P(os.environ.get('APPDATA', '')) / 'BareMetalRT' / 'runtime'
+for _libs_dir in [_root / 'engine' / 'tensorrt-llm' / 'tensorrt_llm' / 'libs',
+                  _appdata_rt, _root / 'runtime']:
+    if _libs_dir.is_dir():
+        os.add_dll_directory(str(_libs_dir))
+        for _dll_name in ['tensorrt_llm.dll', 'nvinfer_plugin_tensorrt_llm.dll']:
+            _dll_path = _libs_dir / _dll_name
+            if _dll_path.exists():
+                try:
+                    _dll = ctypes.CDLL(str(_dll_path))
+                    # Register TRT-LLM plugins with TensorRT
+                    if _dll_name == 'nvinfer_plugin_tensorrt_llm.dll':
+                        try:
+                            _init = _dll.initTrtLlmPlugins
+                            _init.restype = ctypes.c_bool
+                            _init.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+                            _init(None, b"tensorrt_llm")
+                            print(f"TRT-LLM plugins registered from {_dll_path}")
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
 import importlib
 import importlib.abc

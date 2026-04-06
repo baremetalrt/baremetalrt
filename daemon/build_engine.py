@@ -385,7 +385,9 @@ if __name__ == "__main__":
 
     # Load bmrt_plugins_dll AFTER TRT-LLM import (loading before breaks Klib on some GPUs)
     _bmrt_dll = None
+    _appdata_rt = os.path.join(os.environ.get('APPDATA', ''), 'BareMetalRT', 'runtime', 'bmrt_plugins_dll.dll')
     for dll_path in [
+        _appdata_rt,
         os.path.abspath('engine/build/transport/Release/bmrt_plugins_dll.dll'),
         os.path.abspath('runtime/bmrt_plugins_dll.dll'),
     ]:

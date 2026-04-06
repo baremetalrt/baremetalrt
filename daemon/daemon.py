@@ -1309,43 +1309,41 @@ def _ws_bridge_worker(orchestrator_url: str):
                                         torch.cuda.empty_cache()
                                     engine_dir = str(PROJECT_ROOT / "engine_cache" / f"{mid}-tp{_tp}")
                                     ckpt_dir = os.path.join(engine_dir, "checkpoint")
-                                    build_script = _find_build_script()
                                     _mseq = min(m.get("context_length", 4096), 4096)
                                     _minp = min(_mseq // 2, 1024)
                                     os.makedirs(engine_dir, exist_ok=True)
-                                    build_args = ["build_engine.py", "--convert",
+                                    build_args = ["--convert",
                                         "--model_dir", m["hf_dir"], "--checkpoint_dir", ckpt_dir,
                                         "--output_dir", engine_dir, "--tp_size", str(_tp), "--dtype", "float16",
                                         "--max_input_len", str(_minp), "--max_seq_len", str(_mseq)]
                                     if _rank is not None:
                                         build_args += ["--rank", str(_rank)]
                                         log.info(f"TP={_tp} build: rank={_rank} (independent)")
-                                    # Run build in-process so it uses the exe's Python + bundled TRT-LLM
-                                    _build_tasks[mid] = {"status": "building", "progress": "Starting build..."}
-                                    import io, contextlib
-                                    old_argv = sys.argv
-                                    old_cwd = os.getcwd()
-                                    try:
-                                        sys.argv = build_args
-                                        os.chdir(engine_dir)
-                                        # Capture stdout for progress
-                                        class _ProgressCapture(io.TextIOBase):
-                                            def write(self, s):
-                                                s = s.strip()
-                                                if s:
-                                                    _build_tasks[mid] = {"status": "building", "progress": s[-80:]}
-                                                    log.info(f"Build [{mid}]: {s[:120]}")
-                                                return len(s)
-                                        with contextlib.redirect_stdout(_ProgressCapture()):
-                                            exec(open(build_script).read(), {"__name__": "__main__", "__file__": build_script})
+                                    # Spawn the exe itself with --run-build flag
+                                    # This uses the exe's bundled Python + TRT-LLM, not system Python
+                                    cmd = [sys.executable, "--run-build"] + build_args
+                                    log.info(f"Build cmd: {' '.join(cmd[:6])}...")
+                                    env = _engine_env()
+                                    CREATE_NO_WINDOW = 0x08000000
+                                    proc = subprocess.Popen(cmd,
+                                        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                        text=True, cwd=engine_dir, creationflags=CREATE_NO_WINDOW)
+                                    last_line = ""
+                                    while True:
+                                        line = proc.stdout.readline()
+                                        if not line and proc.poll() is not None:
+                                            break
+                                        if line:
+                                            line = line.strip()
+                                            if line:
+                                                last_line = line
+                                                _build_tasks[mid] = {"status": "building", "progress": line[-80:]}
+                                                log.info(f"Build [{mid}]: {line[:120]}")
+                                    if proc.returncode == 0:
                                         mark_engine_built(mid, engine_dir)
                                         _build_tasks[mid] = {"status": "done", "progress": "Complete"}
-                                    except Exception as e:
-                                        _build_tasks[mid] = {"status": "error", "progress": str(e)[-500:]}
-                                        log.error(f"Build [{mid}] error: {e}")
-                                    finally:
-                                        sys.argv = old_argv
-                                        os.chdir(old_cwd)
+                                    else:
+                                        _build_tasks[mid] = {"status": "error", "progress": last_line[-500:]}
                                 except Exception as e:
                                     _build_tasks[mid] = {"status": "error", "progress": str(e)}
                             threading.Thread(target=_do_build, daemon=True).start()

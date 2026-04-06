@@ -1319,9 +1319,9 @@ def _ws_bridge_worker(orchestrator_url: str):
                                         "--model_dir", m["hf_dir"], "--checkpoint_dir", ckpt_dir,
                                         "--output_dir", engine_dir, "--tp_size", str(_tp), "--dtype", "float16",
                                         "--max_input_len", str(_minp), "--max_seq_len", str(_mseq)]
-                                    if _rank is not None and _peer:
-                                        cmd += ["--rank", str(_rank), "--peer", _peer]
-                                        log.info(f"TP={_tp} build: rank={_rank}, peer={_peer}")
+                                    if _rank is not None:
+                                        cmd += ["--rank", str(_rank)]
+                                        log.info(f"TP={_tp} build: rank={_rank} (independent)")
                                     CREATE_NO_WINDOW = 0x08000000
                                     proc = subprocess.Popen(cmd,
                                         env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

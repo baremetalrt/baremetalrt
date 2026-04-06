@@ -1134,7 +1134,7 @@ function renderModelCards() {
   const family = _families[_familyIdx];
   document.getElementById('family-name').textContent = family;
   const titleEl = document.getElementById('models-section-title');
-  if (titleEl) titleEl.textContent = _gpuMode === '2gpu' ? 'TP Models' : 'Available Models';
+  if (titleEl) titleEl.textContent = _gpuMode === '2gpu' ? 'Tensor Parallelism Models' : 'Available Models';
   const list = document.getElementById('model-list');
   list.innerHTML = '';
 

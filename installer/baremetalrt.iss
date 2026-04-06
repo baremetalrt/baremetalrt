@@ -72,7 +72,6 @@ Source: "..\engine\tensorrt-llm\tensorrt_llm\runtime\*"; DestDir: "{app}\engine\
 Source: "..\engine\tensorrt-llm\tensorrt_llm\builder.py"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm"; Flags: ignoreversion
 Source: "..\engine\tensorrt-llm\tensorrt_llm\functional.py"; DestDir: "{app}\engine\tensorrt-llm\tensorrt_llm"; Flags: ignoreversion
 
-[Dirs]
 Source: "triton_kernels__init__.py"; DestDir: "{app}\engine\tensorrt-llm\triton_kernels"; DestName: "__init__.py"; Flags: ignoreversion
 ; Runtime DLLs — installed to %APPDATA%\BareMetalRT\runtime (user-writable)
 Source: "..\runtime\bmrt_plugins_dll.dll"; DestDir: "{userappdata}\BareMetalRT\runtime"; Flags: ignoreversion

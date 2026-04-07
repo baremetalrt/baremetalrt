@@ -1353,9 +1353,18 @@ def _ws_bridge_worker(orchestrator_url: str):
 
                     elif msg_type == "model_status":
                         model_id = req_data.get("model_id", "")
+                        from model_registry import get_model
+                        _m = get_model(model_id)
+                        _pull_st = _pull_tasks.get(model_id, {"status": "idle"})
+                        _build_st = _build_tasks.get(model_id, {"status": "idle"})
+                        # If registry says built but _build_tasks doesn't know, report done
+                        if _build_st.get("status") == "idle" and _m and _m.get("engine_built"):
+                            _build_st = {"status": "done", "progress": "Complete"}
+                        if _pull_st.get("status") == "idle" and _m and _m.get("downloaded"):
+                            _pull_st = {"status": "done", "progress": "Complete", "percent": 100}
                         ws.send(json.dumps({
-                            "pull": _pull_tasks.get(model_id, {"status": "idle"}),
-                            "build": _build_tasks.get(model_id, {"status": "idle"}),
+                            "pull": _pull_st,
+                            "build": _build_st,
                         }))
 
                     elif msg_type == "pause":

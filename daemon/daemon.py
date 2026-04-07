@@ -1322,9 +1322,10 @@ def _ws_bridge_worker(orchestrator_url: str):
                                         "--model_dir", m["hf_dir"], "--checkpoint_dir", ckpt_dir,
                                         "--output_dir", engine_dir, "--tp_size", str(_tp), "--dtype", "float16",
                                         "--max_input_len", str(_minp), "--max_seq_len", str(_mseq)]
-                                    if _rank is not None:
-                                        cmd += ["--rank", str(_rank)]
-                                        log.info(f"TP={_tp} build: rank={_rank} (independent)")
+                                    # TP builds: highest-VRAM machine builds ALL ranks
+                                    # (no --rank flag = build all sequentially)
+                                    if _tp >= 2:
+                                        log.info(f"TP={_tp} build: building all ranks")
                                     CREATE_NO_WINDOW = 0x08000000
                                     proc = subprocess.Popen(cmd,
                                         env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -1409,6 +1410,40 @@ def _ws_bridge_worker(orchestrator_url: str):
                     elif msg_type == "shutdown":
                         ws.send(json.dumps({"status": "shutting_down"}))
                         threading.Thread(target=lambda: (time.sleep(1), os._exit(0)), daemon=True).start()
+
+                    elif msg_type == "fetch_engine":
+                        # Download engine file from a peer node
+                        peer_ip = req_data.get("peer_ip", "")
+                        peer_port = req_data.get("peer_port", 8080)
+                        engine_name = req_data.get("engine_name", "")
+                        filename = req_data.get("filename", "rank1.engine")
+                        dest_dir = str(PROJECT_ROOT / "engine_cache" / engine_name)
+                        os.makedirs(dest_dir, exist_ok=True)
+                        dest_path = os.path.join(dest_dir, filename)
+                        try:
+                            import httpx
+                            url = f"http://{peer_ip}:{peer_port}/api/engines/{filename}"
+                            log.info(f"Fetching engine from {url} -> {dest_path}")
+                            with httpx.stream("GET", url, timeout=600.0) as resp:
+                                total = int(resp.headers.get("content-length", 0))
+                                downloaded = 0
+                                with open(dest_path, "wb") as f:
+                                    for chunk in resp.iter_bytes(chunk_size=1024*1024):
+                                        f.write(chunk)
+                                        downloaded += len(chunk)
+                                        if total > 0:
+                                            pct = int(downloaded / total * 100)
+                                            _build_tasks[engine_name.replace("-tp2", "")] = {
+                                                "status": "building", "progress": f"Receiving engine {pct}%"
+                                            }
+                            log.info(f"Engine received: {dest_path} ({os.path.getsize(dest_path) // (1024*1024)} MB)")
+                            from model_registry import mark_engine_built
+                            model_id_base = engine_name.replace("-tp2", "").replace("-tp1", "")
+                            mark_engine_built(model_id_base, dest_dir)
+                            ws.send(json.dumps({"status": "ok", "path": dest_path}))
+                        except Exception as e:
+                            log.error(f"fetch_engine error: {e}")
+                            ws.send(json.dumps({"error": str(e)}))
 
                     elif msg_type == "load":
                         model_id = req_data.get("model_id", "")

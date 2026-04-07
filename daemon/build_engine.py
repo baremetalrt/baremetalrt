@@ -26,6 +26,13 @@ for d in [_root / 'runtime', _root / 'engine' / 'build' / 'Release',
           _root / 'engine' / 'tensorrt-llm' / 'tensorrt_llm' / 'libs']:
     if d.is_dir():
         os.add_dll_directory(str(d))
+# Add pip-installed tensorrt_libs first (builder resources must match runtime)
+try:
+    import tensorrt_libs as _trt_libs
+    _trt_libs_dir = os.path.dirname(_trt_libs.__file__)
+    os.add_dll_directory(_trt_libs_dir)
+except Exception:
+    pass
 for d in [r'C:\TensorRT\TensorRT-10.15.1.29\bin', r'C:\TensorRT\TensorRT-10.15.1.29\lib',
           r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin',
           r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\bin']:

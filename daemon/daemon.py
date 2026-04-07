@@ -1425,6 +1425,8 @@ def _ws_bridge_worker(orchestrator_url: str):
                             url = f"http://{peer_ip}:{peer_port}/api/engines/{filename}"
                             log.info(f"Fetching engine from {url} -> {dest_path}")
                             with httpx.stream("GET", url, timeout=600.0) as resp:
+                                if resp.status_code != 200:
+                                    raise Exception(f"Peer returned {resp.status_code}: {resp.text[:200]}")
                                 total = int(resp.headers.get("content-length", 0))
                                 downloaded = 0
                                 with open(dest_path, "wb") as f:
@@ -1704,11 +1706,23 @@ async def api_infer_ready():
 
 
 @app.get("/api/engines/{filename}")
-async def serve_engine(filename: str):
+async def serve_engine(filename: str, engine_name: str = None):
     """Serve engine files to other nodes."""
     from fastapi.responses import FileResponse
+    # Search in specified engine dir, current engine dir, and all engine_cache subdirs
+    search_dirs = []
+    if engine_name:
+        search_dirs.append(str(PROJECT_ROOT / "engine_cache" / engine_name))
     if state.engine_dir:
-        path = os.path.join(state.engine_dir, filename)
+        search_dirs.append(state.engine_dir)
+    # Also search all engine_cache subdirs
+    cache_dir = PROJECT_ROOT / "engine_cache"
+    if cache_dir.is_dir():
+        for d in cache_dir.iterdir():
+            if d.is_dir():
+                search_dirs.append(str(d))
+    for d in search_dirs:
+        path = os.path.join(d, filename)
         if os.path.isfile(path):
             return FileResponse(path, filename=filename)
     return JSONResponse(status_code=404, content={"error": "Not found"})

@@ -1442,6 +1442,7 @@ def _ws_bridge_worker(orchestrator_url: str):
                             from model_registry import mark_engine_built
                             model_id_base = engine_name.replace("-tp2", "").replace("-tp1", "")
                             mark_engine_built(model_id_base, dest_dir)
+                            _build_tasks[model_id_base] = {"status": "done", "progress": "Engine received"}
                             ws.send(json.dumps({"status": "ok", "path": dest_path}))
                         except Exception as e:
                             log.error(f"fetch_engine error: {e}")

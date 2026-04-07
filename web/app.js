@@ -1466,7 +1466,12 @@ async function unloadModel() {
   chatBtn.style.opacity = '0.3';
   chatBtn.disabled = true;
   document.getElementById('gpu-card').classList.remove('active');
+  currentModel = null;
   _lastGpuState = null;
+  _allModels._activeModel = '';
+  _allModels._activeModelId = '';
+  // Small delay to let daemon process the unload before re-fetching
+  await new Promise(r => setTimeout(r, 1000));
   await loadModels();
   await checkNode();
   _setStepBanner('GPU ONLINE', 'Select a model below', 'active', mode);

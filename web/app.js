@@ -1201,14 +1201,10 @@ function renderModelCards() {
     let action = '';
     let fitBadge = '';
     if (isTP) {
-      const bothBuilt = m._tp_both_built === true;
       if (!m.downloaded) {
         action = `<span class="btn-glow"><button class="model-btn primary" onclick="pullModel('${m.id}')">Pull</button></span>`;
-      } else if (!bothBuilt) {
-        let buildLabel = 'Build';
-        if (m._tp_r0_built && !m._tp_r1_built) buildLabel = 'Build Rank 1';
-        else if (!m._tp_r0_built && m._tp_r1_built) buildLabel = 'Build Rank 0';
-        action = `<span class="btn-glow"><button class="model-btn primary" onclick="buildModel('${m.id}')">${buildLabel}</button></span>`;
+      } else if (!m.engine_built) {
+        action = `<span class="btn-glow"><button class="model-btn primary" onclick="buildModel('${m.id}')">Build</button></span>`;
       } else {
         action = `<span class="btn-glow"><button class="model-btn primary" onclick="loadModel('${m.id}')">Load</button></span>`;
       }
@@ -1279,23 +1275,6 @@ async function loadModels() {
     _allModels = d.models || [];
     _allModels._activeModel = d.active_model || '';
     _allModels._activeModelId = d.active_model_id || '';
-
-    // In TP mode: check per-rank build status for each downloaded model
-    if (_gpuMode === '2gpu') {
-      for (const m of _allModels) {
-        if (m.downloaded) {
-          try {
-            const sr = await fetch(`/api/tp2/status/${m.id}`);
-            const sd = await sr.json();
-            const r0built = sd.rank0?.build?.status === 'done';
-            const r1built = sd.rank1?.build?.status === 'done';
-            m._tp_both_built = r0built && r1built;
-            m._tp_r0_built = r0built;
-            m._tp_r1_built = r1built;
-          } catch(e) { m._tp_both_built = false; }
-        }
-      }
-    }
 
     // Build family list
     const familySet = new Set(_allModels.map(m => m.family || 'Other'));

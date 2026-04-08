@@ -25,11 +25,12 @@ router = APIRouter(tags=["chat"])
 @dataclass
 class DaemonConnection:
     ws: WebSocket
-    queue: asyncio.Queue
+    queue: asyncio.Queue           # default queue for unmatched messages (SSE, etc)
     reader_task: asyncio.Task
     node_id: str
     user_id: str
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    pending: dict = field(default_factory=dict)  # _req_id -> asyncio.Queue (per-request)
 
 
 # node_id -> DaemonConnection
@@ -122,16 +123,31 @@ async def gpu_metrics_all(request: Request):
     return {"nodes": results}
 
 
-async def _ws_reader(ws: WebSocket, q: asyncio.Queue):
-    """Single reader coroutine — all messages from a daemon flow through here."""
+async def _ws_reader(ws: WebSocket, q: asyncio.Queue, conn_ref: list):
+    """Reader dispatches responses to per-request queues by _req_id, or default queue."""
     try:
         while True:
             msg = await ws.receive_text()
             if msg and '"keepalive"' in msg:
                 continue
+            # Try to route by _req_id
+            conn = conn_ref[0] if conn_ref else None
+            if conn and msg and msg.startswith('{'):
+                try:
+                    peek = json.loads(msg)
+                    rid = peek.get("_req_id")
+                    if rid and rid in conn.pending:
+                        await conn.pending[rid].put(msg)
+                        continue
+                except (json.JSONDecodeError, TypeError):
+                    pass
             await q.put(msg)
     except WebSocketDisconnect:
         await q.put(None)
+        # Signal all pending request queues
+        if conn_ref and conn_ref[0]:
+            for pq in conn_ref[0].pending.values():
+                await pq.put(None)
 
 
 @router.websocket("/ws/chat_bridge")
@@ -184,12 +200,14 @@ async def ws_chat_bridge(ws: WebSocket):
     await ws.accept()
 
     queue = asyncio.Queue()
-    reader = asyncio.create_task(_ws_reader(ws, queue))
+    conn_ref = [None]  # mutable ref so reader can access conn
+    reader = asyncio.create_task(_ws_reader(ws, queue, conn_ref))
 
     conn = DaemonConnection(
         ws=ws, queue=queue, reader_task=reader,
         node_id=node_id, user_id=user_id,
     )
+    conn_ref[0] = conn
     _daemon_connections[node_id] = conn
 
     # Auto-select if user has no active node
@@ -241,42 +259,47 @@ async def _relay_to_daemon(
         return {"error": "No GPU node connected"}
 
     async with conn.lock:
-        # Drain stale messages
-        while not conn.queue.empty():
-            try:
-                conn.queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
-
-        # Add request ID for correlation
+        # Create per-request queue
         _req_counter += 1
         req_id = str(_req_counter)
         payload["_req_id"] = req_id
+        req_queue = asyncio.Queue()
+        conn.pending[req_id] = req_queue
 
         try:
             await conn.ws.send_text(json.dumps(payload))
         except Exception as e:
+            conn.pending.pop(req_id, None)
             return {"error": f"Failed to reach GPU node: {e}"}
 
         try:
+            # First try the per-request queue (new daemons with _req_id)
+            # Fall back to default queue (old daemons without _req_id)
             for _ in range(20):
-                msg = await asyncio.wait_for(conn.queue.get(), timeout=timeout_s)
+                # Check both queues with a short timeout
+                try:
+                    msg = await asyncio.wait_for(req_queue.get(), timeout=min(timeout_s, 2.0))
+                except asyncio.TimeoutError:
+                    # Try default queue (old daemon may have sent without _req_id)
+                    try:
+                        msg = await asyncio.wait_for(conn.queue.get(), timeout=min(timeout_s - 2.0, 0.5))
+                    except asyncio.TimeoutError:
+                        continue
                 if msg is None:
                     return {"error": "GPU node disconnected"}
                 if msg.startswith('data:'):
                     continue
                 try:
                     resp = json.loads(msg)
+                    resp.pop("_req_id", None)
+                    return resp
                 except json.JSONDecodeError:
                     continue
-                # Accept if response has matching ID, or no ID (legacy daemon)
-                resp_id = resp.pop("_req_id", None)
-                if resp_id == req_id or resp_id is None:
-                    return resp
-                # Stale response from previous request — discard and keep waiting
             return {"error": "No valid response from GPU node"}
         except asyncio.TimeoutError:
             return {"error": "Timeout waiting for GPU node"}
+        finally:
+            conn.pending.pop(req_id, None)
 
 
 async def _resolve_target(request: Request) -> tuple[Optional[str], Optional[str]]:

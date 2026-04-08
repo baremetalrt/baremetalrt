@@ -977,17 +977,7 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
         import torch
         torch.cuda.empty_cache()
 
-    # For TP=2: init TCP transport before loading engine
-    if tp >= 2 and rank is not None and peer_ip:
-        log.info(f"TP={tp} load: initializing transport (rank={rank}, peer={peer_ip})")
-        state.rank = rank
-        coord_ip = peer_ip if rank == 1 else "0.0.0.0"
-        ok = init_transport(rank, peer_ip, coord_ip)
-        if not ok:
-            return {"error": "TCP transport init failed — peer may not be ready"}
-        init_signal_socket(rank, peer_ip)
-
-    # Load engine
+    # Load engine FIRST (demo order: plugins → engine → transport)
     try:
         state.engine = TRTEngine(rank_file)
         log.info(f"Engine loaded: {os.path.basename(rank_file)}")
@@ -1002,6 +992,16 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
         state.error = f"Failed to load {model_id}: {e}"
         log.error(state.error)
         return {"error": state.error}
+
+    # For TP=2: init transport AFTER engine load (demo order)
+    if tp >= 2 and rank is not None and peer_ip:
+        log.info(f"TP={tp} load: initializing transport (rank={rank}, peer={peer_ip})")
+        state.rank = rank
+        coord_ip = peer_ip if rank == 1 else "0.0.0.0"
+        ok = init_transport(rank, peer_ip, coord_ip)
+        if not ok:
+            return {"error": "TCP transport init failed — peer may not be ready"}
+        init_signal_socket(rank, peer_ip)
 
     # Load tokenizer (rank 0 only for TP, or always for single GPU)
     if rank is None or rank == 0:
@@ -1477,8 +1477,19 @@ def _ws_bridge_worker(orchestrator_url: str):
                         tp = req_data.get("tp", 1)
                         rank = req_data.get("rank")
                         peer_ip = req_data.get("peer_ip")
-                        result = _load_model(model_id, tp=tp, rank=rank, peer_ip=peer_ip)
-                        ws.send(json.dumps(result))
+                        if tp >= 2:
+                            # TP load runs in background — transport init blocks
+                            def _do_tp_load(mid=model_id, _tp=tp, _r=rank, _p=peer_ip):
+                                result = _load_model(mid, tp=_tp, rank=_r, peer_ip=_p)
+                                if result.get("error"):
+                                    log.error(f"TP load error: {result['error']}")
+                                else:
+                                    log.info(f"TP load complete: rank={_r}")
+                            threading.Thread(target=_do_tp_load, daemon=True).start()
+                            ws.send(json.dumps({"status": "loading"}))
+                        else:
+                            result = _load_model(model_id, tp=tp, rank=rank, peer_ip=peer_ip)
+                            ws.send(json.dumps(result))
 
                     elif msg_type == "delete_model":
                         model_id = req_data.get("model_id", "")

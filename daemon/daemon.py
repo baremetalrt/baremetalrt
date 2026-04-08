@@ -2604,6 +2604,8 @@ def background_worker(orchestrator_url: str, port: int, engine_pref: str = None)
     # Don't auto-load TP engines — they need the server to assign ranks and init transport
     if "tp2" in eng["name"] or (len(eng["ranks"]) > 1):
         log.info(f"TP engine found — skipping auto-load. Use Home · TP to load.")
+        state.engine_name = None
+        state.engine_dir = None
         state.status = "ready"
         _hold_alive()
         return

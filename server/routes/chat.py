@@ -364,17 +364,18 @@ async def api_daemon_shutdown(request: Request):
 
 async def _get_tp_nodes(request: Request) -> tuple[str, str]:
     """Get rank0 and rank1 node_ids for the authenticated user.
-    Uses WS connections as source of truth, falls back to node_manager for VRAM sorting."""
+    Uses WS connections as source of truth, DB for VRAM sorting."""
     user = await require_auth(request)
     user_id = str(user["id"])
     user_conns = [nid for nid, dc in _daemon_connections.items() if dc.user_id == user_id]
     if len(user_conns) < 2:
         return None, None
-    # Sort by VRAM (highest first = rank 0) using node_manager data if available
-    def vram(nid):
-        n = nodes.get(nid)
-        return n.gpu_vram_total_mb if n else 0
-    user_conns.sort(key=vram, reverse=True)
+    # Sort by VRAM from DB (highest first = rank 0)
+    vram_map = {}
+    for nid in user_conns:
+        row = await db.fetch_one("SELECT gpu_vram_mb FROM nodes WHERE node_id = $1", nid)
+        vram_map[nid] = row["gpu_vram_mb"] if row else 0
+    user_conns.sort(key=lambda nid: vram_map.get(nid, 0), reverse=True)
     return user_conns[0], user_conns[1]
 
 

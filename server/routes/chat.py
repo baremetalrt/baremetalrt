@@ -286,10 +286,16 @@ async def _resolve_target(request: Request) -> tuple[Optional[str], Optional[str
     gpu_mode = request.headers.get("X-GPU-Mode", "1gpu")
     node_id = None
 
-    if gpu_mode == "tp2":
-        session = get_session()
-        if session.get("status") == "matched":
-            node_id = session["rank0"]["node_id"]
+    if gpu_mode == "tp2" and user_id:
+        # Route to rank 0 (highest VRAM)
+        user_conns = [nid for nid, dc in _daemon_connections.items() if dc.user_id == user_id]
+        if len(user_conns) >= 2:
+            vram_map = {}
+            for nid in user_conns:
+                row = await db.fetch_one("SELECT gpu_vram_mb FROM nodes WHERE node_id = $1", nid)
+                vram_map[nid] = row["gpu_vram_mb"] if row else 0
+            user_conns.sort(key=lambda nid: vram_map.get(nid, 0), reverse=True)
+            node_id = user_conns[0]
     elif user_id:
         node_id = _active_node.get(user_id)
 
@@ -506,10 +512,17 @@ async def proxy_chat(request: Request):
     gpu_mode = request.headers.get("X-GPU-Mode", "1gpu")
 
     if gpu_mode == "tp2":
-        session = get_session()
-        if session.get("status") != "matched":
-            return JSONResponse(status_code=503, content={"error": "No matched 2-GPU session"})
-        target_node_id = session["rank0"]["node_id"]
+        # Route to rank 0 (highest VRAM) — no session needed
+        user_conns = [nid for nid, dc in _daemon_connections.items() if dc.user_id == user_id]
+        if len(user_conns) < 2:
+            return JSONResponse(status_code=503, content={"error": "Need 2 GPUs online for TP"})
+        # Sort by VRAM from DB
+        vram_map = {}
+        for nid in user_conns:
+            row = await db.fetch_one("SELECT gpu_vram_mb FROM nodes WHERE node_id = $1", nid)
+            vram_map[nid] = row["gpu_vram_mb"] if row else 0
+        user_conns.sort(key=lambda nid: vram_map.get(nid, 0), reverse=True)
+        target_node_id = user_conns[0]  # rank 0 = highest VRAM
     else:
         target_node_id = _active_node.get(user_id) if user_id else None
 

@@ -934,14 +934,17 @@ function show2GpuLayout() {
 async function _pollTp2Status() {
   try {
     // Use devices (DB) + gpu-status (WS connections) for reliable state
-    const [devR, statusR, sessionR] = await Promise.all([
+    const [devR, statusR, sessionR, modelsR] = await Promise.all([
       fetch('/api/devices'),
       fetch('/api/gpu-status'),
       fetch('/api/session'),
+      fetch('/api/models'),
     ]);
     const devs = (await devR.json()).devices || [];
     const gpuStatus = await statusR.json();
     const session = await sessionR.json();
+    const modelsData = await modelsR.json();
+    const tpActiveModel = modelsData.active_model || null;
 
     // Sort by VRAM desc — rank 0 = highest VRAM
     const sorted = devs.sort((a, b) => (b.gpu_vram_mb || 0) - (a.gpu_vram_mb || 0));
@@ -972,10 +975,27 @@ async function _pollTp2Status() {
     const onlineCount = [r0data, r1data].filter(d => d && d.online).length;
     const totalGpus = [r0data, r1data].filter(Boolean).length;
     const chatBtn = document.getElementById('tp-chat-btn');
-    // Check if both ranks have models loaded (from gpu-status or devices)
-    const bothLoaded = r0data && r0data.online && r1data && r1data.online &&
-      (_allModels._activeModel || session.status === 'matched');
-    if (session.status === 'matched' || bothLoaded) {
+    // Update TP card model names and unload buttons
+    if (tpActiveModel) {
+      currentModel = tpActiveModel;
+      const modelName = _cleanGpuName(tpActiveModel).replace(/-tp\d.*/, '').replace(/-/g, ' ');
+      for (let i = 0; i < 2; i++) {
+        const mel = document.getElementById(`tp2-gpu${i}-model`);
+        const uel = document.getElementById(`tp2-gpu${i}-unload`);
+        if (mel) { mel.textContent = modelName; mel.classList.add('loaded'); }
+        if (uel) uel.style.display = '';
+      }
+    } else {
+      for (let i = 0; i < 2; i++) {
+        const mel = document.getElementById(`tp2-gpu${i}-model`);
+        const uel = document.getElementById(`tp2-gpu${i}-unload`);
+        if (mel) { mel.textContent = 'No model loaded'; mel.classList.remove('loaded'); }
+        if (uel) uel.style.display = 'none';
+      }
+    }
+
+    const bothOnlineAndLoaded = onlineCount >= 2 && tpActiveModel;
+    if (session.status === 'matched' || bothOnlineAndLoaded) {
       _setStepBanner('READY', 'Inference ready', 'matched', 'tp');
       if (chatBtn) chatBtn.style.display = '';
     } else if (onlineCount >= 2) {

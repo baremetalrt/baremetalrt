@@ -392,7 +392,7 @@ def init_transport(rank: int, peer_ip: str, coordinator_ip: str):
         try:
             resp = httpx.get(f"{peer_url}/api/status", timeout=5.0)
             data = resp.json()
-            if data.get("status") in ("registered", "ready", "matched"):
+            if data.get("status") in ("registered", "ready", "matched", "loading"):
                 log.info(f"Transport: peer is online ({data.get('status')})")
                 break
         except Exception:
@@ -968,6 +968,8 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
         return {"error": f"{os.path.basename(rank_file)} not found in {engine_dir}"}
 
     log.info(f"Loading model: {model_id} (tp={tp}, rank={rank})...")
+    state.status = "loading"
+    state.error = ""
 
     # Unload current engine (free GPU memory)
     if state.engine:

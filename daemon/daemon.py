@@ -977,15 +977,10 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
         import torch
         torch.cuda.empty_cache()
 
-    # Load engine FIRST (demo order: plugins → engine → transport)
+    # Load engine FIRST (demo order: plugins → engine → transport → warmup)
     try:
         state.engine = TRTEngine(rank_file)
         log.info(f"Engine loaded: {os.path.basename(rank_file)}")
-        # Warmup
-        for i in range(3):
-            _, ms = state.engine.infer([1, 450, 7483])
-        state.engine.reset_kv_cache()
-        log.info(f"Warmup done")
     except Exception as e:
         state.engine = None
         state.status = "error"
@@ -993,7 +988,7 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
         log.error(state.error)
         return {"error": state.error}
 
-    # For TP=2: init transport AFTER engine load (demo order)
+    # For TP=2: init transport AFTER engine load, BEFORE warmup
     if tp >= 2 and rank is not None and peer_ip:
         log.info(f"TP={tp} load: initializing transport (rank={rank}, peer={peer_ip})")
         state.rank = rank
@@ -1002,6 +997,15 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
         if not ok:
             return {"error": "TCP transport init failed — peer may not be ready"}
         init_signal_socket(rank, peer_ip)
+
+    # Warmup (after transport for TP — AllReduce needs both ranks)
+    try:
+        for i in range(3):
+            _, ms = state.engine.infer([1, 450, 7483])
+        state.engine.reset_kv_cache()
+        log.info(f"Warmup done")
+    except Exception as e:
+        log.warning(f"Warmup failed: {e} (non-fatal)")
 
     # Load tokenizer (rank 0 only for TP, or always for single GPU)
     if rank is None or rank == 0:

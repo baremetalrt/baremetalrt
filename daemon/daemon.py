@@ -1137,6 +1137,21 @@ def _ws_bridge_worker(orchestrator_url: str):
                         continue
                     req_data = json.loads(msg)
                     msg_type = req_data.get("type", "chat")
+                    _rid = req_data.pop("_req_id", None)
+
+                    # Wrap ws.send to auto-inject request ID for relay correlation
+                    _orig_ws_send = getattr(ws, '_orig_send', ws.send)
+                    ws._orig_send = _orig_ws_send
+                    def _tracked_send(data, _rid=_rid, _orig=_orig_ws_send):
+                        if _rid and isinstance(data, str) and data.startswith('{'):
+                            try:
+                                d = json.loads(data)
+                                d["_req_id"] = _rid
+                                data = json.dumps(d)
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                        _orig(data)
+                    ws.send = _tracked_send
 
                     if msg_type == "system_info":
                         try:

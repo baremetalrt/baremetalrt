@@ -228,21 +228,30 @@ def _get_conn(node_id: str = None, user_id: str = None) -> Optional[DaemonConnec
     return None
 
 
+_req_counter = 0
+
 async def _relay_to_daemon(
     payload: dict, timeout_s: float = 30.0,
     node_id: str = None, user_id: str = None,
 ) -> dict:
-    """Send a command to a daemon via WS and wait for a JSON response."""
+    """Send a command to a daemon via WS and wait for a matched response."""
+    global _req_counter
     conn = _get_conn(node_id, user_id)
     if not conn:
         return {"error": "No GPU node connected"}
 
     async with conn.lock:
+        # Drain stale messages
         while not conn.queue.empty():
             try:
                 conn.queue.get_nowait()
             except asyncio.QueueEmpty:
                 break
+
+        # Add request ID for correlation
+        _req_counter += 1
+        req_id = str(_req_counter)
+        payload["_req_id"] = req_id
 
         try:
             await conn.ws.send_text(json.dumps(payload))
@@ -250,18 +259,24 @@ async def _relay_to_daemon(
             return {"error": f"Failed to reach GPU node: {e}"}
 
         try:
-            for _ in range(10):
+            for _ in range(20):
                 msg = await asyncio.wait_for(conn.queue.get(), timeout=timeout_s)
                 if msg is None:
                     return {"error": "GPU node disconnected"}
                 if msg.startswith('data:'):
                     continue
-                return json.loads(msg)
+                try:
+                    resp = json.loads(msg)
+                except json.JSONDecodeError:
+                    continue
+                # Accept if response has matching ID, or no ID (legacy daemon)
+                resp_id = resp.pop("_req_id", None)
+                if resp_id == req_id or resp_id is None:
+                    return resp
+                # Stale response from previous request — discard and keep waiting
             return {"error": "No valid response from GPU node"}
         except asyncio.TimeoutError:
             return {"error": "Timeout waiting for GPU node"}
-        except json.JSONDecodeError:
-            return {"error": "Invalid response from GPU node"}
 
 
 async def _resolve_target(request: Request) -> tuple[Optional[str], Optional[str]]:

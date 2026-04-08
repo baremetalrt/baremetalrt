@@ -1000,14 +1000,28 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
             return {"error": "TCP transport init failed — peer may not be ready"}
         init_signal_socket(rank, peer_ip)
 
-    # Warmup (after transport for TP — AllReduce needs both ranks)
-    try:
-        for i in range(3):
-            _, ms = state.engine.infer([1, 450, 7483])
-        state.engine.reset_kv_cache()
-        log.info(f"Warmup done")
-    except Exception as e:
-        log.warning(f"Warmup failed: {e} (non-fatal)")
+    # Warmup
+    if tp >= 2 and rank == 0:
+        # TP rank 0: signal rank 1 to participate via context_phase coordination
+        try:
+            warmup_ids = [1, 450, 7483]
+            _signal_send_context(warmup_ids)
+            state.engine.context_phase(warmup_ids)
+            state.engine.reset_kv_cache()
+            log.info("TP warmup done (rank 0 + rank 1 synchronized)")
+        except Exception as e:
+            log.warning(f"TP warmup failed: {e} (non-fatal)")
+    elif tp >= 2 and rank == 1:
+        # Rank 1: follower thread handles warmup signals — nothing to do here
+        log.info("TP rank 1 — warmup handled by follower thread")
+    else:
+        try:
+            for i in range(3):
+                _, ms = state.engine.infer([1, 450, 7483])
+            state.engine.reset_kv_cache()
+            log.info("Warmup done")
+        except Exception as e:
+            log.warning(f"Warmup failed: {e} (non-fatal)")
 
     # Load tokenizer (rank 0 only for TP, or always for single GPU)
     if rank is None or rank == 0:

@@ -350,7 +350,7 @@ async function checkNode() {
       badge.className = 'status-badge online';
       badge.textContent = 'READY';
       document.getElementById('status-dot').className = 'dot green';
-      document.getElementById('model-info').textContent = 'GPU connected';
+      document.getElementById('model-info').textContent = _gpuMode === '2gpu' ? 'TP connected' : 'GPU connected';
       if (_gpuMode === '1gpu') {
         if (currentModel && currentModel !== 'default') {
           _setStepBanner('READY', 'Chat with ' + currentModel, 'matched', '1gpu');
@@ -380,6 +380,12 @@ async function checkNode() {
         if (dn && dn.textContent && dn.textContent !== 'Detecting GPU...' && dn.textContent !== 'No model loaded') {
           currentModel = dn.textContent;
         }
+      }
+      // Set chat model indicator for TP mode
+      if (_gpuMode === '2gpu' && currentModel) {
+        const cm = document.getElementById('chat-model-text');
+        if (cm) cm.textContent = currentModel.replace(/-tp\d.*/, '').replace(/-/g, ' ') + ' \u00b7 TP';
+        document.getElementById('prompt').placeholder = 'Chat with ' + currentModel.replace(/-tp\d.*/, '').replace(/-/g, ' ') + '...';
       }
       if (conversationHistory.length > 0 && currentView !== 'models') {
         showChat();

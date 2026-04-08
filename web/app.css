@@ -641,6 +641,12 @@ pre:hover .copy-btn { opacity: 1; }
   color: #fff; animation: none;
   text-shadow: 0 0 20px rgba(200,200,220,0.2);
 }
+.tp-unload-btn {
+  display: block; margin: 4px auto; font-size: 9px; padding: 3px 10px;
+  border: 1px solid #9898a4; background: transparent; color: #9898a4;
+  cursor: pointer; font-family: inherit; letter-spacing: 1px; text-transform: uppercase;
+}
+.tp-unload-btn:hover { border-color: #f43f5e; color: #f43f5e; }
 .tp-node-status {
   padding: 6px 14px;
   text-align: center; font-size: 10px; font-weight: 600;

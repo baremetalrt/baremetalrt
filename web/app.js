@@ -972,8 +972,11 @@ async function _pollTp2Status() {
     const onlineCount = [r0data, r1data].filter(d => d && d.online).length;
     const totalGpus = [r0data, r1data].filter(Boolean).length;
     const chatBtn = document.getElementById('tp-chat-btn');
-    if (session.status === 'matched') {
-      _setStepBanner('READY', 'Session matched \u2014 ready for inference', 'matched', 'tp');
+    // Check if both ranks have models loaded (from gpu-status or devices)
+    const bothLoaded = r0data && r0data.online && r1data && r1data.online &&
+      (_allModels._activeModel || session.status === 'matched');
+    if (session.status === 'matched' || bothLoaded) {
+      _setStepBanner('READY', 'Inference ready', 'matched', 'tp');
       if (chatBtn) chatBtn.style.display = '';
     } else if (onlineCount >= 2) {
       if (_tpSelectedModel) {
@@ -1478,6 +1481,18 @@ async function unloadModel() {
   await loadModels();
   await checkNode();
   _setStepBanner('GPU ONLINE', 'Select a model below', 'active', mode);
+}
+
+async function unloadTpModel() {
+  _setStepBanner('UNLOADING', 'Freeing VRAM on both GPUs...', 'active', 'tp');
+  // Unload on both daemons
+  await fetch('/api/unload', { method: 'POST', headers: { ..._apiHeaders(), 'X-GPU-Mode': 'tp2' } });
+  currentModel = null;
+  _allModels._activeModel = '';
+  _allModels._activeModelId = '';
+  await new Promise(r => setTimeout(r, 1000));
+  _pollTp2Status();
+  loadModels();
 }
 
 async function restartDaemon() {

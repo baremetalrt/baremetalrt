@@ -1137,7 +1137,16 @@ def _ws_bridge_worker(orchestrator_url: str):
                     try:
                         msg = ws.recv(timeout=90)
                     except TimeoutError:
+                        # Check if connection is still alive
+                        try:
+                            ws.ping()
+                        except Exception:
+                            log.warning("WS bridge: connection dead, breaking to reconnect")
+                            break
                         continue
+                    except Exception as e:
+                        log.warning(f"WS bridge: recv error ({e}), breaking to reconnect")
+                        break
                     # Skip keepalive echoes or empty messages
                     if not msg or '"keepalive"' in msg:
                         continue
@@ -2591,6 +2600,13 @@ def background_worker(orchestrator_url: str, port: int, engine_pref: str = None)
     state.engine_name = eng["name"]
     state.engine_dir = eng["path"]
     log.info(f"Engine (override): {eng['name']} (ranks: {eng['ranks']})")
+
+    # Don't auto-load TP engines — they need the server to assign ranks and init transport
+    if "tp2" in eng["name"] or (len(eng["ranks"]) > 1):
+        log.info(f"TP engine found — skipping auto-load. Use Home · TP to load.")
+        state.status = "ready"
+        _hold_alive()
+        return
 
     state.rank = 0
     rank_file = os.path.join(state.engine_dir, f"rank{state.rank}.engine")

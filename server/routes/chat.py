@@ -478,15 +478,19 @@ async def tp2_load(model_id: str, request: Request):
     rank0_ip = str(r0_row["ip"]) if r0_row else "0.0.0.0"
     rank1_ip = str(r1_row["ip"]) if r1_row else "0.0.0.0"
 
-    # Load on both daemons — rank 1 first (it listens), then rank 0 (it connects)
-    r1 = await _relay_to_daemon(
-        {"type": "load", "model_id": model_id, "tp": 2, "rank": 1, "peer_ip": rank0_ip},
-        timeout_s=120.0, node_id=r1_id,
+    # Load on both daemons simultaneously — both block waiting for peer
+    # Rank 0 = coordinator (listens on 8081), Rank 1 = worker (connects to rank 0)
+    r0_result, r1_result = await asyncio.gather(
+        _relay_to_daemon(
+            {"type": "load", "model_id": model_id, "tp": 2, "rank": 0, "peer_ip": rank1_ip},
+            timeout_s=120.0, node_id=r0_id,
+        ),
+        _relay_to_daemon(
+            {"type": "load", "model_id": model_id, "tp": 2, "rank": 1, "peer_ip": rank0_ip},
+            timeout_s=120.0, node_id=r1_id,
+        ),
     )
-    r0 = await _relay_to_daemon(
-        {"type": "load", "model_id": model_id, "tp": 2, "rank": 0, "peer_ip": rank1_ip},
-        timeout_s=120.0, node_id=r0_id,
-    )
+    r0, r1 = r0_result, r1_result
     return {"rank0": r0, "rank1": r1}
 
 

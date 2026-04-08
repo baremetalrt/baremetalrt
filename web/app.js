@@ -404,10 +404,12 @@ async function checkNode() {
       document.getElementById('gpu-engine-display').textContent = '';
     }
   } catch(e) {
-    badge.className = 'status-badge loading';
-    badge.textContent = 'CHECKING';
-    document.getElementById('status-dot').className = 'dot yellow';
-    document.getElementById('model-info').textContent = 'Checking connection...';
+    const _b = document.getElementById('header-status');
+    if (_b) { _b.className = 'status-badge loading'; _b.textContent = 'CHECKING'; }
+    const _d = document.getElementById('status-dot');
+    if (_d) _d.className = 'dot yellow';
+    const _m = document.getElementById('model-info');
+    if (_m) _m.textContent = 'Checking connection...';
   }
 }
 
@@ -978,8 +980,9 @@ async function _pollTp2Status() {
         _setStepBanner('STEP 1 \u00b7 PULL', 'Downloading on both machines...', 'active', 'tp');
       } else {
         // Check what the user needs to do next based on model state
-        const hasDownloaded = (_allModels || []).some(m => m.downloaded && m.vram_fp16_mb > smallestVram);
-        const hasBuilt = (_allModels || []).some(m => m.engine_built && m.vram_fp16_mb > smallestVram);
+        const _sv = _userDevices.length > 0 ? Math.min(..._userDevices.map(d => d.gpu_vram_mb || 0)) : 0;
+        const hasDownloaded = (_allModels || []).some(m => m.downloaded && m.vram_fp16_mb > _sv);
+        const hasBuilt = (_allModels || []).some(m => m.engine_built && m.vram_fp16_mb > _sv);
         if (hasBuilt) {
           _setStepBanner(`${onlineCount} GPUS ONLINE`, 'Load a model', 'active', 'tp');
         } else if (hasDownloaded) {

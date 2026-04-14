@@ -208,16 +208,11 @@ async def ws_chat_bridge(ws: WebSocket):
         else:
             node_id = f"ws_{key_hash[:8]}"
 
-    # Close old connection if this node_id already has one (prevents duplicate readers)
-    old_conn = _daemon_connections.get(node_id)
+    # Remove old connection if this node_id already has one (prevents duplicate readers)
+    old_conn = _daemon_connections.pop(node_id, None)
     if old_conn:
         old_conn.reader_task.cancel()
-        try:
-            await old_conn.ws.close()
-        except Exception:
-            pass
-        del _daemon_connections[node_id]
-        log.info(f"WS bridge: closed stale connection for {node_id}")
+        log.info(f"WS bridge: replaced stale connection for {node_id}")
 
     await ws.accept()
 

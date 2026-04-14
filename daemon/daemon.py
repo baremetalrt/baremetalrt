@@ -959,6 +959,10 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
 
     engine_dir = model["engine_dir"]
 
+    # Refuse to load TP2 engines in solo GPU mode — they produce gibberish alone
+    if tp < 2 and ("tp2" in Path(engine_dir).name or "tp2" in (model.get("engine_dir") or "")):
+        return {"error": "This model was built for TP mode. Switch to Home · TP to load it."}
+
     # Determine rank file
     if tp >= 2 and rank is not None:
         rank_file = os.path.join(engine_dir, f"rank{rank}.engine")

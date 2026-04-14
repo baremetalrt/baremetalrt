@@ -253,7 +253,7 @@ async def ws_chat_bridge(ws: WebSocket):
             await old_conn.ws.close(code=4000, reason="Replaced by new connection")
         except Exception:
             pass
-        del _daemon_connections[node_id]
+        _daemon_connections.pop(node_id, None)
         log.info(f"WS bridge: replaced connection for {node_id} (epoch {my_epoch})")
 
     # Throttle rapid reconnects from old daemons with duplicate bridge threads

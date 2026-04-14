@@ -129,7 +129,12 @@ async def gpu_metrics_all(request: Request):
     results = {}
     for nid, r in zip(nids, responses):
         if isinstance(r, Exception):
+            log.warning(f"gpu_metrics_all: {nid} exception: {r}")
             results[nid] = {"error": str(r), "node_id": nid}
+        elif isinstance(r, dict) and r.get("error"):
+            log.warning(f"gpu_metrics_all: {nid} error: {r['error']}")
+            r["node_id"] = nid
+            results[nid] = r
         else:
             r["node_id"] = nid
             results[nid] = r
@@ -346,6 +351,7 @@ async def _relay_to_daemon(
         resp.pop("_req_id", None)
         return resp
     except asyncio.TimeoutError:
+        log.warning(f"Relay timeout: {payload.get('type','?')} to {conn.node_id} (req_id={req_id}, pending={list(conn.pending.keys())})")
         return {"error": "Timeout waiting for GPU node"}
     except json.JSONDecodeError:
         return {"error": "Invalid response from GPU node"}

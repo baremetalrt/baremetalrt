@@ -115,11 +115,22 @@ async def gpu_metrics_all(request: Request):
         return {"nodes": []}
     user_id = str(user["id"])
     user_conns = {nid: dc for nid, dc in _daemon_connections.items() if dc.user_id == user_id}
+    if not user_conns:
+        return {"nodes": {}}
+    # Fetch metrics from all nodes concurrently
+    import asyncio as _aio
+    nids = list(user_conns.keys())
+    responses = await _aio.gather(*[
+        _relay_to_daemon({"type": "gpu_metrics"}, timeout_s=5.0, node_id=nid)
+        for nid in nids
+    ], return_exceptions=True)
     results = {}
-    for nid in user_conns:
-        r = await _relay_to_daemon({"type": "gpu_metrics"}, timeout_s=5.0, node_id=nid)
-        r["node_id"] = nid
-        results[nid] = r
+    for nid, r in zip(nids, responses):
+        if isinstance(r, Exception):
+            results[nid] = {"error": str(r), "node_id": nid}
+        else:
+            r["node_id"] = nid
+            results[nid] = r
     return {"nodes": results}
 
 

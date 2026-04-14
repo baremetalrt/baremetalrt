@@ -273,30 +273,24 @@ async def _relay_to_daemon(
             return {"error": f"Failed to reach GPU node: {e}"}
 
         try:
-            # First try the per-request queue (new daemons with _req_id)
-            # Fall back to default queue (old daemons without _req_id)
-            for _ in range(20):
-                # Check both queues with a short timeout
-                try:
-                    msg = await asyncio.wait_for(req_queue.get(), timeout=min(timeout_s, 2.0))
-                except asyncio.TimeoutError:
-                    # Try default queue (old daemon may have sent without _req_id)
+            deadline = asyncio.get_event_loop().time() + timeout_s
+            while asyncio.get_event_loop().time() < deadline:
+                # Check both queues — per-request (new daemon) and default (old daemon)
+                for q in [req_queue, conn.queue]:
                     try:
-                        msg = await asyncio.wait_for(conn.queue.get(), timeout=min(timeout_s - 2.0, 0.5))
+                        msg = await asyncio.wait_for(q.get(), timeout=0.5)
                     except asyncio.TimeoutError:
                         continue
-                if msg is None:
-                    return {"error": "GPU node disconnected"}
-                if msg.startswith('data:'):
-                    continue
-                try:
-                    resp = json.loads(msg)
-                    resp.pop("_req_id", None)
-                    return resp
-                except json.JSONDecodeError:
-                    continue
-            return {"error": "No valid response from GPU node"}
-        except asyncio.TimeoutError:
+                    if msg is None:
+                        return {"error": "GPU node disconnected"}
+                    if msg.startswith('data:'):
+                        continue
+                    try:
+                        resp = json.loads(msg)
+                        resp.pop("_req_id", None)
+                        return resp
+                    except json.JSONDecodeError:
+                        continue
             return {"error": "Timeout waiting for GPU node"}
         finally:
             conn.pending.pop(req_id, None)

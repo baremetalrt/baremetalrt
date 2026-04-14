@@ -1220,13 +1220,16 @@ def _ws_bridge_worker(orchestrator_url: str):
                             mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
                             temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
                             util = pynvml.nvmlDeviceGetUtilizationRates(handle)
-                            power = pynvml.nvmlDeviceGetPowerUsage(handle) / 1000  # mW to W
+                            try:
+                                power = round(pynvml.nvmlDeviceGetPowerUsage(handle) / 1000)
+                            except Exception:
+                                power = None
                             ws.send(json.dumps({
                                 "vram_used_mb": round(mem.used / 1024 / 1024),
                                 "vram_total_mb": round(mem.total / 1024 / 1024),
                                 "temperature_c": temp,
                                 "gpu_util_pct": util.gpu,
-                                "power_w": round(power),
+                                "power_w": power,
                             }))
                         except Exception as e:
                             ws.send(json.dumps({"error": str(e)}))

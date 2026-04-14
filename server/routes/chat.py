@@ -289,7 +289,7 @@ async def ws_chat_bridge(ws: WebSocket):
         pass
     finally:
         if _daemon_connections.get(node_id) is conn:
-            del _daemon_connections[node_id]
+            _daemon_connections.pop(node_id, None)
             log.warning(f"WS bridge: {node_id} disconnected (total={len(_daemon_connections)})")
             if _active_node.get(user_id) == node_id:
                 _auto_select_active(user_id)

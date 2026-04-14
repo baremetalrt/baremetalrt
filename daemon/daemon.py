@@ -1062,14 +1062,24 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
 # Connects outbound to the orchestrator's /ws/chat_bridge endpoint.
 # Receives chat requests, runs inference, streams tokens back — no tunnel needed.
 
+_bridge_started = False
+_bridge_lock = threading.Lock()
+
 def _register_and_bridge(orchestrator_url: str, port: int):
     """Connect WS bridge + register + start heartbeat with orchestrator."""
+    global _bridge_started
     import httpx
-    log.info("Connecting WS bridge to orchestrator...")
-    threading.Thread(
-        target=_ws_bridge_worker, args=(orchestrator_url,),
-        daemon=True,
-    ).start()
+
+    with _bridge_lock:
+        if _bridge_started:
+            log.info("WS bridge already running, skipping duplicate start")
+        else:
+            _bridge_started = True
+            log.info("Connecting WS bridge to orchestrator...")
+            threading.Thread(
+                target=_ws_bridge_worker, args=(orchestrator_url,),
+                daemon=True,
+            ).start()
 
     auth_headers = {}
     if state.api_key:
@@ -1589,6 +1599,11 @@ def _ws_bridge_worker(orchestrator_url: str):
                             except Exception:
                                 pass
         except Exception as e:
+            # If server closed us with code 4000, we've been replaced — stop this thread
+            err_str = str(e)
+            if "4000" in err_str:
+                log.info("WS bridge: replaced by newer connection, stopping thread")
+                return
             log.warning(f"WS bridge: disconnected ({e}), reconnecting in 3s...")
             time.sleep(3)
 

@@ -25,12 +25,14 @@ router = APIRouter(tags=["chat"])
 @dataclass
 class DaemonConnection:
     ws: WebSocket
-    queue: asyncio.Queue           # default queue for unmatched messages (SSE, etc)
-    reader_task: asyncio.Task
     node_id: str
     user_id: str
+    reader_task: asyncio.Task
+    epoch: int = 0
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    pending: dict = field(default_factory=dict)  # _req_id -> asyncio.Queue (per-request)
+    pending: dict = field(default_factory=dict)       # _req_id -> asyncio.Future
+    chat_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
+    _closed: bool = False
 
 
 # node_id -> DaemonConnection
@@ -134,31 +136,56 @@ async def gpu_metrics_all(request: Request):
     return {"nodes": results}
 
 
-async def _ws_reader(ws: WebSocket, q: asyncio.Queue, conn_ref: list):
-    """Reader dispatches responses to per-request queues by _req_id, or default queue."""
+async def _ws_reader(ws: WebSocket, conn_ref: list):
+    """3-tier dispatch: _req_id→Future, SSE→chat_queue, old daemon→oldest Future."""
     try:
         while True:
-            msg = await ws.receive_text()
-            if msg and '"keepalive"' in msg:
+            raw = await ws.receive_text()
+            if not raw or '"keepalive"' in raw:
                 continue
-            # Try to route by _req_id
-            conn = conn_ref[0] if conn_ref else None
-            if conn and msg and msg.startswith('{'):
+
+            conn = conn_ref[0]
+            if conn is None or conn._closed:
+                break
+
+            # Tier 1: JSON with _req_id → resolve matching Future
+            if raw.startswith('{'):
                 try:
-                    peek = json.loads(msg)
+                    peek = json.loads(raw)
                     rid = peek.get("_req_id")
-                    if rid and rid in conn.pending:
-                        await conn.pending[rid].put(msg)
-                        continue
+                    if rid:
+                        fut = conn.pending.get(rid)
+                        if fut and not fut.done():
+                            fut.set_result(raw)
+                        continue  # drop stale _req_id responses too
                 except (json.JSONDecodeError, TypeError):
                     pass
-            await q.put(msg)
+
+            # Tier 2: SSE data lines → chat_queue
+            if raw.startswith('data:'):
+                await conn.chat_queue.put(raw)
+                continue
+
+            # Tier 3: JSON without _req_id (old daemon) → oldest pending Future
+            if raw.startswith('{') and conn.pending:
+                for _rid, fut in conn.pending.items():
+                    if not fut.done():
+                        fut.set_result(raw)
+                        break
+                continue
+
     except WebSocketDisconnect:
-        await q.put(None)
-        # Signal all pending request queues
-        if conn_ref and conn_ref[0]:
-            for pq in conn_ref[0].pending.values():
-                await pq.put(None)
+        pass
+    except Exception as e:
+        log.warning(f"WS reader [{conn_ref[0].node_id if conn_ref and conn_ref[0] else '?'}]: {e}")
+    finally:
+        conn = conn_ref[0] if conn_ref else None
+        if conn:
+            conn._closed = True
+            for fut in conn.pending.values():
+                if not fut.done():
+                    fut.set_result(None)
+            await conn.chat_queue.put(None)
 
 
 @router.websocket("/ws/chat_bridge")
@@ -208,40 +235,62 @@ async def ws_chat_bridge(ws: WebSocket):
         else:
             node_id = f"ws_{key_hash[:8]}"
 
-    # Remove old connection if this node_id already has one (prevents duplicate readers)
-    old_conn = _daemon_connections.pop(node_id, None)
+    # Clean replacement: close old connection for this node_id
+    _conn_epoch = getattr(ws_chat_bridge, '_epoch', {})
+    ws_chat_bridge._epoch = _conn_epoch
+    _conn_epoch[node_id] = _conn_epoch.get(node_id, 0) + 1
+    my_epoch = _conn_epoch[node_id]
+
+    old_conn = _daemon_connections.get(node_id)
     if old_conn:
+        old_conn._closed = True
         old_conn.reader_task.cancel()
-        log.info(f"WS bridge: replaced stale connection for {node_id}")
+        for fut in old_conn.pending.values():
+            if not fut.done():
+                fut.set_result(None)
+        await old_conn.chat_queue.put(None)
+        try:
+            await old_conn.ws.close(code=4000, reason="Replaced by new connection")
+        except Exception:
+            pass
+        del _daemon_connections[node_id]
+        log.info(f"WS bridge: replaced connection for {node_id} (epoch {my_epoch})")
+
+    # Throttle rapid reconnects from old daemons with duplicate bridge threads
+    import time as _time
+    _last_replace = getattr(ws_chat_bridge, '_last_replace', {})
+    ws_chat_bridge._last_replace = _last_replace
+    if node_id in _last_replace and (_time.time() - _last_replace[node_id]) < 2.0:
+        await asyncio.sleep(3.0)
+    _last_replace[node_id] = _time.time()
 
     await ws.accept()
 
-    queue = asyncio.Queue()
-    conn_ref = [None]  # mutable ref so reader can access conn
-    reader = asyncio.create_task(_ws_reader(ws, queue, conn_ref))
+    conn_ref = [None]
+    reader = asyncio.create_task(_ws_reader(ws, conn_ref))
 
     conn = DaemonConnection(
-        ws=ws, queue=queue, reader_task=reader,
-        node_id=node_id, user_id=user_id,
+        ws=ws, node_id=node_id, user_id=user_id,
+        reader_task=reader, epoch=my_epoch,
     )
     conn_ref[0] = conn
     _daemon_connections[node_id] = conn
 
-    # Auto-select if user has no active node
     if user_id not in _active_node or _active_node[user_id] not in _daemon_connections:
         _auto_select_active(user_id)
 
-    log.info(f"WS bridge: {node_id} connected [user={user_id[:8]}] (total: {len(_daemon_connections)})")
+    log.info(f"WS bridge: {node_id} connected (epoch={my_epoch}, total={len(_daemon_connections)})")
 
     try:
         await reader
+    except asyncio.CancelledError:
+        pass
     except Exception:
         pass
     finally:
-        await asyncio.sleep(2)
         if _daemon_connections.get(node_id) is conn:
             del _daemon_connections[node_id]
-            log.warning(f"WS bridge: {node_id} disconnected (total: {len(_daemon_connections)})")
+            log.warning(f"WS bridge: {node_id} disconnected (total={len(_daemon_connections)})")
             if _active_node.get(user_id) == node_id:
                 _auto_select_active(user_id)
 
@@ -275,42 +324,33 @@ async def _relay_to_daemon(
     if not conn:
         return {"error": "No GPU node connected"}
 
-    async with conn.lock:
-        # Create per-request queue
-        _req_counter += 1
-        req_id = str(_req_counter)
-        payload["_req_id"] = req_id
-        req_queue = asyncio.Queue()
-        conn.pending[req_id] = req_queue
+    _req_counter += 1
+    req_id = str(_req_counter)
+    payload["_req_id"] = req_id
 
-        try:
+    fut = asyncio.get_event_loop().create_future()
+    conn.pending[req_id] = fut
+
+    try:
+        async with conn.lock:  # lock ONLY during send
             await conn.ws.send_text(json.dumps(payload))
-        except Exception as e:
-            conn.pending.pop(req_id, None)
-            return {"error": f"Failed to reach GPU node: {e}"}
+    except Exception as e:
+        conn.pending.pop(req_id, None)
+        return {"error": f"Failed to reach GPU node: {e}"}
 
-        try:
-            deadline = asyncio.get_event_loop().time() + timeout_s
-            while asyncio.get_event_loop().time() < deadline:
-                # Check both queues — per-request (new daemon) and default (old daemon)
-                for q in [req_queue, conn.queue]:
-                    try:
-                        msg = await asyncio.wait_for(q.get(), timeout=0.5)
-                    except asyncio.TimeoutError:
-                        continue
-                    if msg is None:
-                        return {"error": "GPU node disconnected"}
-                    if msg.startswith('data:'):
-                        continue
-                    try:
-                        resp = json.loads(msg)
-                        resp.pop("_req_id", None)
-                        return resp
-                    except json.JSONDecodeError:
-                        continue
-            return {"error": "Timeout waiting for GPU node"}
-        finally:
-            conn.pending.pop(req_id, None)
+    try:
+        raw = await asyncio.wait_for(fut, timeout=timeout_s)
+        if raw is None:
+            return {"error": "GPU node disconnected"}
+        resp = json.loads(raw)
+        resp.pop("_req_id", None)
+        return resp
+    except asyncio.TimeoutError:
+        return {"error": "Timeout waiting for GPU node"}
+    except json.JSONDecodeError:
+        return {"error": "Invalid response from GPU node"}
+    finally:
+        conn.pending.pop(req_id, None)
 
 
 async def _resolve_target(request: Request) -> tuple[Optional[str], Optional[str]]:
@@ -566,23 +606,29 @@ async def proxy_chat(request: Request):
 
     body = await request.body()
 
-    async with conn.lock:
-        while not conn.queue.empty():
-            try:
-                conn.queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
+    # Drain stale chat messages
+    while not conn.chat_queue.empty():
+        try:
+            conn.chat_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
 
+    async with conn.lock:  # lock only for send
         try:
             await conn.ws.send_text(body.decode())
         except Exception as e:
             return JSONResponse(status_code=503, content={"error": f"Failed to reach GPU node: {e}"})
 
+    send_epoch = conn.epoch
+
     async def stream_from_ws():
         got_done = False
         try:
             while True:
-                msg = await asyncio.wait_for(conn.queue.get(), timeout=300.0)
+                if conn._closed or conn.epoch != send_epoch:
+                    yield f"data: {json.dumps({'error': 'Connection reset'})}\n\n"
+                    break
+                msg = await asyncio.wait_for(conn.chat_queue.get(), timeout=300.0)
                 if msg is None:
                     yield f"data: {json.dumps({'error': 'GPU node disconnected'})}\n\n"
                     break

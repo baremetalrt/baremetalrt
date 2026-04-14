@@ -1512,15 +1512,19 @@ def _ws_bridge_worker(orchestrator_url: str):
                         rank = req_data.get("rank")
                         peer_ip = req_data.get("peer_ip")
                         if tp >= 2:
-                            # TP load runs in background — transport init blocks
-                            def _do_tp_load(mid=model_id, _tp=tp, _r=rank, _p=peer_ip):
-                                result = _load_model(mid, tp=_tp, rank=_r, peer_ip=_p)
-                                if result.get("error"):
-                                    log.error(f"TP load error: {result['error']}")
-                                else:
-                                    log.info(f"TP load complete: rank={_r}")
-                            threading.Thread(target=_do_tp_load, daemon=True).start()
-                            ws.send(json.dumps({"status": "loading"}))
+                            if state.status == "loading":
+                                log.warning("Load already in progress, ignoring duplicate")
+                                ws.send(json.dumps({"status": "loading"}))
+                            else:
+                                # TP load runs in background — transport init blocks
+                                def _do_tp_load(mid=model_id, _tp=tp, _r=rank, _p=peer_ip):
+                                    result = _load_model(mid, tp=_tp, rank=_r, peer_ip=_p)
+                                    if result.get("error"):
+                                        log.error(f"TP load error: {result['error']}")
+                                    else:
+                                        log.info(f"TP load complete: rank={_r}")
+                                threading.Thread(target=_do_tp_load, daemon=True).start()
+                                ws.send(json.dumps({"status": "loading"}))
                         else:
                             result = _load_model(model_id, tp=tp, rank=rank, peer_ip=peer_ip)
                             ws.send(json.dumps(result))

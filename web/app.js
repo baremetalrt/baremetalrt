@@ -944,7 +944,7 @@ async function _pollTp2Status() {
       fetch('/api/devices'),
       fetch('/api/gpu-status'),
       fetch('/api/session'),
-      fetch('/api/models'),
+      fetch('/api/models', { headers: { 'X-GPU-Mode': 'tp2' } }),
     ]);
     const devs = (await devR.json()).devices || [];
     const gpuStatus = await statusR.json();

@@ -1084,27 +1084,35 @@ def _register_and_bridge(orchestrator_url: str, port: int):
     auth_headers = {}
     if state.api_key:
         auth_headers["Authorization"] = f"Bearer {state.api_key}"
-    try:
-        httpx.post(f"{orchestrator_url}/api/register", json={
-            "node_id": state.node_id,
-            "hostname": state.hostname,
-            "lan_ip": state.lan_ip,
-            "port": port,
-            "gpu_name": state.gpu_name,
-            "gpu_vram_total_mb": state.gpu_vram_mb,
-            "engine_name": state.engine_name,
-            "available_ranks": [0],
-        }, headers=auth_headers, timeout=10.0)
-        log.info("Registered with orchestrator")
-    except Exception as e:
-        log.warning(f"Could not register with orchestrator: {e}")
+
+    def _do_register():
+        try:
+            httpx.post(f"{orchestrator_url}/api/register", json={
+                "node_id": state.node_id,
+                "hostname": state.hostname,
+                "lan_ip": state.lan_ip,
+                "port": port,
+                "gpu_name": state.gpu_name,
+                "gpu_vram_total_mb": state.gpu_vram_mb,
+                "engine_name": state.engine_name,
+                "available_ranks": [0],
+            }, headers=auth_headers, timeout=10.0)
+            log.info("Registered with orchestrator")
+        except Exception as e:
+            log.warning(f"Could not register with orchestrator: {e}")
+
+    _do_register()  # initial registration
+    state._do_register = _do_register  # allow WS bridge to re-register on reconnect
 
     def _heartbeat_loop():
         while True:
             try:
                 resp = httpx.post(f"{orchestrator_url}/api/heartbeat/{state.node_id}",
                                   headers=auth_headers, timeout=5.0)
-                if resp.status_code == 401:
+                if resp.status_code == 404:
+                    log.info("Heartbeat 404 — server may have restarted, re-registering...")
+                    _do_register()
+                elif resp.status_code == 401:
                     log.info("API key revoked (401) — re-linking...")
                     state.api_key = ""
                     cfg = _load_config()
@@ -1140,6 +1148,13 @@ def _ws_bridge_worker(orchestrator_url: str):
             with ws_client.connect(bridge_url, close_timeout=5,
                                    ping_interval=20, ping_timeout=10) as ws:
                 log.info("WS bridge: connected to orchestrator")
+                _ws_send_lock = threading.Lock()
+                # Re-register on every reconnect (server may have restarted)
+                if hasattr(state, '_do_register'):
+                    try:
+                        state._do_register()
+                    except Exception:
+                        pass
 
                 # Keepalive thread — send data pings so Cloudflare doesn't kill us
                 def _ws_keepalive():
@@ -1173,10 +1188,10 @@ def _ws_bridge_worker(orchestrator_url: str):
                     msg_type = req_data.get("type", "chat")
                     _rid = req_data.pop("_req_id", None)
 
-                    # Wrap ws.send to auto-inject request ID for relay correlation
+                    # Wrap ws.send to auto-inject request ID + thread-safe lock
                     _orig_ws_send = getattr(ws, '_orig_send', ws.send)
                     ws._orig_send = _orig_ws_send
-                    def _tracked_send(data, _rid=_rid, _orig=_orig_ws_send):
+                    def _tracked_send(data, _rid=_rid, _orig=_orig_ws_send, _lock=_ws_send_lock):
                         if _rid and isinstance(data, str) and data.startswith('{'):
                             try:
                                 d = json.loads(data)
@@ -1184,7 +1199,8 @@ def _ws_bridge_worker(orchestrator_url: str):
                                 data = json.dumps(d)
                             except (json.JSONDecodeError, TypeError):
                                 pass
-                        _orig(data)
+                        with _lock:
+                            _orig(data)
                     ws.send = _tracked_send
 
                     if msg_type == "system_info":
@@ -1217,20 +1233,27 @@ def _ws_bridge_worker(orchestrator_url: str):
                             import pynvml
                             pynvml.nvmlInit()
                             handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-                            mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
-                            temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
-                            util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                            result = {}
                             try:
-                                power = round(pynvml.nvmlDeviceGetPowerUsage(handle) / 1000)
+                                mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                                result["vram_used_mb"] = round(mem.used / 1024 / 1024)
+                                result["vram_total_mb"] = round(mem.total / 1024 / 1024)
                             except Exception:
-                                power = None
-                            ws.send(json.dumps({
-                                "vram_used_mb": round(mem.used / 1024 / 1024),
-                                "vram_total_mb": round(mem.total / 1024 / 1024),
-                                "temperature_c": temp,
-                                "gpu_util_pct": util.gpu,
-                                "power_w": power,
-                            }))
+                                pass
+                            try:
+                                result["temperature_c"] = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
+                            except Exception:
+                                pass
+                            try:
+                                util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                                result["gpu_util_pct"] = util.gpu
+                            except Exception:
+                                pass
+                            try:
+                                result["power_w"] = round(pynvml.nvmlDeviceGetPowerUsage(handle) / 1000)
+                            except Exception:
+                                pass
+                            ws.send(json.dumps(result))
                         except Exception as e:
                             ws.send(json.dumps({"error": str(e)}))
 
@@ -1582,29 +1605,31 @@ def _ws_bridge_worker(orchestrator_url: str):
                             ws.send(json.dumps({"status": "no_model"}))
 
                     else:
-                        # Default: chat message
-                        message = req_data.get("message", "")
-                        max_tokens = min(req_data.get("max_tokens", 2048), 4096)
-                        history = req_data.get("history", [])
-                        try:
-                            for chunk in _generate_tokens(message, max_tokens, history):
-                                ws.send(chunk)
-                        except Exception as e:
-                            log.error(f"WS bridge: inference error: {e}")
-                            # Reset CUDA state to recover from GPU errors
+                        # Default: chat message — run in background to keep recv loop alive
+                        _chat_msg = req_data.get("message", "")
+                        _chat_max = min(req_data.get("max_tokens", 2048), 4096)
+                        _chat_hist = req_data.get("history", [])
+                        _chat_ws_send = ws.send  # capture current _tracked_send with _rid
+                        def _do_chat(msg=_chat_msg, mx=_chat_max, hist=_chat_hist, send=_chat_ws_send):
                             try:
-                                import torch
-                                if state.engine:
-                                    state.engine.reset_kv_cache()
-                                torch.cuda.empty_cache()
-                                log.info("CUDA state reset after error")
-                            except Exception:
-                                pass
-                            try:
-                                ws.send(f"data: {json.dumps({'error': 'Inference error. Please try again.'})}\n\n")
-                                ws.send(f"data: {json.dumps({'done': True})}\n\n")
-                            except Exception:
-                                pass
+                                for chunk in _generate_tokens(msg, mx, hist):
+                                    send(chunk)
+                            except Exception as e:
+                                log.error(f"WS bridge: inference error: {e}")
+                                try:
+                                    import torch
+                                    if state.engine:
+                                        state.engine.reset_kv_cache()
+                                    torch.cuda.empty_cache()
+                                    log.info("CUDA state reset after error")
+                                except Exception:
+                                    pass
+                                try:
+                                    send(f"data: {json.dumps({'error': 'Inference error. Please try again.'})}\n\n")
+                                    send(f"data: {json.dumps({'done': True})}\n\n")
+                                except Exception:
+                                    pass
+                        threading.Thread(target=_do_chat, daemon=True).start()
         except Exception as e:
             # If server closed us with code 4000, we've been replaced — stop this thread
             err_str = str(e)

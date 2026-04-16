@@ -128,6 +128,7 @@ class State:
     peer_ping_ms: Optional[float] = None
     solo_mode: bool = False
     api_key: str = _config.get("api_key", "")
+    transport_ready: bool = False
 
 state = State()
 
@@ -998,10 +999,12 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
     if tp >= 2 and rank is not None and peer_ip:
         # C++ transport state is sticky — if already initialized, reuse it.
         # Re-init in same process leaves dead connections and breaks AllReduce.
-        if state.transport_ready and state.rank == rank and getattr(state, '_transport_peer', None) == peer_ip:
+        _tp_ready = getattr(state, 'transport_ready', False)
+        _tp_peer = getattr(state, '_transport_peer', None)
+        if _tp_ready and state.rank == rank and _tp_peer == peer_ip:
             log.info(f"TP={tp} load: transport already active (rank={rank}, peer={peer_ip}) — reusing")
         else:
-            if state.transport_ready:
+            if _tp_ready:
                 log.error("Transport initialized for different config — daemon restart required")
                 return {"error": "Transport state mismatch. Please restart the daemon from the system tray."}
             log.info(f"TP={tp} load: initializing transport (rank={rank}, peer={peer_ip})")
@@ -1555,11 +1558,18 @@ def _ws_bridge_worker(orchestrator_url: str):
                             else:
                                 # TP load runs in background — transport init blocks
                                 def _do_tp_load(mid=model_id, _tp=tp, _r=rank, _p=peer_ip):
-                                    result = _load_model(mid, tp=_tp, rank=_r, peer_ip=_p)
-                                    if result.get("error"):
-                                        log.error(f"TP load error: {result['error']}")
-                                    else:
-                                        log.info(f"TP load complete: rank={_r}")
+                                    try:
+                                        result = _load_model(mid, tp=_tp, rank=_r, peer_ip=_p)
+                                        if result.get("error"):
+                                            log.error(f"TP load error: {result['error']}")
+                                            state.status = "error"
+                                            state.error = result['error']
+                                        else:
+                                            log.info(f"TP load complete: rank={_r}")
+                                    except Exception as e:
+                                        log.error(f"TP load crashed: {e}", exc_info=True)
+                                        state.status = "error"
+                                        state.error = str(e)
                                 threading.Thread(target=_do_tp_load, daemon=True).start()
                                 ws.send(json.dumps({"status": "loading"}))
                         else:

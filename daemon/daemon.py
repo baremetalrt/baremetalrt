@@ -173,22 +173,29 @@ def _signal_recv_all(sock, n):
 def _rank1_signal_worker():
     """Rank 1 inference follower — listens on raw TCP signal socket."""
     log.info("Rank 1 follower: running (raw TCP signal)")
+    phase = None
     while True:
         try:
             # Read 1-byte phase header
             phase = struct.unpack("!B", _signal_recv_all(_signal_sock, 1))[0]
             if phase == PHASE_CONTEXT:
                 n_ids = struct.unpack("!I", _signal_recv_all(_signal_sock, 4))[0]
+                log.info(f"Rank 1: context phase, n_ids={n_ids}")
                 ids = list(struct.unpack(f"!{n_ids}i", _signal_recv_all(_signal_sock, n_ids * 4)))
                 state.engine.context_phase(ids)
+                log.info(f"Rank 1: context phase done")
             elif phase == PHASE_GENERATE:
                 token_id = struct.unpack("!i", _signal_recv_all(_signal_sock, 4))[0]
                 state.engine.generate_step(token_id)
-        except ConnectionError:
-            log.warning("Signal socket closed — rank 1 follower exiting")
+            else:
+                log.warning(f"Rank 1: unknown phase byte 0x{phase:02x} — ignoring")
+        except ConnectionError as e:
+            log.warning(f"Signal socket closed — rank 1 follower exiting ({e})")
             break
         except Exception as e:
-            log.error(f"Rank 1 follower error: {e}")
+            log.error(f"Rank 1 follower error (phase={phase}, type={type(e).__name__}): {e!r}", exc_info=True)
+            # Don't silently continue — a failed inference step breaks AllReduce sync
+            break
 
 
 def _rank1_worker():
@@ -2706,9 +2713,13 @@ def background_worker(orchestrator_url: str, port: int, engine_pref: str = None)
             log.info(f"  warmup {i+1}/3: {ms:.0f}ms")
         state.engine.reset_kv_cache()
     except Exception as e:
-        state.status = "error"
-        state.error = f"Engine load failed: {e}"
-        log.error(state.error)
+        state.status = "ready"  # allow user to load a different model
+        state.error = ""
+        state.engine = None
+        state.engine_name = None
+        state.engine_dir = None
+        state.active_model_id = None
+        log.error(f"Engine auto-load failed: {e} — daemon staying alive for user-triggered load")
         _hold_alive()
         return
 

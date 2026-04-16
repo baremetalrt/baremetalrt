@@ -996,13 +996,22 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
 
     # For TP=2: init transport AFTER engine load, BEFORE warmup
     if tp >= 2 and rank is not None and peer_ip:
-        log.info(f"TP={tp} load: initializing transport (rank={rank}, peer={peer_ip})")
-        state.rank = rank
-        coord_ip = peer_ip if rank == 1 else "0.0.0.0"
-        ok = init_transport(rank, peer_ip, coord_ip)
-        if not ok:
-            return {"error": "TCP transport init failed — peer may not be ready"}
-        init_signal_socket(rank, peer_ip)
+        # C++ transport state is sticky — if already initialized, reuse it.
+        # Re-init in same process leaves dead connections and breaks AllReduce.
+        if state.transport_ready and state.rank == rank and getattr(state, '_transport_peer', None) == peer_ip:
+            log.info(f"TP={tp} load: transport already active (rank={rank}, peer={peer_ip}) — reusing")
+        else:
+            if state.transport_ready:
+                log.error("Transport initialized for different config — daemon restart required")
+                return {"error": "Transport state mismatch. Please restart the daemon from the system tray."}
+            log.info(f"TP={tp} load: initializing transport (rank={rank}, peer={peer_ip})")
+            state.rank = rank
+            coord_ip = peer_ip if rank == 1 else "0.0.0.0"
+            ok = init_transport(rank, peer_ip, coord_ip)
+            if not ok:
+                return {"error": "TCP transport init failed — peer may not be ready"}
+            state._transport_peer = peer_ip
+            init_signal_socket(rank, peer_ip)
 
     # Warmup — skip for TP mode. First chat coordinates both ranks properly
     # via _generate_tokens which sends signal_context + context_phase in lockstep.

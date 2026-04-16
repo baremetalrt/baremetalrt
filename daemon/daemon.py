@@ -1050,13 +1050,15 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
                     log.warning(f"Tokenizer load failed from {d}: {e}")
                     continue
 
-    # Start rank 1 follower thread if this is rank 1
-    if rank == 1:
-        if hasattr(state, '_signal_sock') and _signal_sock:
+    # Start rank 1 follower thread if this is rank 1 (only once per process)
+    if rank == 1 and not getattr(state, '_follower_started', False):
+        if _signal_sock is not None:
             threading.Thread(target=_rank1_signal_worker, daemon=True).start()
+            log.info("Rank 1 follower started (signal socket) — waiting for rank 0")
         else:
             threading.Thread(target=_rank1_worker, daemon=True).start()
-        log.info("Rank 1 follower started — waiting for rank 0 commands")
+            log.info("Rank 1 follower started (HTTP fallback) — waiting for rank 0")
+        state._follower_started = True
 
     state.engine_name = Path(engine_dir).name
     state.engine_dir = engine_dir

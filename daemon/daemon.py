@@ -556,19 +556,25 @@ class TRTEngine:
         return [1, 2, self.kv_heads_per_rank, seq_len, self.head_dim]
 
     def _alloc_kv_cache(self, seq_len: int):
-        """Allocate KV cache tensors for all layers."""
+        """Allocate KV cache tensors for all layers present in the engine.
+        TP engines use global layer indices (e.g., rank 1 has layers 16-31),
+        so we scan tensor names to find the actual indices."""
         import torch
         shape = self._get_kv_shape(seq_len)
-        # Determine KV cache dtype from engine's past_key_value_0 tensor
-        kv_dtype = torch.float32  # default
-        if "past_key_value_0" in self.tensor_info:
-            trt_dtype = self.tensor_info["past_key_value_0"]["dtype"]
-            if trt_dtype == self.trt.float16:
-                kv_dtype = torch.float16
-            elif trt_dtype == self.trt.bfloat16:
-                kv_dtype = torch.bfloat16
+        # Find actual KV layer indices from engine tensor names
+        kv_indices = set()
+        kv_dtype = torch.float32
+        for name, info in self.tensor_info.items():
+            if name.startswith("past_key_value_"):
+                idx = int(name.split("_")[-1])
+                kv_indices.add(idx)
+                trt_dtype = info["dtype"]
+                if trt_dtype == self.trt.float16:
+                    kv_dtype = torch.float16
+                elif trt_dtype == self.trt.bfloat16:
+                    kv_dtype = torch.bfloat16
         self._kv_cache = {}
-        for i in range(self.NUM_LAYERS):
+        for i in sorted(kv_indices):
             self._kv_cache[i] = torch.zeros(shape, dtype=kv_dtype, device="cuda")
 
     def reset_kv_cache(self):
@@ -2650,8 +2656,6 @@ def background_worker(orchestrator_url: str, port: int, engine_pref: str = None)
         log.info("MODE: Solo (single GPU, no orchestrator)")
     else:
         log.info(f"MODE: Self-host (single GPU + orchestrator: {orchestrator_url})")
-        # Register early so frontend shows GPU while engines build
-        _register_and_bridge(orchestrator_url, port)
 
     # Find engines locally
     engines = find_engines()
@@ -2663,10 +2667,12 @@ def background_worker(orchestrator_url: str, port: int, engine_pref: str = None)
     else:
         log.info("No engines found. Pull and build a model from the dashboard.")
         state.status = "ready"
+        if not solo:
+            _register_and_bridge(orchestrator_url, port)
         _hold_alive()
         return
 
-    # Load plugins (non-fatal for TCP plugins in single-GPU mode)
+    # Load plugins BEFORE registering — server may send load commands immediately
     log.info("Loading plugins...")
     ok, err = load_plugins()
     if not ok:
@@ -2674,6 +2680,10 @@ def background_worker(orchestrator_url: str, port: int, engine_pref: str = None)
         log.warning("Continuing without full plugin support — may fail at engine load")
     else:
         log.info("Plugins loaded")
+
+    # Register with orchestrator AFTER plugins are loaded
+    if not solo:
+        _register_and_bridge(orchestrator_url, port)
 
     # =========================================================================
     # SINGLE GPU — load TP=1 engine locally. If orchestrator configured,

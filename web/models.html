@@ -139,10 +139,13 @@ async function init() {
     let actions = '';
     if (isDemo) {
       actions = '<span style="font-size:11px;color:var(--silver-dark);opacity:0.5;">Demo mode</span>';
-    } else if (m.engine_built && !m.downloaded) {
-      actions = `<button class="btn danger" onclick="deleteModel('${m.id}')">Delete Engine</button>`;
+    } else if (m.engine_built && m.downloaded) {
+      actions = `<button class="btn" onclick="deleteModel('${m.id}', 'engine')">Delete Engine</button>
+                 <button class="btn danger" onclick="deleteModel('${m.id}', 'all')">Delete All</button>`;
+    } else if (m.engine_built) {
+      actions = `<button class="btn danger" onclick="deleteModel('${m.id}', 'all')">Delete Engine</button>`;
     } else if (m.downloaded) {
-      actions = `<button class="btn danger" onclick="deleteModel('${m.id}')">Delete All</button>`;
+      actions = `<button class="btn danger" onclick="deleteModel('${m.id}', 'all')">Delete Weights</button>`;
     }
 
     const active = d.active_model && d.active_model.replace(/-/g,'').includes(m.id.replace(/-/g,''));
@@ -165,10 +168,13 @@ async function init() {
   }
 }
 
-async function deleteModel(id) {
+async function deleteModel(id, mode) {
   if (isDemo) return;
-  if (!confirm('Delete this model? This removes weights and engine files.')) return;
-  await fetch(`/api/models/${id}/delete`, { method: 'POST' });
+  const msg = mode === 'engine'
+    ? 'Delete engine files only? Weights will be kept — you can rebuild without re-downloading.'
+    : 'Delete this model? This removes weights and engine files.';
+  if (!confirm(msg)) return;
+  await fetch(`/api/models/${id}/delete?mode=${mode || 'all'}`, { method: 'POST' });
   init(); // refresh
 }
 

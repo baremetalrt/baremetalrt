@@ -2099,8 +2099,8 @@ async def api_cancel_pull(model_id: str):
 
 
 @app.post("/api/models/{model_id}/delete")
-async def api_delete_model(model_id: str):
-    """Delete model weights and/or engine files from disk."""
+async def api_delete_model(model_id: str, mode: str = "all"):
+    """Delete model files. mode=engine removes only engine files (keeps weights); mode=all removes both."""
     import shutil as _shutil
     from model_registry import get_model, _load_state, _save_state
 
@@ -2146,14 +2146,16 @@ async def api_delete_model(model_id: str):
         if os.path.isdir(edir):
             _force_delete(edir, f"engine({model_id + suffix})")
 
-    # Delete weights
-    hf_dir = str(PROJECT_ROOT / "models" / model_id)
-    _force_delete(hf_dir, "weights")
+    # Delete weights (only if mode=all)
+    if mode == "all":
+        hf_dir = str(PROJECT_ROOT / "models" / model_id)
+        _force_delete(hf_dir, "weights")
 
     # Update registry state
     st = _load_state()
     if model_id in st.get("models", {}):
-        st["models"][model_id]["downloaded"] = False
+        if mode == "all":
+            st["models"][model_id]["downloaded"] = False
         st["models"][model_id]["engine_built"] = False
         st["models"][model_id].pop("engine_dir", None)
         _save_state(st)

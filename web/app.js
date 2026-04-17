@@ -874,6 +874,7 @@ function setGpuMode(mode) {
   } else {
     show2GpuLayout();
   }
+  fetchBanners();
 }
 
 
@@ -1834,7 +1835,8 @@ async function fetchBanners() {
     const r = await fetch('/admin/banners');
     if (!r.ok) return;
     const banners = await r.json();
-    const b = banners.banner_1gpu;
+    const key = _gpuMode === '2gpu' ? 'banner_2gpu' : 'banner_1gpu';
+    const b = banners[key];
     const el = document.getElementById('maintenance-banner');
     if (b && b.enabled) {
       el.textContent = b.message;

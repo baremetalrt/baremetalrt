@@ -45,6 +45,14 @@ if getattr(sys, 'frozen', False):
 else:
     PROJECT_ROOT = Path(__file__).parent.parent.resolve()
     _FROZEN = False
+
+# Redirect C stderr to file so we can capture AllReduce timing from the C++ DLL
+try:
+    _runtime_log = os.path.join(os.environ.get("APPDATA", "."), "BareMetalRT", "transport.log")
+    _stderr_fd = os.open(_runtime_log, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+    os.dup2(_stderr_fd, 2)
+except Exception:
+    pass
 _version_file = PROJECT_ROOT / "VERSION"
 if not _version_file.exists():
     _version_file = Path(__file__).parent / "VERSION"  # frozen exe: bundled next to daemon.py

@@ -410,6 +410,8 @@ async function checkNode() {
       document.getElementById('gpu-engine-display').textContent = '';
     }
   } catch(e) {
+    // If we were already connected, don't flash "CHECKING" on a transient failure
+    if (gpuConnected) return;
     const _b = document.getElementById('header-status');
     if (_b) { _b.className = 'status-badge loading'; _b.textContent = 'CHECKING'; }
     const _d = document.getElementById('status-dot');

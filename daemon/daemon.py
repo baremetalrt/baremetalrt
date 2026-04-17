@@ -1755,10 +1755,14 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
                     pass
             threading.Thread(target=_send, daemon=True).start()
 
-    # Phase 1: Context — signal rank 1 first, then run rank 0.
-    # Both ranks start context_phase at roughly the same time.
+    # Phase 1: Context — start rank 0 BEFORE signaling rank 1.
+    # If rank 1 starts and finishes AllReduce before rank 0 begins,
+    # the TCP transport deadlocks (buffer overflow, no reader yet).
+    import concurrent.futures
+    _ctx_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    _ctx_future = _ctx_pool.submit(state.engine.context_phase, input_ids)
     notify_peer("context", ids=input_ids)
-    first_token, ctx_ms = state.engine.context_phase(input_ids)
+    first_token, ctx_ms = _ctx_future.result()
 
     if first_token < 0:
         yield f"data: {json.dumps({'error': 'context phase failed'})}\n\n"

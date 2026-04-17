@@ -5,7 +5,7 @@
 ; Or:    build-installer.ps1
 
 #define MyAppName      "BareMetalRT"
-#define MyAppVersion   "0.6.16-beta"
+#define MyAppVersion   "0.6.17-beta"
 #define MyAppPublisher "Bare Metal AI, Inc."
 #define MyAppURL       "https://baremetalrt.ai"
 #define MyAppExeName   "baremetalrt.exe"

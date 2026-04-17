@@ -48,9 +48,23 @@ else:
 
 # Redirect C stderr to file so we can capture AllReduce timing from the C++ DLL
 try:
+    import ctypes, ctypes.util
     _runtime_log = os.path.join(os.environ.get("APPDATA", "."), "BareMetalRT", "transport.log")
-    _stderr_fd = os.open(_runtime_log, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
-    os.dup2(_stderr_fd, 2)
+    if sys.platform == "win32":
+        # Windows: use _freopen on the CRT's stderr so DLL fprintf(stderr) is captured
+        _ucrt = ctypes.CDLL("ucrtbase.dll")
+        _freopen = _ucrt._freopen
+        _freopen.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p]
+        _freopen.restype = ctypes.c_void_p
+        # __acrt_iob_func(2) returns the FILE* for stderr
+        _iob = _ucrt.__acrt_iob_func
+        _iob.argtypes = [ctypes.c_int]
+        _iob.restype = ctypes.c_void_p
+        _stderr_file = _iob(2)
+        _freopen(_runtime_log.encode(), b"w", _stderr_file)
+    else:
+        _stderr_fd = os.open(_runtime_log, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+        os.dup2(_stderr_fd, 2)
 except Exception:
     pass
 _version_file = PROJECT_ROOT / "VERSION"

@@ -550,7 +550,6 @@ class TRTEngine:
         self._kv_cache = None  # dict of layer_idx -> tensor [1, 2, num_kv_heads, seq, head_dim]
         self._seq_len = 0      # total sequence length including cached tokens
         self._prompt_len = 0   # original prompt length (needed for context_lengths in gen phase)
-        self._gen_buffers = None  # pre-allocated buffers for single-token generation
 
     def _get_kv_shape(self, seq_len: int) -> list[int]:
         """KV cache shape per layer: [1, 2, num_kv_heads_per_rank, seq_len, head_dim]."""
@@ -584,32 +583,62 @@ class TRTEngine:
         self._seq_len = 0
         self._prompt_len = 0
 
-    def _alloc_buffers(self, num_tokens: int) -> dict:
-        """Allocate IO buffers for a given token count."""
+    def _run_step(self, input_ids: list[int], is_context: bool) -> tuple:
+        """Run one engine step. Returns (logits_cpu, time_ms)."""
         import torch
         import numpy as np
         trt = self.trt
+
+        num_tokens = len(input_ids)
+        past_len = 0 if is_context else self._seq_len
+        total_len = past_len + num_tokens
+
+        # Ensure KV cache exists
+        if self._kv_cache is None:
+            self._alloc_kv_cache(self.MAX_SEQ_LEN)
+
+        # Build buffers
         buffers = {}
         for name, info in self.tensor_info.items():
+            shape = list(info["shape"])
+
+            if name == "input_ids":
+                shape = [1, num_tokens]
+            elif name == "position_ids":
+                shape = [1, num_tokens]
+            elif name == "cache_indirection":
+                shape = [1, 1, self.MAX_SEQ_LEN]
+            elif name.startswith("past_key_value_"):
+                shape = self._get_kv_shape(self.MAX_SEQ_LEN)
+            elif name.startswith("present_key_value_"):
+                shape = self._get_kv_shape(self.MAX_SEQ_LEN)
+            else:
+                shape = [max(1, s) for s in shape]
+
+            # Set dynamic input shapes
+            if info["is_input"]:
+                if name == "input_ids":
+                    self.context.set_input_shape(name, [1, num_tokens])
+                elif name == "position_ids":
+                    self.context.set_input_shape(name, [1, num_tokens])
+                elif name == "cache_indirection":
+                    self.context.set_input_shape(name, [1, 1, self.MAX_SEQ_LEN])
+                elif name.startswith("past_key_value_"):
+                    self.context.set_input_shape(name, self._get_kv_shape(self.MAX_SEQ_LEN))
+
+            vol = 1
+            for s in shape:
+                vol *= max(1, abs(s))
+
+            # Use KV cache tensors directly (shared past/present)
             if name.startswith("past_key_value_"):
                 idx = int(name.split("_")[-1])
                 buffers[name] = self._kv_cache[idx]
                 continue
             if name.startswith("present_key_value_"):
                 idx = int(name.split("_")[-1])
-                buffers[name] = self._kv_cache[idx]
+                buffers[name] = self._kv_cache[idx]  # in-place update
                 continue
-
-            if name in ("input_ids", "position_ids"):
-                shape = [1, num_tokens]
-            elif name == "cache_indirection":
-                shape = [1, 1, self.MAX_SEQ_LEN]
-            else:
-                shape = [max(1, s) for s in info["shape"]]
-
-            vol = 1
-            for s in shape:
-                vol *= max(1, abs(s))
 
             if info["is_host"]:
                 ndt = np.int64 if info["dtype"] == trt.DataType.INT64 else np.int32
@@ -623,66 +652,16 @@ class TRTEngine:
                 elif info["dtype"] == trt.DataType.INT64:
                     dt = torch.int64
                 buffers[name] = torch.zeros(vol, dtype=dt, device="cuda")
-        return buffers
-
-    def _get_gen_buffers(self) -> dict:
-        """Return pre-allocated single-token generation buffers (lazy init).
-        KV cache pointers are refreshed each call since reset_kv_cache reallocates."""
-        if self._gen_buffers is None:
-            self._gen_buffers = self._alloc_buffers(1)
-        # Refresh KV cache pointers (may have been reallocated)
-        for name in self.tensor_info:
-            if name.startswith("past_key_value_"):
-                idx = int(name.split("_")[-1])
-                self._gen_buffers[name] = self._kv_cache[idx]
-            elif name.startswith("present_key_value_"):
-                idx = int(name.split("_")[-1])
-                self._gen_buffers[name] = self._kv_cache[idx]
-        return self._gen_buffers
-
-    def _run_step(self, input_ids: list[int], is_context: bool) -> tuple:
-        """Run one engine step. Returns (logits_cpu, time_ms)."""
-        import torch
-        import numpy as np
-
-        num_tokens = len(input_ids)
-        past_len = 0 if is_context else self._seq_len
-        total_len = past_len + num_tokens
-
-        # Ensure KV cache exists
-        if self._kv_cache is None:
-            self._alloc_kv_cache(self.MAX_SEQ_LEN)
-
-        # Get buffers — reuse pre-allocated for generation (1 token)
-        if is_context:
-            buffers = self._alloc_buffers(num_tokens)
-        else:
-            buffers = self._get_gen_buffers()
-
-        # Set dynamic input shapes
-        kv_shape = self._get_kv_shape(self.MAX_SEQ_LEN)
-        for name, info in self.tensor_info.items():
-            if info["is_input"]:
-                if name in ("input_ids", "position_ids"):
-                    self.context.set_input_shape(name, [1, num_tokens])
-                elif name == "cache_indirection":
-                    self.context.set_input_shape(name, [1, 1, self.MAX_SEQ_LEN])
-                elif name.startswith("past_key_value_"):
-                    self.context.set_input_shape(name, kv_shape)
 
         # Fill inputs
-        buffers["input_ids"][0] = input_ids[0] if num_tokens == 1 else 0
-        if num_tokens > 1:
-            ids_tensor = torch.tensor(input_ids, dtype=torch.int32, device="cuda")
-            buffers["input_ids"][:num_tokens] = ids_tensor
+        ids_tensor = torch.tensor(input_ids, dtype=torch.int32, device="cuda")
+        buffers["input_ids"][:num_tokens] = ids_tensor
 
         if is_context:
             pos = torch.arange(num_tokens, dtype=torch.int32, device="cuda")
         else:
-            buffers["position_ids"][0] = past_len
-            pos = None
-        if pos is not None:
-            buffers["position_ids"][:num_tokens] = pos
+            pos = torch.arange(past_len, past_len + num_tokens, dtype=torch.int32, device="cuda")
+        buffers["position_ids"][:num_tokens] = pos
 
         if is_context:
             buffers["last_token_ids"][0] = num_tokens
@@ -695,6 +674,7 @@ class TRTEngine:
         if "sequence_length" in buffers:
             buffers["sequence_length"][0] = num_tokens if is_context else past_len
 
+        # Request type: 0=context, 1=generation
         buffers["host_request_types"][0] = 0 if is_context else 1
         if "host_past_key_value_lengths" in buffers:
             buffers["host_past_key_value_lengths"][0] = num_tokens if is_context else past_len
@@ -713,15 +693,15 @@ class TRTEngine:
                 self.context.set_tensor_address(name, buf.data_ptr())
 
         # Sync streams
-        if not hasattr(self, "_stream"):
-            self._stream = torch.cuda.Stream()
+        stream = self._stream if hasattr(self, "_stream") else torch.cuda.Stream()
+        self._stream = stream
         default_stream = torch.cuda.current_stream()
         event = default_stream.record_event()
-        self._stream.wait_event(event)
+        stream.wait_event(event)
 
         t0 = time.time()
-        ok = self.context.execute_async_v3(self._stream.cuda_stream)
-        self._stream.synchronize()
+        ok = self.context.execute_async_v3(stream.cuda_stream)
+        stream.synchronize()
         ms = (time.time() - t0) * 1000
 
         if not ok:
@@ -733,14 +713,18 @@ class TRTEngine:
         logits = buffers.get("logits")
         if logits is not None:
             logits_flat = logits.cpu().float()
+            # Extract last token's logits: for context phase with N tokens,
+            # output may be [N * vocab_size] flat — take last vocab_size elements
             vocab_size = getattr(self, '_vocab_size', None)
             if vocab_size is None:
+                # Auto-detect: logits shape from engine config
                 logits_shape = self.tensor_info.get("logits", {}).get("shape", [])
                 self._vocab_size = abs(logits_shape[-1]) if logits_shape else logits_flat.shape[0]
                 vocab_size = self._vocab_size
                 log.info(f"Logits: flat_size={logits_flat.shape[0]}, vocab_size={vocab_size}, "
                          f"engine_shape={logits_shape}, num_tokens={num_tokens}")
             if logits_flat.shape[0] > vocab_size:
+                # Multi-token output — take the last token's logits
                 logits_flat = logits_flat[-vocab_size:]
             return logits_flat, ms
         return None, ms

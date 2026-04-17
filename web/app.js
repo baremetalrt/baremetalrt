@@ -712,13 +712,13 @@ async function chat() {
     }
 
     const elapsed = (performance.now() - genStart) / 1000;
-    const tokSec = tokenCount > 0 && elapsed > 0 ? (tokenCount / elapsed).toFixed(1) : null;
+    const msPerTok = tokenCount > 0 && elapsed > 0 ? ((elapsed * 1000) / tokenCount).toFixed(0) : null;
 
     if (fullText) {
       let statsHtml = '';
-      if (tokenCount > 0 && tokSec) {
+      if (tokenCount > 0 && msPerTok) {
         const truncLabel = wasTruncated ? ' · truncated' : '';
-        statsHtml = `<div class="gen-stats">${tokenCount} tokens · ${tokSec} tok/s · ${elapsed.toFixed(1)}s${truncLabel}</div>`;
+        statsHtml = `<div class="gen-stats">${tokenCount} tokens · ${msPerTok} ms/tok · ${elapsed.toFixed(1)}s${truncLabel}</div>`;
       }
       el.innerHTML = renderMarkdown(fullText) + statsHtml;
       conversationHistory.push({ role: 'assistant', content: fullText });

@@ -699,6 +699,19 @@ class TRTEngine:
         event = default_stream.record_event()
         stream.wait_event(event)
 
+        # Log buffer sizes on first few generation steps
+        if not is_context and self._seq_len <= self._prompt_len + 3:
+            for name, buf in buffers.items():
+                if name.startswith("past_key") or name.startswith("present_key"):
+                    continue
+                if hasattr(buf, 'nbytes'):
+                    sz = buf.nbytes
+                elif hasattr(buf, 'nelement'):
+                    sz = buf.nelement() * buf.element_size()
+                else:
+                    sz = 0
+                log.info(f"  gen buf {name}: {sz} bytes")
+
         t0 = time.time()
         ok = self.context.execute_async_v3(stream.cuda_stream)
         stream.synchronize()
@@ -1789,6 +1802,8 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
         token_id, ms = state.engine.generate_step(
             cur_token, 0.7, 40, 1.1, generated,
         )
+        if i < 5:
+            log.info(f"  gen step {i}: {ms:.1f}ms (token={token_id})")
 
         if token_id < 0:
             yield f"data: {json.dumps({'error': 'generation failed'})}\n\n"

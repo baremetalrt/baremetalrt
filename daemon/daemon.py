@@ -2098,6 +2098,45 @@ async def api_cancel_pull(model_id: str):
     return {"status": "cancelled"}
 
 
+@app.post("/api/models/{model_id}/delete")
+async def api_delete_model(model_id: str):
+    """Delete model weights and/or engine files from disk."""
+    import shutil as _shutil
+    from model_registry import get_model, _load_state, _save_state
+
+    model = get_model(model_id)
+    if not model:
+        return JSONResponse(status_code=404, content={"error": "Unknown model"})
+
+    # Don't delete if currently loaded
+    if state.active_model_id == model_id:
+        return JSONResponse(status_code=400, content={"error": "Unload the model first"})
+
+    deleted = []
+
+    # Delete engine files
+    if model.get("engine_dir") and os.path.isdir(model["engine_dir"]):
+        _shutil.rmtree(model["engine_dir"], ignore_errors=True)
+        deleted.append("engine")
+
+    # Delete weights
+    hf_dir = str(PROJECT_ROOT / "models" / model_id)
+    if os.path.isdir(hf_dir):
+        _shutil.rmtree(hf_dir, ignore_errors=True)
+        deleted.append("weights")
+
+    # Update registry state
+    st = _load_state()
+    if model_id in st.get("models", {}):
+        st["models"][model_id]["downloaded"] = False
+        st["models"][model_id]["engine_built"] = False
+        st["models"][model_id].pop("engine_dir", None)
+        _save_state(st)
+
+    log.info(f"Model deleted: {model_id} ({', '.join(deleted) or 'nothing found'})")
+    return {"status": "deleted", "removed": deleted}
+
+
 @app.post("/api/models/{model_id}/build")
 async def api_build_model(model_id: str):
     """Build TRT engine for a downloaded model in background."""

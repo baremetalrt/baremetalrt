@@ -2113,17 +2113,42 @@ async def api_delete_model(model_id: str):
         return JSONResponse(status_code=400, content={"error": "Unload the model first"})
 
     deleted = []
+    errors = []
 
-    # Delete engine files
-    if model.get("engine_dir") and os.path.isdir(model["engine_dir"]):
-        _shutil.rmtree(model["engine_dir"], ignore_errors=True)
-        deleted.append("engine")
+    def _force_delete(path, label):
+        """Delete directory, retrying with permission fix on failure."""
+        if not os.path.isdir(path):
+            return
+        try:
+            _shutil.rmtree(path)
+            deleted.append(label)
+        except PermissionError:
+            # Program Files may need explicit write permission
+            try:
+                for root, dirs, files in os.walk(path):
+                    for f in files:
+                        fp = os.path.join(root, f)
+                        os.chmod(fp, 0o777)
+                _shutil.rmtree(path)
+                deleted.append(label)
+            except Exception as e2:
+                errors.append(f"{label}: {e2}")
+                log.error(f"Delete failed ({label}): {e2}")
+        except Exception as e:
+            errors.append(f"{label}: {e}")
+            log.error(f"Delete failed ({label}): {e}")
+
+    # Delete engine files — check registry path + common TP variants
+    if model.get("engine_dir"):
+        _force_delete(model["engine_dir"], "engine")
+    for suffix in ["-tp1", "-tp2", ""]:
+        edir = str(PROJECT_ROOT / "engine_cache" / (model_id + suffix))
+        if os.path.isdir(edir):
+            _force_delete(edir, f"engine({model_id + suffix})")
 
     # Delete weights
     hf_dir = str(PROJECT_ROOT / "models" / model_id)
-    if os.path.isdir(hf_dir):
-        _shutil.rmtree(hf_dir, ignore_errors=True)
-        deleted.append("weights")
+    _force_delete(hf_dir, "weights")
 
     # Update registry state
     st = _load_state()
@@ -2134,6 +2159,8 @@ async def api_delete_model(model_id: str):
         _save_state(st)
 
     log.info(f"Model deleted: {model_id} ({', '.join(deleted) or 'nothing found'})")
+    if errors:
+        return JSONResponse(status_code=500, content={"error": "; ".join(errors), "removed": deleted})
     return {"status": "deleted", "removed": deleted}
 
 

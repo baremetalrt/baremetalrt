@@ -366,7 +366,6 @@ if __name__ == "__main__":
         "--paged_state", "disable",
         "--workers", "1",
         "--gemm_plugin", "auto",
-        "--opt_num_tokens", "1",
     ]
 
     if ckpt_exists:

@@ -182,11 +182,13 @@ def _rank1_signal_worker():
                 n_ids = struct.unpack("!I", _signal_recv_all(_signal_sock, 4))[0]
                 log.info(f"Rank 1: context phase, n_ids={n_ids}")
                 ids = list(struct.unpack(f"!{n_ids}i", _signal_recv_all(_signal_sock, n_ids * 4)))
-                state.engine.context_phase(ids)
-                log.info(f"Rank 1: context phase done")
+                _tok, _ms = state.engine.context_phase(ids)
+                log.info(f"Rank 1: context phase done token={_tok} ms={_ms:.1f}")
             elif phase == PHASE_GENERATE:
                 token_id = struct.unpack("!i", _signal_recv_all(_signal_sock, 4))[0]
-                state.engine.generate_step(token_id)
+                _tok, _ms = state.engine.generate_step(token_id)
+                if _ms > 10 or _tok < 0:
+                    log.info(f"Rank 1: gen step token={_tok} ms={_ms:.1f}")
             else:
                 log.warning(f"Rank 1: unknown phase byte 0x{phase:02x} — ignoring")
         except ConnectionError as e:

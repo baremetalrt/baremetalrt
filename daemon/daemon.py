@@ -1637,13 +1637,26 @@ def _ws_bridge_worker(orchestrator_url: str):
                     elif msg_type == "unload":
                         if state.engine:
                             log.info("Unloading model...")
+                            # Explicit KV cache + buffer cleanup before dropping engine
+                            try:
+                                if hasattr(state.engine, '_kv_cache') and state.engine._kv_cache:
+                                    for k in list(state.engine._kv_cache.keys()):
+                                        del state.engine._kv_cache[k]
+                                    state.engine._kv_cache = None
+                                state.engine._stream = None
+                                state.engine.context = None
+                                state.engine.engine = None
+                                state.engine.runtime = None
+                            except Exception as e:
+                                log.warning(f"KV cache cleanup: {e}")
                             del state.engine
                             state.engine = None
                             state.tokenizer = None
                             state.engine_name = None
                             state.engine_dir = None
                             state.active_model_id = None
-                            import torch
+                            import gc, torch
+                            gc.collect()
                             torch.cuda.empty_cache()
                             log.info("Model unloaded, VRAM freed")
                             ws.send(json.dumps({"status": "ok"}))

@@ -1601,10 +1601,20 @@ def _ws_bridge_worker(orchestrator_url: str):
                         rank = req_data.get("rank")
                         peer_ip = req_data.get("peer_ip")
                         if tp >= 2:
-                            if state.status == "loading":
-                                log.warning("Load already in progress, ignoring duplicate")
+                            # Stale-load detection: if status has been "loading" for >120s,
+                            # a prior load hung (transport timeout, peer never arrived, etc).
+                            # Force reset so the new request can proceed.
+                            _load_started = getattr(state, '_load_started_at', 0)
+                            _load_age = time.time() - _load_started if _load_started else 0
+                            if state.status == "loading" and _load_age < 120:
+                                log.warning(f"Load already in progress ({_load_age:.0f}s old), ignoring duplicate")
                                 ws.send(json.dumps({"status": "loading"}))
                             else:
+                                if state.status == "loading":
+                                    log.warning(f"Stale loading state ({_load_age:.0f}s old) — resetting and proceeding")
+                                    state.status = "ready"
+                                    state.error = ""
+                                state._load_started_at = time.time()
                                 # TP load runs in background — transport init blocks
                                 def _do_tp_load(mid=model_id, _tp=tp, _r=rank, _p=peer_ip):
                                     try:
@@ -1619,6 +1629,8 @@ def _ws_bridge_worker(orchestrator_url: str):
                                         log.error(f"TP load crashed: {e}", exc_info=True)
                                         state.status = "error"
                                         state.error = str(e)
+                                    finally:
+                                        state._load_started_at = 0
                                 threading.Thread(target=_do_tp_load, daemon=True).start()
                                 ws.send(json.dumps({"status": "loading"}))
                         else:

@@ -598,15 +598,21 @@ class TRTEngine:
         if self._kv_cache is None:
             self._alloc_kv_cache(self.MAX_SEQ_LEN)
 
+        # Detect remove_input_padding mode from engine's declared input_ids shape
+        # 1D = padding removed (flat tokens), 2D = padded [batch, seq]
+        _ids_info = self.tensor_info.get("input_ids", {})
+        _ids_ndim = len(_ids_info.get("shape", []))
+        _packed = (_ids_ndim == 1)
+
         # Build buffers
         buffers = {}
         for name, info in self.tensor_info.items():
             shape = list(info["shape"])
 
             if name == "input_ids":
-                shape = [1, num_tokens]
+                shape = [num_tokens] if _packed else [1, num_tokens]
             elif name == "position_ids":
-                shape = [1, num_tokens]
+                shape = [num_tokens] if _packed else [1, num_tokens]
             elif name == "cache_indirection":
                 shape = [1, 1, self.MAX_SEQ_LEN]
             elif name.startswith("past_key_value_"):
@@ -619,9 +625,9 @@ class TRTEngine:
             # Set dynamic input shapes
             if info["is_input"]:
                 if name == "input_ids":
-                    self.context.set_input_shape(name, [1, num_tokens])
+                    self.context.set_input_shape(name, shape)
                 elif name == "position_ids":
-                    self.context.set_input_shape(name, [1, num_tokens])
+                    self.context.set_input_shape(name, shape)
                 elif name == "cache_indirection":
                     self.context.set_input_shape(name, [1, 1, self.MAX_SEQ_LEN])
                 elif name.startswith("past_key_value_"):
@@ -685,6 +691,9 @@ class TRTEngine:
             buffers["host_sink_token_length"][0] = 0
         if "host_context_progress" in buffers:
             buffers["host_context_progress"][0] = 0
+        # Required when remove_input_padding=enable
+        if "host_context_lengths" in buffers:
+            buffers["host_context_lengths"][0] = num_tokens if is_context else self._prompt_len
 
         # Bind all buffers
         for name, buf in buffers.items():

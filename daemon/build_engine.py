@@ -361,11 +361,12 @@ if __name__ == "__main__":
         "--max_input_len", str(args.max_input_len),
         "--max_seq_len", str(args.max_seq_len),
         "--kv_cache_type", "continuous",
-        "--remove_input_padding", "disable",
+        "--remove_input_padding", "enable",
         "--context_fmha", "enable",
         "--paged_state", "disable",
         "--workers", "1",
         "--gemm_plugin", "auto",
+        "--opt_num_tokens", "1",
     ]
 
     if ckpt_exists:

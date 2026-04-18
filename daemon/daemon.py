@@ -45,7 +45,6 @@ if getattr(sys, 'frozen', False):
 else:
     PROJECT_ROOT = Path(__file__).parent.parent.resolve()
     _FROZEN = False
-
 _version_file = PROJECT_ROOT / "VERSION"
 if not _version_file.exists():
     _version_file = Path(__file__).parent / "VERSION"  # frozen exe: bundled next to daemon.py
@@ -598,21 +597,15 @@ class TRTEngine:
         if self._kv_cache is None:
             self._alloc_kv_cache(self.MAX_SEQ_LEN)
 
-        # Detect remove_input_padding mode from engine's declared input_ids shape
-        # 1D = padding removed (flat tokens), 2D = padded [batch, seq]
-        _ids_info = self.tensor_info.get("input_ids", {})
-        _ids_ndim = len(_ids_info.get("shape", []))
-        _packed = (_ids_ndim == 1)
-
         # Build buffers
         buffers = {}
         for name, info in self.tensor_info.items():
             shape = list(info["shape"])
 
             if name == "input_ids":
-                shape = [num_tokens] if _packed else [1, num_tokens]
+                shape = [1, num_tokens]
             elif name == "position_ids":
-                shape = [num_tokens] if _packed else [1, num_tokens]
+                shape = [1, num_tokens]
             elif name == "cache_indirection":
                 shape = [1, 1, self.MAX_SEQ_LEN]
             elif name.startswith("past_key_value_"):
@@ -625,9 +618,9 @@ class TRTEngine:
             # Set dynamic input shapes
             if info["is_input"]:
                 if name == "input_ids":
-                    self.context.set_input_shape(name, shape)
+                    self.context.set_input_shape(name, [1, num_tokens])
                 elif name == "position_ids":
-                    self.context.set_input_shape(name, shape)
+                    self.context.set_input_shape(name, [1, num_tokens])
                 elif name == "cache_indirection":
                     self.context.set_input_shape(name, [1, 1, self.MAX_SEQ_LEN])
                 elif name.startswith("past_key_value_"):
@@ -691,9 +684,6 @@ class TRTEngine:
             buffers["host_sink_token_length"][0] = 0
         if "host_context_progress" in buffers:
             buffers["host_context_progress"][0] = 0
-        # Required when remove_input_padding=enable
-        if "host_context_lengths" in buffers:
-            buffers["host_context_lengths"][0] = num_tokens if is_context else self._prompt_len
 
         # Bind all buffers
         for name, buf in buffers.items():
@@ -1030,7 +1020,9 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
             state._transport_peer = peer_ip
             init_signal_socket(rank, peer_ip)
 
-    # Warmup — solo GPU warms up here; TP warms up after follower thread starts
+    # Warmup — skip for TP mode. First chat coordinates both ranks properly
+    # via _generate_tokens which sends signal_context + context_phase in lockstep.
+    # Direct warmup here races because rank 1 follower may not be ready.
     if tp < 2:
         try:
             for i in range(3):
@@ -1039,6 +1031,8 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
             log.info("Warmup done")
         except Exception as e:
             log.warning(f"Warmup failed: {e} (non-fatal)")
+    else:
+        log.info("TP mode — first chat will warm up both ranks")
 
     # Load tokenizer (rank 0 only for TP, or always for single GPU)
     if rank is None or rank == 0:
@@ -1072,9 +1066,6 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
             threading.Thread(target=_rank1_worker, daemon=True).start()
             log.info("Rank 1 follower started (HTTP fallback) — waiting for rank 0")
         state._follower_started = True
-
-    # No TP warmup in load path — rank 1's follower thread isn't guaranteed
-    # to be listening yet. First chat naturally warms up both ranks in lockstep.
 
     state.engine_name = Path(engine_dir).name
     state.engine_dir = engine_dir
@@ -1565,20 +1556,10 @@ def _ws_bridge_worker(orchestrator_url: str):
                         rank = req_data.get("rank")
                         peer_ip = req_data.get("peer_ip")
                         if tp >= 2:
-                            # Stale-load detection: if status has been "loading" for >120s,
-                            # a prior load hung (transport timeout, peer never arrived, etc).
-                            # Force reset so the new request can proceed.
-                            _load_started = getattr(state, '_load_started_at', 0)
-                            _load_age = time.time() - _load_started if _load_started else 0
-                            if state.status == "loading" and _load_age < 120:
-                                log.warning(f"Load already in progress ({_load_age:.0f}s old), ignoring duplicate")
+                            if state.status == "loading":
+                                log.warning("Load already in progress, ignoring duplicate")
                                 ws.send(json.dumps({"status": "loading"}))
                             else:
-                                if state.status == "loading":
-                                    log.warning(f"Stale loading state ({_load_age:.0f}s old) — resetting and proceeding")
-                                    state.status = "ready"
-                                    state.error = ""
-                                state._load_started_at = time.time()
                                 # TP load runs in background — transport init blocks
                                 def _do_tp_load(mid=model_id, _tp=tp, _r=rank, _p=peer_ip):
                                     try:
@@ -1593,8 +1574,6 @@ def _ws_bridge_worker(orchestrator_url: str):
                                         log.error(f"TP load crashed: {e}", exc_info=True)
                                         state.status = "error"
                                         state.error = str(e)
-                                    finally:
-                                        state._load_started_at = 0
                                 threading.Thread(target=_do_tp_load, daemon=True).start()
                                 ws.send(json.dumps({"status": "loading"}))
                         else:
@@ -1619,54 +1598,31 @@ def _ws_bridge_worker(orchestrator_url: str):
                                     state.engine_dir = None
                                     import torch
                                     torch.cuda.empty_cache()
-                            # Delete engine files — preserve shared weights
-                            # Check registry path AND common TP variants (tp1/tp2)
+                            # Delete TP=1 engine only — preserve shared weights
+                            # Weights may be used by TP=2 demo or other modes
                             deleted = []
-                            paths_to_delete = set()
-                            if model.get("engine_dir"):
-                                paths_to_delete.add(model["engine_dir"])
-                            for suffix in ["-tp1", "-tp2"]:
-                                p = str(PROJECT_ROOT / "engine_cache" / (model_id + suffix))
-                                if os.path.isdir(p):
-                                    paths_to_delete.add(p)
-                            for p in paths_to_delete:
-                                if os.path.isdir(p):
-                                    shutil.rmtree(p, ignore_errors=True)
-                                    deleted.append(os.path.basename(p))
+                            if model.get("engine_dir") and os.path.isdir(model["engine_dir"]):
+                                shutil.rmtree(model["engine_dir"], ignore_errors=True)
+                                deleted.append("engine")
                             # Update registry — mark engine as deleted, keep download status
                             st = _load_state()
                             if model_id in st.get("models", {}):
                                 st["models"][model_id]["engine_built"] = False
                                 st["models"][model_id]["engine_dir"] = None
                                 _save_state(st)
-                            # Also clear any build task status so status reports "idle"
-                            _build_tasks.pop(model_id, None)
                             log.info(f"Deleted model {model_id}: {deleted}")
                             ws.send(json.dumps({"status": "ok", "deleted": deleted}))
 
                     elif msg_type == "unload":
                         if state.engine:
                             log.info("Unloading model...")
-                            # Explicit KV cache + buffer cleanup before dropping engine
-                            try:
-                                if hasattr(state.engine, '_kv_cache') and state.engine._kv_cache:
-                                    for k in list(state.engine._kv_cache.keys()):
-                                        del state.engine._kv_cache[k]
-                                    state.engine._kv_cache = None
-                                state.engine._stream = None
-                                state.engine.context = None
-                                state.engine.engine = None
-                                state.engine.runtime = None
-                            except Exception as e:
-                                log.warning(f"KV cache cleanup: {e}")
                             del state.engine
                             state.engine = None
                             state.tokenizer = None
                             state.engine_name = None
                             state.engine_dir = None
                             state.active_model_id = None
-                            import gc, torch
-                            gc.collect()
+                            import torch
                             torch.cuda.empty_cache()
                             log.info("Model unloaded, VRAM freed")
                             ws.send(json.dumps({"status": "ok"}))
@@ -1799,14 +1755,10 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
                     pass
             threading.Thread(target=_send, daemon=True).start()
 
-    # Phase 1: Context — start rank 0 BEFORE signaling rank 1.
-    # If rank 1 starts and finishes AllReduce before rank 0 begins,
-    # the TCP transport deadlocks (buffer overflow, no reader yet).
-    import concurrent.futures
-    _ctx_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    _ctx_future = _ctx_pool.submit(state.engine.context_phase, input_ids)
+    # Phase 1: Context — signal rank 1 first, then run rank 0.
+    # Both ranks start context_phase at roughly the same time.
     notify_peer("context", ids=input_ids)
-    first_token, ctx_ms = _ctx_future.result()
+    first_token, ctx_ms = state.engine.context_phase(input_ids)
 
     if first_token < 0:
         yield f"data: {json.dumps({'error': 'context phase failed'})}\n\n"
@@ -2093,74 +2045,6 @@ async def api_cancel_pull(model_id: str):
     _pull_cancel.pop(model_id, None)
     log.info(f"Model download cancelled: {model_id}")
     return {"status": "cancelled"}
-
-
-@app.post("/api/models/{model_id}/delete")
-async def api_delete_model(model_id: str, mode: str = "all"):
-    """Delete model files. mode=engine removes only engine files (keeps weights); mode=all removes both."""
-    import shutil as _shutil
-    from model_registry import get_model, _load_state, _save_state
-
-    model = get_model(model_id)
-    if not model:
-        return JSONResponse(status_code=404, content={"error": "Unknown model"})
-
-    # Don't delete if currently loaded
-    if state.active_model_id == model_id:
-        return JSONResponse(status_code=400, content={"error": "Unload the model first"})
-
-    deleted = []
-    errors = []
-
-    def _force_delete(path, label):
-        """Delete directory, retrying with permission fix on failure."""
-        if not os.path.isdir(path):
-            return
-        try:
-            _shutil.rmtree(path)
-            deleted.append(label)
-        except PermissionError:
-            # Program Files may need explicit write permission
-            try:
-                for root, dirs, files in os.walk(path):
-                    for f in files:
-                        fp = os.path.join(root, f)
-                        os.chmod(fp, 0o777)
-                _shutil.rmtree(path)
-                deleted.append(label)
-            except Exception as e2:
-                errors.append(f"{label}: {e2}")
-                log.error(f"Delete failed ({label}): {e2}")
-        except Exception as e:
-            errors.append(f"{label}: {e}")
-            log.error(f"Delete failed ({label}): {e}")
-
-    # Delete engine files — check registry path + common TP variants
-    if model.get("engine_dir"):
-        _force_delete(model["engine_dir"], "engine")
-    for suffix in ["-tp1", "-tp2", ""]:
-        edir = str(PROJECT_ROOT / "engine_cache" / (model_id + suffix))
-        if os.path.isdir(edir):
-            _force_delete(edir, f"engine({model_id + suffix})")
-
-    # Delete weights (only if mode=all)
-    if mode == "all":
-        hf_dir = str(PROJECT_ROOT / "models" / model_id)
-        _force_delete(hf_dir, "weights")
-
-    # Update registry state
-    st = _load_state()
-    if model_id in st.get("models", {}):
-        if mode == "all":
-            st["models"][model_id]["downloaded"] = False
-        st["models"][model_id]["engine_built"] = False
-        st["models"][model_id].pop("engine_dir", None)
-        _save_state(st)
-
-    log.info(f"Model deleted: {model_id} ({', '.join(deleted) or 'nothing found'})")
-    if errors:
-        return JSONResponse(status_code=500, content={"error": "; ".join(errors), "removed": deleted})
-    return {"status": "deleted", "removed": deleted}
 
 
 @app.post("/api/models/{model_id}/build")

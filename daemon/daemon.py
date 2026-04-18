@@ -1619,18 +1619,28 @@ def _ws_bridge_worker(orchestrator_url: str):
                                     state.engine_dir = None
                                     import torch
                                     torch.cuda.empty_cache()
-                            # Delete TP=1 engine only — preserve shared weights
-                            # Weights may be used by TP=2 demo or other modes
+                            # Delete engine files — preserve shared weights
+                            # Check registry path AND common TP variants (tp1/tp2)
                             deleted = []
-                            if model.get("engine_dir") and os.path.isdir(model["engine_dir"]):
-                                shutil.rmtree(model["engine_dir"], ignore_errors=True)
-                                deleted.append("engine")
+                            paths_to_delete = set()
+                            if model.get("engine_dir"):
+                                paths_to_delete.add(model["engine_dir"])
+                            for suffix in ["-tp1", "-tp2"]:
+                                p = str(PROJECT_ROOT / "engine_cache" / (model_id + suffix))
+                                if os.path.isdir(p):
+                                    paths_to_delete.add(p)
+                            for p in paths_to_delete:
+                                if os.path.isdir(p):
+                                    shutil.rmtree(p, ignore_errors=True)
+                                    deleted.append(os.path.basename(p))
                             # Update registry — mark engine as deleted, keep download status
                             st = _load_state()
                             if model_id in st.get("models", {}):
                                 st["models"][model_id]["engine_built"] = False
                                 st["models"][model_id]["engine_dir"] = None
                                 _save_state(st)
+                            # Also clear any build task status so status reports "idle"
+                            _build_tasks.pop(model_id, None)
                             log.info(f"Deleted model {model_id}: {deleted}")
                             ws.send(json.dumps({"status": "ok", "deleted": deleted}))
 

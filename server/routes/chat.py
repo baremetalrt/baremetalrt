@@ -535,6 +535,14 @@ async def tp2_build(model_id: str, request: Request):
     rank1_ip = str(r1_row["ip"]) if r1_row else "0.0.0.0"
     log.info(f"TP2 build: rank0={r0} ({rank0_ip}) builds all, rank1={r1} ({rank1_ip}) will fetch")
 
+    # Clear rank 1's old engine state so it's ready to receive the fresh one.
+    # Without this, rank 1 reports build.status='done' from its stale engine
+    # and the fetch never fires — silent engine drift between ranks.
+    await _relay_to_daemon(
+        {"type": "delete_model", "model_id": model_id, "mode": "engine"},
+        timeout_s=30.0, node_id=r1,
+    )
+
     # Tell rank 0 to build ALL ranks (no --rank flag, builds sequentially)
     build_result = await _relay_to_daemon(
         {"type": "build", "model_id": model_id, "tp": 2},

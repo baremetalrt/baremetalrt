@@ -45,6 +45,26 @@ if getattr(sys, 'frozen', False):
 else:
     PROJECT_ROOT = Path(__file__).parent.parent.resolve()
     _FROZEN = False
+
+# Redirect C stderr to file so we can capture AllReduce timing from the C++ DLL
+try:
+    import ctypes, ctypes.util
+    _runtime_log = os.path.join(os.environ.get("APPDATA", "."), "BareMetalRT", "transport.log")
+    if sys.platform == "win32":
+        # Windows: use _freopen on the CRT's stderr so DLL fprintf(stderr) is captured
+        _ucrt = ctypes.CDLL("ucrtbase.dll")
+        _iob = _ucrt.__acrt_iob_func
+        _iob.argtypes = [ctypes.c_int]
+        _iob.restype = ctypes.c_void_p
+        _stderr_file = _iob(2)
+        _ucrt.freopen.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p]
+        _ucrt.freopen.restype = ctypes.c_void_p
+        _ucrt.freopen(_runtime_log.encode(), b"w", _stderr_file)
+    else:
+        _stderr_fd = os.open(_runtime_log, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+        os.dup2(_stderr_fd, 2)
+except Exception:
+    pass
 _version_file = PROJECT_ROOT / "VERSION"
 if not _version_file.exists():
     _version_file = Path(__file__).parent / "VERSION"  # frozen exe: bundled next to daemon.py
@@ -701,6 +721,19 @@ class TRTEngine:
         event = default_stream.record_event()
         stream.wait_event(event)
 
+        # Log buffer sizes on first few generation steps
+        if not is_context and self._seq_len <= self._prompt_len + 3:
+            for name, buf in buffers.items():
+                if name.startswith("past_key") or name.startswith("present_key"):
+                    continue
+                if hasattr(buf, 'nbytes'):
+                    sz = buf.nbytes
+                elif hasattr(buf, 'nelement'):
+                    sz = buf.nelement() * buf.element_size()
+                else:
+                    sz = 0
+                log.info(f"  gen buf {name}: {sz} bytes")
+
         t0 = time.time()
         ok = self.context.execute_async_v3(stream.cuda_stream)
         stream.synchronize()
@@ -1022,9 +1055,7 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
             state._transport_peer = peer_ip
             init_signal_socket(rank, peer_ip)
 
-    # Warmup — skip for TP mode. First chat coordinates both ranks properly
-    # via _generate_tokens which sends signal_context + context_phase in lockstep.
-    # Direct warmup here races because rank 1 follower may not be ready.
+    # Warmup — solo GPU warms up here; TP warms up after follower thread starts
     if tp < 2:
         try:
             for i in range(3):
@@ -1033,8 +1064,6 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
             log.info("Warmup done")
         except Exception as e:
             log.warning(f"Warmup failed: {e} (non-fatal)")
-    else:
-        log.info("TP mode — first chat will warm up both ranks")
 
     # Load tokenizer (rank 0 only for TP, or always for single GPU)
     if rank is None or rank == 0:
@@ -1068,6 +1097,22 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
             threading.Thread(target=_rank1_worker, daemon=True).start()
             log.info("Rank 1 follower started (HTTP fallback) — waiting for rank 0")
         state._follower_started = True
+
+    # TP warmup: rank 1 follower is now running, so rank 0 can signal it.
+    # Run 3 synchronized inferences to boost GPU clocks out of P8 idle.
+    if tp >= 2 and rank == 0:
+        import time as _time
+        _time.sleep(0.5)  # let rank 1 follower thread settle
+        log.info("TP warmup: boosting GPU clocks...")
+        try:
+            for i in range(3):
+                _signal_send_context([1, 450, 7483])
+                _, ms = state.engine.infer([1, 450, 7483])
+                log.info(f"  warmup {i+1}/3: {ms:.0f}ms")
+            state.engine.reset_kv_cache()
+            log.info("TP warmup done")
+        except Exception as e:
+            log.warning(f"TP warmup failed: {e} (non-fatal)")
 
     state.engine_name = Path(engine_dir).name
     state.engine_dir = engine_dir
@@ -1757,10 +1802,14 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
                     pass
             threading.Thread(target=_send, daemon=True).start()
 
-    # Phase 1: Context — signal rank 1 first, then run rank 0.
-    # Both ranks start context_phase at roughly the same time.
+    # Phase 1: Context — start rank 0 BEFORE signaling rank 1.
+    # If rank 1 starts and finishes AllReduce before rank 0 begins,
+    # the TCP transport deadlocks (buffer overflow, no reader yet).
+    import concurrent.futures
+    _ctx_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    _ctx_future = _ctx_pool.submit(state.engine.context_phase, input_ids)
     notify_peer("context", ids=input_ids)
-    first_token, ctx_ms = state.engine.context_phase(input_ids)
+    first_token, ctx_ms = _ctx_future.result()
 
     if first_token < 0:
         yield f"data: {json.dumps({'error': 'context phase failed'})}\n\n"
@@ -1787,6 +1836,8 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
         token_id, ms = state.engine.generate_step(
             cur_token, 0.7, 40, 1.1, generated,
         )
+        if i < 5:
+            log.info(f"  gen step {i}: {ms:.1f}ms (token={token_id})")
 
         if token_id < 0:
             yield f"data: {json.dumps({'error': 'generation failed'})}\n\n"

@@ -46,25 +46,6 @@ else:
     PROJECT_ROOT = Path(__file__).parent.parent.resolve()
     _FROZEN = False
 
-# Redirect C stderr to file so we can capture AllReduce timing from the C++ DLL
-try:
-    import ctypes, ctypes.util
-    _runtime_log = os.path.join(os.environ.get("APPDATA", "."), "BareMetalRT", "transport.log")
-    if sys.platform == "win32":
-        # Windows: use _freopen on the CRT's stderr so DLL fprintf(stderr) is captured
-        _ucrt = ctypes.CDLL("ucrtbase.dll")
-        _iob = _ucrt.__acrt_iob_func
-        _iob.argtypes = [ctypes.c_int]
-        _iob.restype = ctypes.c_void_p
-        _stderr_file = _iob(2)
-        _ucrt.freopen.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p]
-        _ucrt.freopen.restype = ctypes.c_void_p
-        _ucrt.freopen(_runtime_log.encode(), b"w", _stderr_file)
-    else:
-        _stderr_fd = os.open(_runtime_log, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
-        os.dup2(_stderr_fd, 2)
-except Exception:
-    pass
 _version_file = PROJECT_ROOT / "VERSION"
 if not _version_file.exists():
     _version_file = Path(__file__).parent / "VERSION"  # frozen exe: bundled next to daemon.py
@@ -1804,14 +1785,12 @@ def _generate_tokens(message: str, max_tokens: int, history: list[dict] | None =
                     pass
             threading.Thread(target=_send, daemon=True).start()
 
-    # Phase 1: Context — start rank 0 BEFORE signaling rank 1.
-    # If rank 1 starts and finishes AllReduce before rank 0 begins,
-    # the TCP transport deadlocks (buffer overflow, no reader yet).
-    import concurrent.futures
-    _ctx_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    _ctx_future = _ctx_pool.submit(state.engine.context_phase, input_ids)
+    # Phase 1: Context — match monorepo order (proven working at 150ms/tok).
+    # Signal rank 1 first, then run rank 0 on main thread (no ThreadPoolExecutor).
+    # Running engine execution in a worker thread causes KV cache desync between
+    # ranks — "coherent then degenerates" output symptom.
     notify_peer("context", ids=input_ids)
-    first_token, ctx_ms = _ctx_future.result()
+    first_token, ctx_ms = state.engine.context_phase(input_ids)
 
     if first_token < 0:
         yield f"data: {json.dumps({'error': 'context phase failed'})}\n\n"

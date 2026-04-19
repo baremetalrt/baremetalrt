@@ -1098,21 +1098,8 @@ def _load_model(model_id: str, tp: int = 1, rank: int = None, peer_ip: str = Non
             log.info("Rank 1 follower started (HTTP fallback) — waiting for rank 0")
         state._follower_started = True
 
-    # TP warmup: rank 1 follower is now running, so rank 0 can signal it.
-    # Run 3 synchronized inferences to boost GPU clocks out of P8 idle.
-    if tp >= 2 and rank == 0:
-        import time as _time
-        _time.sleep(0.5)  # let rank 1 follower thread settle
-        log.info("TP warmup: boosting GPU clocks...")
-        try:
-            for i in range(3):
-                _signal_send_context([1, 450, 7483])
-                _, ms = state.engine.infer([1, 450, 7483])
-                log.info(f"  warmup {i+1}/3: {ms:.0f}ms")
-            state.engine.reset_kv_cache()
-            log.info("TP warmup done")
-        except Exception as e:
-            log.warning(f"TP warmup failed: {e} (non-fatal)")
+    # TP warmup disabled — was hanging in AllReduce and preventing load completion.
+    # First chat triggers warmup naturally via _generate_tokens.
 
     state.engine_name = Path(engine_dir).name
     state.engine_dir = engine_dir

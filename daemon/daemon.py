@@ -1575,6 +1575,21 @@ def _ws_bridge_worker(orchestrator_url: str):
                                                 "status": "building", "progress": f"Receiving engine {pct}%"
                                             }
                             log.info(f"Engine received: {dest_path} ({os.path.getsize(dest_path) // (1024*1024)} MB)")
+                            # Also fetch config.json — required for correct KV cache shape.
+                            # Without it, daemon falls back to TinyLlama defaults and
+                            # execute_async_v3 silently fails with wrong tensor shapes.
+                            try:
+                                cfg_url = f"http://{peer_ip}:{peer_port}/api/engines/config.json?engine_name={engine_name}"
+                                cfg_path = os.path.join(dest_dir, "config.json")
+                                cfg_resp = httpx.get(cfg_url, timeout=30.0)
+                                if cfg_resp.status_code == 200:
+                                    with open(cfg_path, "wb") as f:
+                                        f.write(cfg_resp.content)
+                                    log.info(f"config.json received: {cfg_path}")
+                                else:
+                                    log.warning(f"config.json fetch returned {cfg_resp.status_code}")
+                            except Exception as e:
+                                log.warning(f"config.json fetch failed: {e}")
                             from model_registry import mark_engine_built
                             model_id_base = engine_name.replace("-tp2", "").replace("-tp1", "")
                             mark_engine_built(model_id_base, dest_dir)

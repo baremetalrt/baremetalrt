@@ -1533,56 +1533,65 @@ def _ws_bridge_worker(orchestrator_url: str):
                         threading.Thread(target=lambda: (time.sleep(1), os._exit(0)), daemon=True).start()
 
                     elif msg_type == "fetch_engine":
-                        # Download engine file from a peer node
+                        # Download engine file from a peer node.
+                        # Runs in a background thread so the WS handler isn't blocked
+                        # by the multi-GB HTTP transfer — WS keepalive would otherwise
+                        # die after ~30s on a ~78s download. Progress is tracked via
+                        # _build_tasks; the server polls /model_status to detect done.
                         peer_ip = req_data.get("peer_ip", "")
                         peer_port = req_data.get("peer_port", 8080)
                         engine_name = req_data.get("engine_name", "")
                         filename = req_data.get("filename", "rank1.engine")
+                        model_id_base = engine_name.replace("-tp2", "").replace("-tp1", "")
                         dest_dir = str(PROJECT_ROOT / "engine_cache" / engine_name)
                         os.makedirs(dest_dir, exist_ok=True)
                         dest_path = os.path.join(dest_dir, filename)
-                        try:
-                            import httpx
-                            url = f"http://{peer_ip}:{peer_port}/api/engines/{filename}"
-                            log.info(f"Fetching engine from {url} -> {dest_path}")
-                            with httpx.stream("GET", url, timeout=600.0) as resp:
-                                if resp.status_code != 200:
-                                    raise Exception(f"Peer returned {resp.status_code}: {resp.text[:200]}")
-                                total = int(resp.headers.get("content-length", 0))
-                                downloaded = 0
-                                with open(dest_path, "wb") as f:
-                                    for chunk in resp.iter_bytes(chunk_size=1024*1024):
-                                        f.write(chunk)
-                                        downloaded += len(chunk)
-                                        if total > 0:
-                                            pct = int(downloaded / total * 100)
-                                            _build_tasks[engine_name.replace("-tp2", "")] = {
-                                                "status": "building", "progress": f"Receiving engine {pct}%"
-                                            }
-                            log.info(f"Engine received: {dest_path} ({os.path.getsize(dest_path) // (1024*1024)} MB)")
-                            # Also fetch config.json — required for correct KV cache shape.
-                            # Without it, daemon falls back to TinyLlama defaults and
-                            # execute_async_v3 silently fails with wrong tensor shapes.
+
+                        def _do_fetch(_peer_ip=peer_ip, _peer_port=peer_port,
+                                      _engine_name=engine_name, _filename=filename,
+                                      _mid=model_id_base, _dest_dir=dest_dir, _dest_path=dest_path):
                             try:
-                                cfg_url = f"http://{peer_ip}:{peer_port}/api/engines/config.json?engine_name={engine_name}"
-                                cfg_path = os.path.join(dest_dir, "config.json")
-                                cfg_resp = httpx.get(cfg_url, timeout=30.0)
-                                if cfg_resp.status_code == 200:
-                                    with open(cfg_path, "wb") as f:
-                                        f.write(cfg_resp.content)
-                                    log.info(f"config.json received: {cfg_path}")
-                                else:
-                                    log.warning(f"config.json fetch returned {cfg_resp.status_code}")
+                                import httpx
+                                _build_tasks[_mid] = {"status": "building", "progress": "Starting fetch..."}
+                                url = f"http://{_peer_ip}:{_peer_port}/api/engines/{_filename}"
+                                log.info(f"Fetching engine from {url} -> {_dest_path}")
+                                with httpx.stream("GET", url, timeout=600.0) as resp:
+                                    if resp.status_code != 200:
+                                        raise Exception(f"Peer returned {resp.status_code}: {resp.text[:200]}")
+                                    total = int(resp.headers.get("content-length", 0))
+                                    downloaded = 0
+                                    with open(_dest_path, "wb") as f:
+                                        for chunk in resp.iter_bytes(chunk_size=1024*1024):
+                                            f.write(chunk)
+                                            downloaded += len(chunk)
+                                            if total > 0:
+                                                pct = int(downloaded / total * 100)
+                                                _build_tasks[_mid] = {
+                                                    "status": "building", "progress": f"Receiving engine {pct}%"
+                                                }
+                                log.info(f"Engine received: {_dest_path} ({os.path.getsize(_dest_path) // (1024*1024)} MB)")
+                                # Also fetch config.json — required for correct KV cache shape.
+                                try:
+                                    cfg_url = f"http://{_peer_ip}:{_peer_port}/api/engines/config.json?engine_name={_engine_name}"
+                                    cfg_path = os.path.join(_dest_dir, "config.json")
+                                    cfg_resp = httpx.get(cfg_url, timeout=30.0)
+                                    if cfg_resp.status_code == 200:
+                                        with open(cfg_path, "wb") as f:
+                                            f.write(cfg_resp.content)
+                                        log.info(f"config.json received: {cfg_path}")
+                                    else:
+                                        log.warning(f"config.json fetch returned {cfg_resp.status_code}")
+                                except Exception as e:
+                                    log.warning(f"config.json fetch failed: {e}")
+                                from model_registry import mark_engine_built
+                                mark_engine_built(_mid, _dest_dir)
+                                _build_tasks[_mid] = {"status": "done", "progress": "Engine received"}
                             except Exception as e:
-                                log.warning(f"config.json fetch failed: {e}")
-                            from model_registry import mark_engine_built
-                            model_id_base = engine_name.replace("-tp2", "").replace("-tp1", "")
-                            mark_engine_built(model_id_base, dest_dir)
-                            _build_tasks[model_id_base] = {"status": "done", "progress": "Engine received"}
-                            ws.send(json.dumps({"status": "ok", "path": dest_path}))
-                        except Exception as e:
-                            log.error(f"fetch_engine error: {e}")
-                            ws.send(json.dumps({"error": str(e)}))
+                                log.error(f"fetch_engine error: {e}")
+                                _build_tasks[_mid] = {"status": "error", "progress": str(e)[:500]}
+
+                        threading.Thread(target=_do_fetch, daemon=True).start()
+                        ws.send(json.dumps({"status": "started"}))
 
                     elif msg_type == "load":
                         model_id = req_data.get("model_id", "")

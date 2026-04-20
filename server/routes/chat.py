@@ -41,9 +41,6 @@ _daemon_connections: dict[str, DaemonConnection] = {}
 # user_id -> node_id (which daemon is the "active" one for 1-GPU relay)
 _active_node: dict[str, str] = {}
 
-# Pending TP builds: model_id -> {rank0_id, rank1_id, rank0_ip, ...}
-_tp_build_pending: dict[str, dict] = {}
-
 
 def _auto_select_active(user_id: str):
     """Auto-select the highest-VRAM connected node for this user."""
@@ -495,7 +492,7 @@ async def tp2_pull(model_id: str, request: Request):
 
 @router.get("/api/tp2/status/{model_id}")
 async def tp2_model_status(model_id: str, request: Request):
-    """Get pull/build status from both daemons. Auto-triggers rank 1 fetch when rank 0 build completes."""
+    """Get pull/build status from both daemons."""
     r0, r1 = await _get_tp_nodes(request)
     if not r0 or not r1:
         return {"rank0": {}, "rank1": {}}
@@ -503,51 +500,83 @@ async def tp2_model_status(model_id: str, request: Request):
         _relay_to_daemon({"type": "model_status", "model_id": model_id}, node_id=r0),
         _relay_to_daemon({"type": "model_status", "model_id": model_id}, node_id=r1),
     )
-
-    # Auto-trigger rank 1 engine fetch when rank 0 build is done
-    pending = _tp_build_pending.get(model_id)
-    if pending and res0.get("build", {}).get("status") == "done":
-        r1_build = res1.get("build", {}).get("status", "idle")
-        if r1_build not in ("done", "building"):
-            # Rank 0 done, rank 1 hasn't started — trigger fetch
-            log.info(f"TP2: rank 0 build done, triggering rank 1 fetch from {pending['rank0_ip']}")
-            asyncio.create_task(_relay_to_daemon(
-                {"type": "fetch_engine", "peer_ip": pending["rank0_ip"], "peer_port": 8080,
-                 "engine_name": pending["engine_name"], "filename": "rank1.engine"},
-                timeout_s=600.0, node_id=pending["rank1_id"],
-            ))
-            del _tp_build_pending[model_id]
-
     return {"rank0": res0, "rank1": res1}
+
+
+async def _tp2_drive_fetch(model_id: str, r0: str, r1: str, rank0_ip: str):
+    """Background orchestrator: wait for rank 0 build done, then trigger rank 1 fetch,
+    then wait for fetch done. Retries the fetch once on transient failure.
+    Server-side driven so the flow does not depend on frontend polling."""
+    engine_name = f"{model_id}-tp2"
+    # Phase 1: wait for rank 0 build to complete. Poll every 5s up to 30 min.
+    rank0_done = False
+    for _ in range(360):
+        await asyncio.sleep(5)
+        st = await _relay_to_daemon(
+            {"type": "model_status", "model_id": model_id}, node_id=r0,
+        )
+        r0_status = st.get("build", {}).get("status")
+        if r0_status == "done":
+            log.info(f"TP2 drive [{model_id}]: rank 0 build done")
+            rank0_done = True
+            break
+        if r0_status == "error":
+            log.error(f"TP2 drive [{model_id}]: rank 0 build error: {st.get('build', {}).get('progress')}")
+            return
+    if not rank0_done:
+        log.error(f"TP2 drive [{model_id}]: rank 0 build timed out (>30min)")
+        return
+
+    # Phase 2: trigger fetch on rank 1, poll for completion, retry once on failure.
+    for attempt in range(2):
+        log.info(f"TP2 drive [{model_id}]: triggering rank 1 fetch (attempt {attempt+1})")
+        ack = await _relay_to_daemon(
+            {"type": "fetch_engine", "peer_ip": rank0_ip, "peer_port": 8080,
+             "engine_name": engine_name, "filename": "rank1.engine"},
+            timeout_s=30.0, node_id=r1,
+        )
+        if ack.get("error"):
+            log.warning(f"TP2 drive [{model_id}]: fetch ack error: {ack['error']}")
+            await asyncio.sleep(5)
+            continue
+        # Poll rank 1 build status until done or error. Up to 10 min.
+        rank1_result = None
+        for _ in range(120):
+            await asyncio.sleep(5)
+            st = await _relay_to_daemon(
+                {"type": "model_status", "model_id": model_id}, node_id=r1,
+            )
+            r1_status = st.get("build", {}).get("status")
+            if r1_status == "done":
+                log.info(f"TP2 drive [{model_id}]: rank 1 fetch complete")
+                return
+            if r1_status == "error":
+                log.warning(f"TP2 drive [{model_id}]: rank 1 fetch error: {st.get('build', {}).get('progress')}")
+                rank1_result = "error"
+                break
+        if rank1_result != "error":
+            log.error(f"TP2 drive [{model_id}]: rank 1 fetch timed out (>10min)")
+            return
+    log.error(f"TP2 drive [{model_id}]: rank 1 fetch failed after 2 attempts")
 
 
 @router.post("/api/tp2/build/{model_id}")
 async def tp2_build(model_id: str, request: Request):
-    """Coordinate TP=2 engine build: rank 0 builds all ranks, rank 1 fetches its engine."""
+    """Coordinate TP=2 engine build: rank 0 builds all ranks, rank 1 fetches its shard.
+    Server drives the full flow end-to-end via a background task —
+    no frontend polling required to complete the build."""
     r0, r1 = await _get_tp_nodes(request)
     if not r0 or not r1:
         return JSONResponse(status_code=400, content={"error": "Need 2 GPUs online"})
-
-    # Get IPs from DB
     r0_row = await db.fetch_one("SELECT ip FROM nodes WHERE node_id = $1", r0)
-    r1_row = await db.fetch_one("SELECT ip FROM nodes WHERE node_id = $1", r1)
     rank0_ip = str(r0_row["ip"]) if r0_row else "0.0.0.0"
-    rank1_ip = str(r1_row["ip"]) if r1_row else "0.0.0.0"
-    log.info(f"TP2 build: rank0={r0} ({rank0_ip}) builds all, rank1={r1} ({rank1_ip}) will fetch")
+    log.info(f"TP2 build: rank0={r0} ({rank0_ip}) builds all, rank1={r1} will fetch")
 
-    # Tell rank 0 to build ALL ranks (no --rank flag, builds sequentially)
     build_result = await _relay_to_daemon(
         {"type": "build", "model_id": model_id, "tp": 2},
         timeout_s=60.0, node_id=r0,
     )
-
-    # Store fetch info so the status poll can trigger rank 1 fetch when ready
-    _tp_build_pending[model_id] = {
-        "rank0_id": r0, "rank1_id": r1,
-        "rank0_ip": rank0_ip, "rank1_ip": rank1_ip,
-        "engine_name": f"{model_id}-tp2",
-    }
-
+    asyncio.create_task(_tp2_drive_fetch(model_id, r0, r1, rank0_ip))
     return {"rank0": build_result, "rank1": {"status": "waiting_for_build"}}
 
 

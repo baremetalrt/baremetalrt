@@ -499,7 +499,24 @@ class TRTEngine:
     def __init__(self, engine_path: str):
         import tensorrt as trt
         self.trt = trt
-        self.logger = trt.Logger(trt.Logger.WARNING)
+
+        # Route TRT errors into Python logging so we see why a deserialize
+        # or execute failed. Default trt.Logger writes to stderr which the
+        # frozen exe discards, making deserialize_cuda_engine returning None
+        # impossible to diagnose.
+        class _PyTRTLogger(trt.ILogger):
+            def __init__(_self):
+                trt.ILogger.__init__(_self)
+            def log(_self, severity, msg):
+                sev = severity.name if hasattr(severity, "name") else str(severity)
+                line = f"[TRT] {sev}: {msg}"
+                if severity == trt.ILogger.Severity.INTERNAL_ERROR or severity == trt.ILogger.Severity.ERROR:
+                    log.error(line)
+                elif severity == trt.ILogger.Severity.WARNING:
+                    log.warning(line)
+                else:
+                    log.info(line)
+        self.logger = _PyTRTLogger()
         self.runtime = trt.Runtime(self.logger)
 
         with open(engine_path, "rb") as f:

@@ -784,8 +784,10 @@ class TRTEngine:
     def generate_step(self, token_id: int, temperature: float = 0.0,
                       top_k: int = 0, repetition_penalty: float = 1.0,
                       penalize_ids: list[int] | None = None) -> tuple[int, float]:
-        """Generate one token using KV-cache (incremental, single-token step)."""
-        logits_cpu, ms = self._run_step([token_id], is_context=False)
+        """Generate one token. Uses context-recompute (re-runs full sequence each step)."""
+        self._all_ids.append(token_id)
+        self.reset_kv_cache()
+        logits_cpu, ms = self._run_step(self._all_ids, is_context=True)
         if logits_cpu is None:
             return -1, ms
         return self._sample(logits_cpu, temperature, top_k, repetition_penalty, penalize_ids), ms

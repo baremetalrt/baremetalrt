@@ -20,7 +20,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
@@ -119,10 +119,23 @@ async def index():
 
 
 @app.get("/demo")
-async def demo():
-    # /demo IS /app for unauthenticated visitors — autoDemo logs them in
-    # as the demo account, which has feature restrictions but full chat.
-    return RedirectResponse(url="/app", status_code=302)
+async def demo(request: Request):
+    """/demo issues a demo-account session server-side and redirects to /app.
+
+    Skips the client-side autoDemo dance, so a recent sign-out (which sets
+    bmrt_logged_out in sessionStorage) doesn't trap the visitor on the login
+    screen. If the visitor is already signed in, leave their session alone.
+    """
+    from server.auth.middleware import get_current_user, DEMO_EMAIL
+    from server.routes.auth import _issue_session
+
+    if await get_current_user(request):
+        return RedirectResponse(url="/app", status_code=302)
+
+    demo_user = await db.fetch_one("SELECT * FROM users WHERE email = $1", DEMO_EMAIL)
+    if not demo_user:
+        return RedirectResponse(url="/app", status_code=302)
+    return await _issue_session(dict(demo_user), request, redirect=True)
 
 
 @app.get("/privacy")

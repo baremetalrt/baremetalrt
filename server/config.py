@@ -19,6 +19,10 @@ JWT_EXPIRE_HOURS = 72
 
 # Server
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080")
+
+# Public demo: anonymous /demo traffic mirrors this user's GPUs.
+# Empty disables the public demo path (falls back to "any daemon").
+PUBLIC_DEMO_USER_ID = os.environ.get("PUBLIC_DEMO_USER_ID", "")
 ALLOWED_ORIGINS = os.environ.get(
     "ALLOWED_ORIGINS",
     "https://baremetalrt.com,https://www.baremetalrt.com,http://localhost:8080",

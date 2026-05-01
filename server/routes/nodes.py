@@ -51,8 +51,12 @@ async def api_session():
 
 
 @router.get("/cluster")
-async def api_cluster():
-    """Get cluster overview — public."""
+async def api_cluster(public: int = 0):
+    """Get cluster overview. ?public=1 filters to the public demo provider's nodes."""
+    if public:
+        from server.config import PUBLIC_DEMO_USER_ID
+        if PUBLIC_DEMO_USER_ID:
+            return get_cluster(user_id=PUBLIC_DEMO_USER_ID)
     return get_cluster()
 
 

@@ -60,7 +60,12 @@ async def gpu_status(request: Request):
     """Check which GPU daemons are connected via WS bridge."""
     user = await get_current_user(request)
     if not user:
-        # Legacy: return connected if any daemon is connected
+        # Anonymous: mirror the public demo provider's connection state.
+        from server.config import PUBLIC_DEMO_USER_ID
+        if PUBLIC_DEMO_USER_ID:
+            demo_conns = [dc for dc in _daemon_connections.values()
+                          if dc.user_id == PUBLIC_DEMO_USER_ID]
+            return {"connected": len(demo_conns) > 0, "nodes": []}
         return {"connected": len(_daemon_connections) > 0, "nodes": []}
     user_id = str(user["id"])
     user_conns = {nid: dc for nid, dc in _daemon_connections.items() if dc.user_id == user_id}
@@ -308,9 +313,15 @@ def _get_conn(node_id: str = None, user_id: str = None) -> Optional[DaemonConnec
         for dc in _daemon_connections.values():
             if dc.user_id == user_id:
                 return dc
-    # Legacy fallback: any connection
-    if _daemon_connections:
-        return next(iter(_daemon_connections.values()))
+    # Anonymous (no user_id): route to the public demo provider's active daemon.
+    from server.config import PUBLIC_DEMO_USER_ID
+    if PUBLIC_DEMO_USER_ID:
+        demo_active = _active_node.get(PUBLIC_DEMO_USER_ID)
+        if demo_active and demo_active in _daemon_connections:
+            return _daemon_connections[demo_active]
+        for dc in _daemon_connections.values():
+            if dc.user_id == PUBLIC_DEMO_USER_ID:
+                return dc
     return None
 
 

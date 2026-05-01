@@ -157,8 +157,9 @@ def get_session() -> dict:
     return {"status": "waiting", "nodes_online": len([n for n in nodes.values() if n.status != "offline"])}
 
 
-def get_cluster() -> dict:
+def get_cluster(user_id: str | None = None) -> dict:
     cleanup_stale()
+    visible = [n for n in nodes.values() if user_id is None or n.user_id == user_id]
     return {
         "nodes": [
             {
@@ -172,10 +173,10 @@ def get_cluster() -> dict:
                 "engine": n.engine_name,
                 "rank": n.rank,
             }
-            for n in nodes.values()
+            for n in visible
         ],
         "session": active_session,
-        "total_vram_gb": round(sum(n.gpu_vram_total_mb for n in nodes.values()
+        "total_vram_gb": round(sum(n.gpu_vram_total_mb for n in visible
                                    if n.status != "offline") / 1024, 1),
     }
 

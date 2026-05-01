@@ -117,7 +117,7 @@ async function refresh() {
 
     if (currentMode === 'pp1') {
       // Solo / single GPU mode — orchestrator-routed via cluster
-      const r = await fetch('/api/cluster');
+      const r = await fetch('/api/cluster?public=1');
       const d = await r.json();
       const soloNode = (d.nodes || []).find(n =>
         n.status === 'ready' && n.engine && n.engine.endsWith('-tp1')
@@ -156,7 +156,7 @@ async function refresh() {
     }
 
     // TP=2 mode — fetch cluster status from orchestrator
-    const r = await fetch('/api/cluster?mode=' + currentMode);
+    const r = await fetch('/api/cluster?public=1');
     const d = await r.json();
     const session = d.session;
 

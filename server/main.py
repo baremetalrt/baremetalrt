@@ -120,10 +120,9 @@ async def index():
 
 @app.get("/demo")
 async def demo():
-    demo_file = site_dir / "demo.html"
-    if demo_file.exists():
-        return FileResponse(str(demo_file))
-    return {"error": "demo.html not found"}
+    # /demo IS /app for unauthenticated visitors — autoDemo logs them in
+    # as the demo account, which has feature restrictions but full chat.
+    return RedirectResponse(url="/app", status_code=302)
 
 
 @app.get("/privacy")

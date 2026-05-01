@@ -70,6 +70,14 @@ async def gpu_status(request: Request):
     user_id = str(user["id"])
     user_conns = {nid: dc for nid, dc in _daemon_connections.items() if dc.user_id == user_id}
     if not user_conns:
+        # Demo account: borrow the public demo provider's daemon for read-only chat.
+        from server.auth.middleware import DEMO_EMAIL
+        from server.config import PUBLIC_DEMO_USER_ID
+        if user.get("email") == DEMO_EMAIL and PUBLIC_DEMO_USER_ID:
+            demo_conns = [dc for dc in _daemon_connections.values()
+                          if dc.user_id == PUBLIC_DEMO_USER_ID]
+            if demo_conns:
+                return {"connected": True, "active_node_id": None, "nodes": []}
         return {"connected": False, "active_node_id": None, "nodes": []}
     active = _active_node.get(user_id)
     if active not in user_conns:
@@ -313,7 +321,8 @@ def _get_conn(node_id: str = None, user_id: str = None) -> Optional[DaemonConnec
         for dc in _daemon_connections.values():
             if dc.user_id == user_id:
                 return dc
-    # Anonymous (no user_id): route to the public demo provider's active daemon.
+    # Fall back to the public demo provider's daemon. Serves anonymous /demo
+    # traffic and signed-in users with no daemon of their own (e.g. demo account).
     from server.config import PUBLIC_DEMO_USER_ID
     if PUBLIC_DEMO_USER_ID:
         demo_active = _active_node.get(PUBLIC_DEMO_USER_ID)

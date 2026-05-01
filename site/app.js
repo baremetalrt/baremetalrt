@@ -9,7 +9,9 @@ localStorage.removeItem('baremetalrt-theme');
 // ---------------------------------------------------------------------------
 
 let generating = false;
-let currentMode = 'tp2'; // TP is the live demo; 1 GPU coming soon
+// Default to solo GPU (pp1) — TP=2 is feature-flagged on cluster availability.
+// Persist across refreshes via localStorage.
+let currentMode = localStorage.getItem('baremetalrt-mode') || 'pp1';
 let cachedPing = null;
 let maintenance = false; // set to false to re-enable demo
 let conversationHistory = []; // [{role: "user"|"assistant", content: "..."}]

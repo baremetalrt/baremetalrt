@@ -116,31 +116,29 @@ async function refresh() {
     const info = document.getElementById('model-info'); // may not exist on all pages
 
     if (currentMode === 'pp1') {
-      // Solo / single GPU mode — talk to local daemon
-      const r = await fetch('/api/status');
+      // Solo / single GPU mode — orchestrator-routed via cluster
+      const r = await fetch('/api/cluster');
       const d = await r.json();
+      const soloNode = (d.nodes || []).find(n =>
+        n.status === 'ready' && n.engine && n.engine.endsWith('-tp1')
+      );
 
-      if (d.status === 'ready') {
+      if (soloNode) {
         badge.className = 'status-badge ready';
         badge.textContent = 'READY';
-        const model = formatEngineName(d.model);
-        const vramGb = d.vram_mb ? Math.round(d.vram_mb / 1024) + 'GB' : '';
+        const model = formatEngineName(soloNode.engine);
+        const vramGb = soloNode.vram_mb ? Math.round(soloNode.vram_mb / 1024) + 'GB' : '';
         if (info) info.textContent = (model || 'TensorRT-LLM') + ' · Solo · ' + vramGb;
-        renderNode('node0-info', { hostname: d.gpu || 'GPU', gpu: d.gpu, ip: 'localhost', vram_mb: d.vram_mb });
+        renderNode('node0-info', soloNode);
         document.getElementById('node0').classList.add('active');
         document.getElementById('mesh').classList.add('single-gpu');
         document.getElementById('prompt').disabled = false;
         document.getElementById('prompt').placeholder = 'Enter prompt...';
         document.getElementById('send-btn').disabled = generating;
-      } else if (d.status === 'error') {
-        badge.className = 'status-badge error';
-        badge.textContent = 'ERROR';
-        document.getElementById('node0-info').innerHTML = '<span class="wait">' + (d.error || 'Engine error') + '</span>';
-        document.getElementById('send-btn').disabled = true;
       } else {
         badge.className = 'status-badge starting';
-        badge.textContent = d.status ? d.status.toUpperCase() : 'LOADING';
-        document.getElementById('node0-info').innerHTML = '<span class="wait">Loading engine...</span>';
+        badge.textContent = 'WAITING';
+        document.getElementById('node0-info').innerHTML = '<span class="wait">Waiting for node...</span>';
         document.getElementById('send-btn').disabled = true;
         document.getElementById('prompt').disabled = true;
       }

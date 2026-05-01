@@ -20,7 +20,7 @@
   <a class="logo" href="/" style="text-decoration:none;" aria-label="BareMetalRT home">BareMetalRT</a>
   <span class="spacer"></span>
   <div class="mode-switcher" id="mode-switcher">
-    <button class="mode-btn" data-mode="1gpu" onclick="tryDemo()" title="Single GPU inference mode">1 GPU</button>
+    <button class="mode-btn" data-mode="pp1" onclick="setMode('pp1')" title="Single GPU inference mode">1 GPU</button>
     <button class="mode-btn active" data-mode="tp2" title="Two GPUs over TCP">2 GPU</button>
     <button class="mode-btn disabled" onclick="showModeToast('TP \u00b7 Home Mesh coming soon', event)" title="Coming soon" data-mode="tp">TP &middot; Home</button>
     <button class="mode-btn disabled" onclick="showModeToast('MoE \u00b7 Internet Mesh coming soon', event)" title="Coming soon" data-mode="moe">MoE &middot; Mesh</button>
@@ -212,9 +212,9 @@
     </div>
     <div class="welcome-pp" id="welcome-pp" style="display:none;">
       <div class="tagline">Single GPU Inference</div>
-      <div class="subtitle">Coming soon</div>
+      <div class="subtitle">TensorRT-LLM optimized CUDA kernels on a consumer GPU.</div>
       <div class="desc" style="white-space:normal; text-align:center; max-width:480px;">
-        Run any open-weight LLM on a single NVIDIA GPU with TensorRT-LLM's optimized CUDA kernels. Full data center speed, locally, at zero cost.
+        Run any open-weight LLM on a single NVIDIA GPU. Data center speed, zero cost.
       </div>
     </div>
     <div class="demo-limits">512 token context window &middot; ~400 word limit</div>
@@ -229,7 +229,7 @@
   </div>
 </div>
 
-<script src="/static/app.js?v=20"></script>
+<script src="/static/app.js?v=21"></script>
 <script>
 // Fetch banner state
 (async () => {
@@ -283,17 +283,6 @@ async function signOut() {
   window.location = '/';
 }
 
-async function tryDemo() {
-  try {
-    const r = await fetch('/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'demo@baremetalrt.ai', password: 'demo2026!' }),
-    });
-    if (r.ok) { window.location = '/app'; }
-    else { alert('Demo temporarily unavailable'); }
-  } catch(e) { alert('Demo temporarily unavailable'); }
-}
 </script>
 </body>
 </html>
